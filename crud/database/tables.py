@@ -2,7 +2,6 @@ import sqlalchemy
 
 from datetime import datetime
 
-
 metadata = sqlalchemy.MetaData()
 
 
@@ -10,31 +9,36 @@ users = sqlalchemy.Table(
     'users',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True, unique=True),
-    sqlalchemy.Column('email', sqlalchemy.String, primary_key=True),
-    sqlalchemy.Column('phone', sqlalchemy.String, primary_key=True),
-    sqlalchemy.Column('name', sqlalchemy.String),
-    sqlalchemy.Column('surname', sqlalchemy.String),
-    sqlalchemy.Column('second_name', sqlalchemy.String, nullable=True),
-    sqlalchemy.Column('hashed_password', sqlalchemy.String),
+    sqlalchemy.Column('email', sqlalchemy.String,
+                      primary_key=True, nullable=True),
+    sqlalchemy.Column('phone', sqlalchemy.String,
+                      primary_key=True, nullable=True),
+    sqlalchemy.Column('password', sqlalchemy.String, nullable=True),
     sqlalchemy.Column('created', sqlalchemy.DateTime, default=datetime.now()),
+    sqlalchemy.Column('is_active', sqlalchemy.Boolean, default=True),
 )
 
-community_name = sqlalchemy.Table(
-    'community_names',
+person = sqlalchemy.Table(
+    'person',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True, unique=True),
-    sqlalchemy.Column('value', sqlalchemy.Text),
-    sqlalchemy.Column('user', sqlalchemy.String,
+    sqlalchemy.Column('user_id', sqlalchemy.String,
                       sqlalchemy.ForeignKey('users.id'), nullable=True),
+    sqlalchemy.Column('name', sqlalchemy.String, nullable=True),
+    sqlalchemy.Column('surname', sqlalchemy.String, nullable=True),
 )
 
-base_community_settings = sqlalchemy.Table(
-    'base_community_settings',
+community_settings = sqlalchemy.Table(
+    'community_settings',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True, unique=True),
-    sqlalchemy.Column('current_name', sqlalchemy.String),
-    sqlalchemy.Column('quorum_counter', sqlalchemy.Integer),
-    sqlalchemy.Column('success_counter', sqlalchemy.String),
+    sqlalchemy.Column('suggested_name', sqlalchemy.String, nullable=True),
+    sqlalchemy.Column('selected_name', sqlalchemy.String, nullable=True),
+    sqlalchemy.Column('quorum_counter', sqlalchemy.Integer, nullable=True),
+    sqlalchemy.Column('success_counter', sqlalchemy.String, nullable=True),
+    sqlalchemy.Column('community', sqlalchemy.String,
+                      sqlalchemy.ForeignKey('community.id'),
+                      nullable=True),
 )
 
 community = sqlalchemy.Table(
@@ -42,54 +46,54 @@ community = sqlalchemy.Table(
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True, unique=True),
     sqlalchemy.Column('creator', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('users.id'), nullable=True),
+                      sqlalchemy.ForeignKey('person.id'), nullable=True),
+    sqlalchemy.Column('quorum_counter', sqlalchemy.JSON, default={}),
+    sqlalchemy.Column('success_counter', sqlalchemy.JSON, default={}),
+    sqlalchemy.Column('suggested_names', sqlalchemy.JSON, default={}),
 )
 
-relations_community_name = sqlalchemy.Table(
-    'relations_community_settings_names',
+relations_persons_community_settings = sqlalchemy.Table(
+    'relations_person_community_settings',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
     sqlalchemy.Column('from_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('base_community_settings.id'),
+                      sqlalchemy.ForeignKey('person.id'),
                       nullable=True),
     sqlalchemy.Column('to_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('community_names.id'),
+                      sqlalchemy.ForeignKey('community_settings.id'),
                       nullable=True),
     extend_existing=True,
 )
 
-relations_community_settings = sqlalchemy.Table(
-    'relations_community_settings',
-    metadata,
-    sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
-    sqlalchemy.Column('from_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('community.id'),
-                      nullable=True),
-    sqlalchemy.Column('to_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('base_community_settings.id'),
-                      nullable=True),
-    extend_existing=True,
-)
-
-relations_community_users = sqlalchemy.Table(
-    'relations_community_users',
+relations_community_persons = sqlalchemy.Table(
+    'relations_community_persons',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
     sqlalchemy.Column('from_id', sqlalchemy.String,
                       sqlalchemy.ForeignKey('community.id'), nullable=True),
     sqlalchemy.Column('to_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('users.id'), nullable=True),
+                      sqlalchemy.ForeignKey('person.id'), nullable=True),
     extend_existing=True,
 )
 
-relations_users_community_settings = sqlalchemy.Table(
-    'relations_users_community_settings',
+relations_person_delegates = sqlalchemy.Table(
+    'relations_person_delegates',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
     sqlalchemy.Column('from_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('users.id'), nullable=True),
+                      sqlalchemy.ForeignKey('person.id'), nullable=True),
     sqlalchemy.Column('to_id', sqlalchemy.String,
-                      sqlalchemy.ForeignKey('base_community_settings.id'),
-                      nullable=True),
+                      sqlalchemy.ForeignKey('person.id'), nullable=True),
+    extend_existing=True,
+)
+
+relations_person_observed_persons = sqlalchemy.Table(
+    'relations_person_observed_persons',
+    metadata,
+    sqlalchemy.Column('id', sqlalchemy.String, primary_key=True),
+    sqlalchemy.Column('from_id', sqlalchemy.String,
+                      sqlalchemy.ForeignKey('person.id'), nullable=True),
+    sqlalchemy.Column('to_id', sqlalchemy.String,
+                      sqlalchemy.ForeignKey('person.id'), nullable=True),
     extend_existing=True,
 )

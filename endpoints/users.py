@@ -1,24 +1,30 @@
-from typing import List
+from typing import Optional, List
 
-from endpoints.base import BaseRouter
+from fastapi import APIRouter, Depends
+
+from crud.datasource.interfaces.list import Filters, Pagination
+from crud.models.user import User
+from crud.users import UserDataStorage
+from endpoints.depends import get_user_datastorage
+
+router = APIRouter()
 
 
-class UserRouter(BaseRouter):
+@router.post('/list', response_model=List[User])
+async def get_users(
+        users: UserDataStorage = Depends(get_user_datastorage),
+        filters: Optional[Filters] = None,
+        pagination: Optional[Pagination] = None):
+    return await users.list()
 
-    async def list(self, filters: List[dict]):
-        return
 
-    async def get(self, id: str):
-        return
+@router.post('/', response_model=User)
+async def create(user: User,
+                 users: UserDataStorage = Depends(get_user_datastorage)):
+    return await users.create(user)
 
-    async def create(self):
-        return
 
-    async def update(self):
-        return
-
-    async def get_by_email(self, email: str):
-        return
-
-    async def get_by_phone(self, phone: str):
-        return
+@router.put('/', response_model=User)
+async def update(id: str, user: User,
+                 users: UserDataStorage = Depends(get_user_datastorage)):
+    return await users.update(id, user)
