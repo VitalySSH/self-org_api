@@ -1,10 +1,11 @@
+import json
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends
 
-from crud.datasource.interfaces.list import Filters, Pagination
+from crud.datasource.interfaces.list import Filters, Pagination, Orders
 from crud.models.user import User
-from crud.users import UserDataStorage
+from crud.datastorage.users import UserDataStorage
 from endpoints.depends import get_user_datastorage
 
 router = APIRouter()
@@ -14,8 +15,13 @@ router = APIRouter()
 async def get_users(
         users: UserDataStorage = Depends(get_user_datastorage),
         filters: Optional[Filters] = None,
+        orders: Optional[Orders] = None,
         pagination: Optional[Pagination] = None):
-    return await users.list()
+    return await users.list(
+        filters=filters,
+        orders=orders,
+        pagination=pagination,
+    )
 
 
 @router.post('/', response_model=User)

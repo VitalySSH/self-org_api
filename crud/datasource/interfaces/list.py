@@ -25,7 +25,6 @@ class Operations(Enum):
     IN = 'in'
     LIKE = 'like'
     ILIKE = 'ilike'
-    CONTAINS = 'contains'
     BETWEEN = 'between'
     NULL = 'null'
 
@@ -37,8 +36,8 @@ class Pagination(TypedDictNotTotal):
 
 class FilterItem(TypedDictNotTotal):
     field: str
-    operation: Operations
-    value: Union[str, List[str], bool]
+    op: Operations
+    val: Union[str, List[str], bool]
 
 
 class OrderItem(TypedDictNotTotal):
