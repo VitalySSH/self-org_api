@@ -11,7 +11,7 @@ from crud.datasource.interfaces.list import Filters, Operations, Orders, \
 
 class CrudOperationsMixin:
     MAX_PAGE_SIZE = 20
-    DEFAULT_INDEX = 1
+    DEFAULT_INDEX = 0
 
     def query_for_list(self, table: Table,
                        filters: Optional[Filters],
@@ -19,8 +19,7 @@ class CrudOperationsMixin:
                        pagination: Optional[Pagination]) -> Select:
         _limit = pagination.get('limit') if pagination else self.MAX_PAGE_SIZE
         _skip = pagination.get('skip') if pagination else self.DEFAULT_INDEX
-        query = table.select().limit(_limit)
-        query = query.offset(_skip)
+        query = table.select().limit(_limit).offset(_skip)
         if filters:
             query = self.__filtering(query, table.c, filters, orders)
 
@@ -65,7 +64,12 @@ class CrudOperationsMixin:
             elif operation == Operations.BETWEEN:
                 params.append(field.between(*json.loads(value)))
 
-        return query.filter(*params).order_by(*self.__get_order_params(orders))
+        if orders:
+            return query.filter(*params).order_by(
+                *self.__get_order_params(orders))
+        else:
+            query = query.filter(*params)
+            return query
 
     def __get_order_params(self, orders: Optional[Orders] = None) -> List[str]:
         params = []
