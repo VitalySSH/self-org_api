@@ -1,4 +1,3 @@
-import json
 from typing import Optional, List
 
 from fastapi import APIRouter, Depends
@@ -9,6 +8,20 @@ from crud.datastorage.users import UserDataStorage
 from endpoints.depends import get_user_datastorage
 
 router = APIRouter()
+
+
+@router.get('/{phone}', response_model=User)
+async def get_user_by_phone(
+        phone: str,
+        users: UserDataStorage = Depends(get_user_datastorage)):
+    return await users.get_by_phone(phone)
+
+
+@router.get('/{email}', response_model=User)
+async def get_user_by_email(
+        email: str,
+        users: UserDataStorage = Depends(get_user_datastorage)):
+    return await users.get_by_phone(email)
 
 
 @router.post('/list', response_model=List[User])

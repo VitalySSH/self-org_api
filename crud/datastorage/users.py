@@ -33,6 +33,10 @@ class UserDataStorage(DataStorageImpl):
     async def create(self, user: User) -> User:
         if not user.id:
             user.id = str(uuid4())
+        if user.password:
+            user.password = (
+                hash_password(user.password)
+                if type(user.password) != hash else user.password),
         params = user.dict()
         query = users.insert().values(**params)
         await self.database.execute(query)
@@ -40,26 +44,20 @@ class UserDataStorage(DataStorageImpl):
             user.password = '********'
         return User.parse_obj(user)
 
-    async def update(self, id: str, user_data: User) -> User:
-        user = User(
-            id=id,
-            email=user_data.email,
-            phone=user_data.phone,
-            password=(
-                hash_password(user_data.password) if
-                type(user_data.password) != hash else user_data.password),
-        )
-
+    async def update(self, id: str, user: User) -> User:
+        user.password = (
+                hash_password(user.password) if
+                type(user.password) != hash else user.password)
         query = users.update().where(users.c.id == id).values(**user.dict())
         await self.database.execute(query)
         return User.parse_obj(user)
 
     async def get_by_email(self, email: str) -> User:
-        query = users.select().where(users.c.email == email).first()
+        query = users.select().where(users.c.email == email)
         user = await self.database.fetch_one(query)
         return User.parse_obj(user) if user else None
 
     async def get_by_phone(self, phone: str) -> User:
-        query = users.select().where(users.c.phone == phone).first()
+        query = users.select().where(users.c.phone == phone)
         user = await self.database.fetch_one(query)
         return User.parse_obj(user) if user else None

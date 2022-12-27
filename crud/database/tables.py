@@ -14,7 +14,7 @@ users = sqlalchemy.Table(
     sqlalchemy.Column('is_active', sqlalchemy.Boolean, nullable=True),
 )
 
-person = sqlalchemy.Table(
+persons = sqlalchemy.Table(
     'person',
     metadata,
     sqlalchemy.Column('id', sqlalchemy.String, primary_key=True, unique=True),

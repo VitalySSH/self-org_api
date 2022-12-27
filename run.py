@@ -4,7 +4,7 @@ from starlette.middleware.cors import CORSMiddleware
 from crud.database.tables import *
 from core.config import HOST, PORT
 from crud.database.base import database, engine
-from endpoints import users
+from endpoints import users, persons
 
 app = FastAPI(title='Self-organization API')
 app.state.database = database
@@ -24,6 +24,7 @@ app.add_middleware(
 )
 
 app.include_router(users.router, prefix='/users', tags=['users'])
+app.include_router(persons.router, prefix='/persons', tags=['persons'])
 
 
 @app.on_event('startup')
