@@ -46,3 +46,9 @@ def get_user_router_data() -> IncludeRouter:
         prefix='/users',
         tags=['users'],
     )
+
+
+@user_router.post('/list')
+async def get_users(session: AsyncSession = Depends(get_async_session)):
+    users = await session.execute(select(user))
+    return [UserRead(**user_._mapping) for user_ in users.all()]
