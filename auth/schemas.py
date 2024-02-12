@@ -1,10 +1,9 @@
-import uuid
 from datetime import datetime
 
 from fastapi_users import schemas
 
 
-class UserRead(schemas.BaseUser[uuid.UUID]):
+class UserRead(schemas.BaseUser):
     first_name: str
     second_name: str
     created: datetime
