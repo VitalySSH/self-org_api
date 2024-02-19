@@ -17,6 +17,7 @@ DATABASE_CONNECTION_STR = 'postgresql+asyncpg://{}:{}@{}:{}/{}'.format(
 
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
 PASSWORD_SECRET_KEY = os.environ.get('PASSWORD_SECRET_KEY')
+JWT_LIFE_TIME_SECONDS = int(os.environ.get('JWT_LIFE_TIME_SECONDS'))
 
 HOST = str(os.environ.get('HOST', 'localhost'))
 PORT = int(os.environ.get('PORT', '8080'))
