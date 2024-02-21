@@ -24,7 +24,7 @@ class ReadUser(BaseUser):
     created: datetime
 
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 
 class CreateUser(BaseUser):

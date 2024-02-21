@@ -6,6 +6,6 @@ from datastorage.interfaces.list import Filters, Orders, Pagination
 
 @dataclass
 class ListData:
-    filters: Optional[Filters]
-    orders: Optional[Orders]
-    pagination: Optional[Pagination]
+    filters: Optional[Filters] = None
+    orders: Optional[Orders] = None
+    pagination: Optional[Pagination] = None

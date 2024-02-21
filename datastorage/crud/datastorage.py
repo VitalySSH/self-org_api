@@ -1,8 +1,8 @@
 import json
-from typing import Optional, Generic, Type, Dict, List, cast
+from typing import Optional, Generic, Type, Dict, List, cast, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, Select
 
 from datastorage.crud.dataclasses import ListData
 from datastorage.interfaces.base import DataStorage, T, S
@@ -62,6 +62,16 @@ class CRUDDataStorage(Generic[T], DataStorage):
         return obj
 
     async def list(self, list_data: ListData) -> List[T]:
+        query = self._query_for_list(list_data)
+        rows = await self._session.execute(query)
+        return cast(List[T], rows.scalars().all())
+
+    async def first(self, list_data: ListData) -> T:
+        query = self._query_for_list(list_data)
+        rows = await self._session.execute(query)
+        return rows.scalars().first()
+
+    def _query_for_list(self, list_data: ListData) -> Select[Any]:
         limit = (list_data.pagination or {}).get('limit') or self.MAX_PAGE_SIZE
         skip = (list_data.pagination or {}).get('skip') or self.DEFAULT_INDEX
         skip = (skip - 1) * limit
@@ -69,8 +79,8 @@ class CRUDDataStorage(Generic[T], DataStorage):
         orders = self._get_order_params(list_data.orders)
         query = select(self._model).filter(*filters)
         query.order_by(*orders).limit(limit).offset(skip)
-        rows = await self._session.execute(query)
-        return cast(List[T], rows.scalars().all())
+
+        return query
     
     def _get_filter_params(self, filters: Optional[Filters]) -> List:
         params = []

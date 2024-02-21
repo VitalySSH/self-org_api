@@ -1,6 +1,7 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
@@ -14,14 +15,23 @@ from datastorage.models import User
 user_router = APIRouter()
 
 
-@user_router.get("/get/{user_id}", response_model=ReadUser)
-async def create_user(
+@user_router.get(
+    "/get/{user_id}",
+    dependencies=[Depends(auth_service.get_current_user)],
+    response_model=ReadUser,
+)
+async def get_user(
     user_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadUser:
     user_ds = CRUDDataStorage(model=User, session=session)
     user = await user_ds.get(user_id)
-    return user_ds.obj_to_schema(obj=user, schema=ReadUser)
+    if user:
+        return user_ds.obj_to_schema(obj=user, schema=ReadUser)
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f'Пользователь с id: {user_id} не найден',
+    )
 
 
 @user_router.post('/list', response_model=List[ReadUser])

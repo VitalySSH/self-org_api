@@ -1,5 +1,7 @@
 import abc
-from typing import TypeVar, Optional, Dict, Type
+from typing import TypeVar, Optional, Dict, Type, List
+
+from datastorage.crud.dataclasses import ListData
 
 T = TypeVar('T')
 S = TypeVar('S')
@@ -23,4 +25,12 @@ class DataStorage(abc.ABC):
 
     @abc.abstractmethod
     async def create(self, obj: T) -> T:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def list(self, list_data: ListData) -> List[T]:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def first(self, list_data: ListData) -> T:
         raise NotImplementedError

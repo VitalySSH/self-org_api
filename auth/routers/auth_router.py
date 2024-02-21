@@ -4,8 +4,10 @@ from starlette import status
 
 from auth.auth import auth_service
 from auth.user.schemas import LoginUserSchema
+from datastorage.crud.dataclasses import ListData
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.base import get_async_session
+from datastorage.interfaces.list import Filter, Operation
 from datastorage.models import User
 
 auth_router = APIRouter()
@@ -17,7 +19,9 @@ async def login_for_access_token(
     session: AsyncSession = Depends(get_async_session),
 ):
     user_ds = CRUDDataStorage(model=User, session=session)
-    user = await user_ds.get(login_user.email)
+    filters = [Filter(field='email', op=Operation.EQ, val=login_user.email)]
+    list_data = ListData(filters=filters)
+    user = await user_ds.first(list_data)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

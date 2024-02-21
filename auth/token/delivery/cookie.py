@@ -7,6 +7,9 @@ from auth.interfaces import TokenDelivery
 from core import config
 
 
+COOKIE_TOKEN_NAME = 'selforgauth'
+
+
 class CookieTokenDelivery(TokenDelivery):
     _name: str
     _max_age: Optional[int]
@@ -18,7 +21,7 @@ class CookieTokenDelivery(TokenDelivery):
 
     def __init__(
         self,
-        name: str = 'selforgusersauth',
+        name: str = COOKIE_TOKEN_NAME,
         max_age: int = config.JWT_LIFE_TIME_SECONDS,
         path: str = '/',
         domain: Optional[str] = None,

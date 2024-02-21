@@ -43,5 +43,5 @@ class JWTTokenService(Token):
 
         return encoded_jwt
 
-    def _decode_token(self, token: str) -> str:
-        return jwt.decode(jwt=token, key=self._secret_key, algorithm=self._algorithm)
+    def decode_token(self, token: str) -> dict:
+        return jwt.decode(jwt=token, key=self._secret_key, algorithms=[self._algorithm])
