@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, EmailStr, constr
@@ -20,6 +21,7 @@ class BaseUser(BaseModel):
 
 class ReadUser(BaseUser):
     id: str
+    created: datetime
 
     class Config:
         orm_mode = True

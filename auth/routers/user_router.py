@@ -1,4 +1,4 @@
-from typing import cast, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,9 +19,9 @@ async def create_user(
     user_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadUser:
-    user_ds = CRUDDataStorage(model=User, read_schema=ReadUser, session=session)
+    user_ds = CRUDDataStorage(model=User, session=session)
     user = await user_ds.get(user_id)
-    return user_ds.obj_to_schema(obj=user)
+    return user_ds.obj_to_schema(obj=user, schema=ReadUser)
 
 
 @user_router.post('/list', response_model=List[ReadUser])
@@ -31,10 +31,10 @@ async def get_users(
     pagination: Optional[Pagination] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[ReadUser]:
-    user_ds = CRUDDataStorage(model=User, read_schema=ReadUser, session=session)
+    user_ds = CRUDDataStorage(model=User, session=session)
     list_data = ListData(filters=filters, orders=orders, pagination=pagination)
     users = await user_ds.list(list_data)
-    return users
+    return [user_ds.obj_to_schema(obj=user, schema=ReadUser) for user in users]
 
 
 @user_router.post("/create", response_model=ReadUser)
@@ -42,10 +42,10 @@ async def create_user(
     body: CreateUser,
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadUser:
-    user_ds = CRUDDataStorage(model=User, read_schema=ReadUser, session=session)
+    user_ds = CRUDDataStorage(model=User, session=session)
     body.password = auth_service.get_password_hash(body.password)
     mapping = {'password': 'hashed_password'}
     user_to_add = user_ds.schema_to_obj(schema=body, mapping=mapping)
     new_user = await user_ds.create(user_to_add)
-    return user_ds.obj_to_schema(obj=new_user)
+    return user_ds.obj_to_schema(obj=new_user, schema=ReadUser)
 

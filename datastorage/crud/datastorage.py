@@ -1,11 +1,11 @@
 import json
-from typing import Optional, Generic, Type, Dict, List
+from typing import Optional, Generic, Type, Dict, List, cast
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
+from sqlalchemy import select, func
 
 from datastorage.crud.dataclasses import ListData
-from datastorage.interfaces.base import DataStorage, T, S, RS
+from datastorage.interfaces.base import DataStorage, T, S
 from datastorage.interfaces.list import Filters, Operation, Orders, Direction
 from datastorage.utils import build_uuid
 
@@ -14,7 +14,6 @@ class CRUDDataStorage(Generic[T], DataStorage):
     """Выполняет CRUD-операция для модели."""
 
     _model: Type[T]
-    _read_schema: Type[RS]
     _session: AsyncSession
 
     MAX_PAGE_SIZE = 20
@@ -23,11 +22,9 @@ class CRUDDataStorage(Generic[T], DataStorage):
     def __init__(
             self,
             model: Type[T],
-            read_schema: Type[RS],
             session: AsyncSession,
     ) -> None:
         self._model = model
-        self._read_schema = read_schema
         self._session = session
 
     def schema_to_obj(self, schema: S,
@@ -41,15 +38,15 @@ class CRUDDataStorage(Generic[T], DataStorage):
             new_obj[key] = value
         return self._model(**new_obj)
 
-    def obj_to_schema(self, obj: T,
-                      mapping: Optional[Dict[str, str]] = None) -> RS:
+    def obj_to_schema(self, obj: T, schema: Type[S],
+                      mapping: Optional[Dict[str, str]] = None) -> S:
         new_schema = {}
         for key, value in obj.__dict__.items():
             if mapping:
                 new_key = mapping.get(key)
                 key = new_key if new_key else key
             new_schema[key] = value
-        return self._read_schema(**new_schema)
+        return schema(**new_schema)
 
     async def get(self, obj_id: str) -> Optional[T]:
         query = select(self._model).where(self._model.id == obj_id)
@@ -73,7 +70,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
         query = select(self._model).filter(*filters)
         query.order_by(*orders).limit(limit).offset(skip)
         rows = await self._session.execute(query)
-        return [self.obj_to_schema(row[0]) for row in rows.fetchall()]
+        return cast(List[T], rows.scalars().all())
     
     def _get_filter_params(self, filters: Optional[Filters]) -> List:
         params = []

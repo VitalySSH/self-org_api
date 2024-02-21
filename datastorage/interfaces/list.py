@@ -1,7 +1,5 @@
 from enum import Enum
-from typing import TypeVar, Union, List, TypedDict
-
-Object = TypeVar('Object')
+from typing import Union, List, TypedDict
 
 
 class TypedDictNotTotal(TypedDict, total=False):

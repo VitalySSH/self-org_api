@@ -3,7 +3,6 @@ from typing import TypeVar, Optional, Dict, Type
 
 T = TypeVar('T')
 S = TypeVar('S')
-RS = TypeVar('RS')
 
 
 class DataStorage(abc.ABC):
@@ -14,8 +13,8 @@ class DataStorage(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def obj_to_schema(self, obj: T,
-                      mapping: Optional[Dict[str, str]] = None) -> RS:
+    def obj_to_schema(self, obj: T, schema: Type[S],
+                      mapping: Optional[Dict[str, str]] = None) -> S:
         raise NotImplementedError
 
     @abc.abstractmethod
