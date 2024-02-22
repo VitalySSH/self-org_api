@@ -2,8 +2,6 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-# from auth.router import get_auth_router_data, get_register_router_data, get_user_router_data, \
-#     user_router
 from auth.routers.auth_router import auth_router
 from auth.routers.user_router import user_router
 from core.config import HOST, PORT

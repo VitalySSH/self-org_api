@@ -28,6 +28,14 @@ class DataStorage(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
+    async def update(self, obj_id: str, schema: S) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def delete(self, obj_id: str) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
     async def list(self, list_data: ListData) -> List[T]:
         raise NotImplementedError
 

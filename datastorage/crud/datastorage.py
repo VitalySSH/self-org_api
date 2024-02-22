@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
 
 from datastorage.crud.dataclasses import ListData
+from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.interfaces.base import DataStorage, T, S
 from datastorage.interfaces.list import Filters, Operation, Orders, Direction
+from datastorage.schemas.base import DirtyAttribute
 from datastorage.utils import build_uuid
 
 
@@ -29,7 +31,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     def schema_to_obj(self, schema: S,
                       mapping: Optional[Dict[str, str]] = None) -> T:
-        new_obj = {}
+        new_obj: Dict[str, Any] = {}
         for key in schema.__dict__.keys():
             value = getattr(schema, key, None)
             if mapping:
@@ -40,7 +42,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     def obj_to_schema(self, obj: T, schema: Type[S],
                       mapping: Optional[Dict[str, str]] = None) -> S:
-        new_schema = {}
+        new_schema: Dict[str, Any] = {}
         for key, value in obj.__dict__.items():
             if mapping:
                 new_key = mapping.get(key)
@@ -56,10 +58,32 @@ class CRUDDataStorage(Generic[T], DataStorage):
     async def create(self, obj: T) -> T:
         if not obj.id:
             obj.id = build_uuid()
-        async with self._session.begin():
-            self._session.add(obj)
-        await self._session.flush()
+        self._session.add(obj)
+        await self._session.commit()
         return obj
+
+    async def update(self, obj_id: str, schema: S) -> None:
+        db_obj = await self.get(obj_id)
+        if not db_obj:
+            raise CRUDNotFound(f'Object with id {obj_id} not found')
+        for key, value in schema.__dict__.items():
+            if type(value) == DirtyAttribute:
+                continue
+            if getattr(db_obj, key, False):
+                setattr(db_obj, key, value)
+        self._session.add(db_obj)
+        await self._session.commit()
+
+    async def delete(self, obj_id: str) -> None:
+        db_obj = await self.get(obj_id)
+        if not db_obj:
+            raise CRUDNotFound(f'Object with id {obj_id} not found')
+        try:
+            await self._session.delete(db_obj)
+            await self._session.commit()
+        except Exception as e:
+            await self._session.rollback()
+            raise CRUDConflict(f"Object with id {obj_id} can't be deleted: {e}")
 
     async def list(self, list_data: ListData) -> List[T]:
         query = self._query_for_list(list_data)

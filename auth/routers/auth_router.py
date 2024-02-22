@@ -27,8 +27,7 @@ async def login_for_access_token(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f'Пользователь с email: {login_user.email} не найден',
         )
-    if not auth_service.verify_password(
-            password=login_user.password, hashed_password=user.hashed_password):
+    if login_user.hashed_password != user.hashed_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Введён некорректный email или пароль',

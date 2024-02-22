@@ -1,15 +1,18 @@
 import re
 from datetime import datetime
+from typing import Union
 
 from fastapi import HTTPException
-from pydantic import BaseModel, field_validator, EmailStr, constr
+from pydantic import BaseModel, field_validator, EmailStr
+
+from datastorage.schemas.base import DirtyAttribute, dirty_attribute
 
 LETTER_MATCH_PATTERN = re.compile(r'^[а-яА-Яa-zA-Z\-]+$')
 
 
 class LoginUserSchema(BaseModel):
     email: EmailStr
-    password: constr(min_length=8)
+    hashed_password: str
 
 
 class BaseUser(BaseModel):
@@ -28,7 +31,7 @@ class ReadUser(BaseUser):
 
 
 class CreateUser(BaseUser):
-    password: constr(min_length=8)
+    hashed_password: str
 
     @classmethod
     @field_validator('name')
@@ -47,3 +50,15 @@ class CreateUser(BaseUser):
                 status_code=422, detail='Фамилия должна состоять только из букв'
             )
         return value
+
+
+class UpdateUser(CreateUser):
+    id: Union[str, DirtyAttribute] = dirty_attribute
+    firstname: Union[str, DirtyAttribute] = dirty_attribute
+    surname: Union[str, DirtyAttribute] = dirty_attribute
+    email: Union[EmailStr, DirtyAttribute] = dirty_attribute
+    is_active: Union[bool, DirtyAttribute] = dirty_attribute
+    hashed_password: Union[str, DirtyAttribute] = dirty_attribute
+
+    class Config:
+        arbitrary_types_allowed = True
