@@ -5,33 +5,12 @@ from typing import Union
 from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, EmailStr
 
-from datastorage.schemas.base import DirtyAttribute, dirty_attribute
+from datastorage.schemas.base import DirtyAttribute, dirty_attribute, BaseUpdateScheme
 
 LETTER_MATCH_PATTERN = re.compile(r'^[а-яА-Яa-zA-Z\-]+$')
 
 
-class LoginUserSchema(BaseModel):
-    email: EmailStr
-    hashed_password: str
-
-
-class BaseUser(BaseModel):
-    firstname: str
-    surname: str
-    email: EmailStr
-    is_active: bool
-
-
-class ReadUser(BaseUser):
-    id: str
-    created: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class CreateUser(BaseUser):
-    hashed_password: str
+class ValidateMixin:
 
     @classmethod
     @field_validator('name')
@@ -52,13 +31,28 @@ class CreateUser(BaseUser):
         return value
 
 
-class UpdateUser(CreateUser):
-    id: Union[str, DirtyAttribute] = dirty_attribute
+class BaseUser(BaseModel):
+    firstname: str
+    surname: str
+    email: EmailStr
+    is_active: bool
+
+
+class ReadUser(BaseUser):
+    id: str
+    created: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CreateUser(BaseUser, ValidateMixin):
+    hashed_password: str
+
+
+class UpdateUser(BaseUpdateScheme, ValidateMixin):
     firstname: Union[str, DirtyAttribute] = dirty_attribute
     surname: Union[str, DirtyAttribute] = dirty_attribute
     email: Union[EmailStr, DirtyAttribute] = dirty_attribute
     is_active: Union[bool, DirtyAttribute] = dirty_attribute
     hashed_password: Union[str, DirtyAttribute] = dirty_attribute
-
-    class Config:
-        arbitrary_types_allowed = True

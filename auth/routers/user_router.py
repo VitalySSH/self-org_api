@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -69,6 +69,7 @@ async def create_user(
 @user_router.patch(
     '/update/{user_id}',
     dependencies=[Depends(auth_service.get_current_user)],
+    status_code=204,
 )
 async def update_user(
     user_id: str,
@@ -88,6 +89,7 @@ async def update_user(
 @user_router.delete(
     '/update/{user_id}',
     dependencies=[Depends(auth_service.get_current_user)],
+    status_code=204,
 )
 async def delete_user(
     user_id: str,

@@ -34,6 +34,8 @@ class CRUDDataStorage(Generic[T], DataStorage):
         new_obj: Dict[str, Any] = {}
         for key in schema.__dict__.keys():
             value = getattr(schema, key, None)
+            if type(value) == DirtyAttribute:
+                continue
             if mapping:
                 new_key = mapping.get(key)
                 key = new_key if new_key else key
