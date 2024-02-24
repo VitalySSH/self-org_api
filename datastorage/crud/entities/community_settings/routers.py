@@ -8,7 +8,7 @@ from datastorage.crud.entities.community_settings.schemas import (
     ReadCS, CreateCS
 )
 from datastorage.database.base import get_async_session
-from datastorage.models import CommunitySettings
+from datastorage.models import CommunitySettings, User
 
 cs_router = APIRouter()
 
