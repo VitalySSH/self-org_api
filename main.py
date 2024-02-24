@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.routers.auth_router import auth_router
 from auth.routers.user_router import user_router
 from core.config import HOST, PORT
-
+from datastorage.crud.entities.community_settings.routers import cs_router
 
 app = FastAPI(title='Self-organization API')
 
@@ -24,6 +24,7 @@ app.add_middleware(
 
 app.include_router(auth_router, prefix='/auth', tags=['auth'])
 app.include_router(user_router, prefix='/user', tags=['user'])
+app.include_router(cs_router, prefix='/community_settings', tags=['community_settings'])
 
 
 if __name__ == '__main__':

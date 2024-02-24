@@ -1,9 +1,7 @@
 from enum import Enum
-from typing import Union, List, TypedDict
+from typing import Union, List, Optional
 
-
-class TypedDictNotTotal(TypedDict, total=False):
-    pass
+from pydantic import BaseModel
 
 
 class Direction(Enum):
@@ -27,21 +25,27 @@ class Operation(Enum):
     NULL = 'null'
 
 
-class Pagination(TypedDictNotTotal):
+class Pagination(BaseModel):
     skip: int
     limit: int
 
 
-class Filter(TypedDictNotTotal):
+class Filter(BaseModel):
     field: str
     op: Operation
     val: Union[str, List[str], bool, int]
 
 
-class Order(TypedDictNotTotal):
+class Order(BaseModel):
     field: str
     direction: Direction
 
 
 Filters = List[Filter]
 Orders = List[Order]
+
+
+class ListData (BaseModel):
+    filters: Optional[Filters] = None
+    orders: Optional[Orders] = None
+    pagination: Optional[Pagination] = None

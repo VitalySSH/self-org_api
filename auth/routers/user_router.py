@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
 from auth.user.schemas import ReadUser, CreateUser, UpdateUser
-from datastorage.crud.dataclasses import ListData
+from datastorage.schemas.list import ListData
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.database.base import get_async_session
-from datastorage.interfaces.list import Filters, Orders, Pagination
+from datastorage.schemas.list import Filters, Orders, Pagination
 from datastorage.models import User
 
 user_router = APIRouter()
@@ -26,7 +26,8 @@ async def get_user(
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadUser:
     user_ds = CRUDDataStorage(model=User, session=session)
-    user: User = await user_ds.get(user_id)
+    fields = ["firstname", "surname"]
+    user: User = await user_ds.get(obj_id=user_id, fields=fields)
     if user:
         return user_ds.obj_to_schema(obj=user, schema=ReadUser)
     raise HTTPException(

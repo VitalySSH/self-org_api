@@ -4,10 +4,10 @@ from typing import Optional, Generic, Type, Dict, List, cast, Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
 
-from datastorage.crud.dataclasses import ListData
+from datastorage.schemas.list import ListData
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.interfaces.base import DataStorage, T, S
-from datastorage.interfaces.list import Filters, Operation, Orders, Direction
+from datastorage.schemas.list import Filters, Operation, Orders, Direction
 from datastorage.schemas.base import DirtyAttribute
 from datastorage.utils import build_uuid
 
@@ -62,6 +62,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
             obj.id = build_uuid()
         self._session.add(obj)
         await self._session.commit()
+        await self._session.refresh(obj)
         return obj
 
     async def update(self, obj_id: str, schema: S) -> None:
@@ -75,6 +76,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
                 setattr(db_obj, key, value)
         self._session.add(db_obj)
         await self._session.commit()
+        await self._session.refresh(db_obj)
 
     async def delete(self, obj_id: str) -> None:
         db_obj = await self.get(obj_id)
@@ -83,6 +85,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
         try:
             await self._session.delete(db_obj)
             await self._session.commit()
+            await self._session.refresh(db_obj)
         except Exception as e:
             await self._session.rollback()
             raise CRUDConflict(f"Object with id {obj_id} can't be deleted: {e}")
@@ -98,8 +101,8 @@ class CRUDDataStorage(Generic[T], DataStorage):
         return rows.scalars().first()
 
     def _query_for_list(self, list_data: ListData) -> Select[Any]:
-        limit = (list_data.pagination or {}).get('limit') or self.MAX_PAGE_SIZE
-        skip = (list_data.pagination or {}).get('skip') or self.DEFAULT_INDEX
+        limit = list_data.pagination.limit if list_data.pagination else self.MAX_PAGE_SIZE
+        skip = list_data.pagination.skip if list_data.pagination else self.DEFAULT_INDEX
         skip = (skip - 1) * limit
         filters = self._get_filter_params(list_data.filters)
         orders = self._get_order_params(list_data.orders)
@@ -111,9 +114,9 @@ class CRUDDataStorage(Generic[T], DataStorage):
     def _get_filter_params(self, filters: Optional[Filters]) -> List:
         params = []
         for _filter in filters or []:
-            field = getattr(self._model, _filter.get('field'))
-            operation = _filter.get('op')
-            value = _filter.get('val')
+            field = getattr(self._model, _filter.field)
+            operation = _filter.op
+            value = _filter.val
             if operation == Operation.EQ:
                 params.append(field == value)
             elif operation == Operation.NOT_EQ:
@@ -146,11 +149,9 @@ class CRUDDataStorage(Generic[T], DataStorage):
     def _get_order_params(self, orders: Optional[Orders] = None) -> List:
         params = []
         for order in orders or []:
-            field_name = order.get('field')
-            direction = order.get('direction')
-            field = getattr(self._model, field_name, None)
+            field = getattr(self._model, order.field, None)
             if field:
-                if direction == Direction.DESC:
+                if order.direction == Direction.DESC:
                     params.append(field.desc())
                 else:
                     params.append(field.asc())

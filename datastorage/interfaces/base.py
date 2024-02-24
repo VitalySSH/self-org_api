@@ -1,7 +1,7 @@
 import abc
 from typing import TypeVar, Optional, Dict, Type, List
 
-from datastorage.crud.dataclasses import ListData
+from datastorage.schemas.list import ListData
 
 T = TypeVar('T')
 S = TypeVar('S')
