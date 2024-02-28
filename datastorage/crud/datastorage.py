@@ -1,6 +1,7 @@
 import json
 from typing import Optional, Generic, Type, Dict, List, cast, Any
 
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
 
@@ -29,33 +30,66 @@ class CRUDDataStorage(Generic[T], DataStorage):
         self._model = model
         self._session = session
 
-    def schema_to_obj(self, schema: S,
-                      mapping: Optional[Dict[str, str]] = None) -> T:
+    def schema_to_obj(self, schema: S) -> T:
         new_obj: Dict[str, Any] = {}
-        for key in schema.__dict__.keys():
+        for key in type(schema).__dict__.keys():
+            if key[0] == '_':
+                continue
+
             value = getattr(schema, key, None)
             if type(value) == DirtyAttribute:
                 continue
-            if mapping:
-                new_key = mapping.get(key)
-                key = new_key if new_key else key
+
             new_obj[key] = value
+
         return self._model(**new_obj)
 
-    def obj_to_schema(self, obj: T, schema: Type[S],
-                      mapping: Optional[Dict[str, str]] = None) -> S:
+    @staticmethod
+    def obj_to_schema(obj: T, schema: Type[S]) -> S:
         new_schema: Dict[str, Any] = {}
-        for key, value in obj.__dict__.items():
-            if mapping:
-                new_key = mapping.get(key)
-                key = new_key if new_key else key
-            new_schema[key] = value
+        for key in type(obj).__dict__.keys():
+            if key[0] == '_':
+                continue
+
+            if schema.model_fields.get(key):
+                new_schema[key] = getattr(obj, key, None)
+
         return schema(**new_schema)
 
+    def obj_with_relations_to_schema(self, obj: T, schema: Type[S],
+                                     recursion_level: Optional[int] = None) -> S:
+        if recursion_level is None:
+            recursion_level = 1
+        if recursion_level > 10:
+            raise Exception('Ошибка сериализации. '
+                            'Схемы объектов циклически ссылаются друг на друга')
+        new_schema: Dict[str, Any] = {}
+        for key, value in self.__update_obj_data_with_relations(obj).items():
+            if schema.model_fields.get(key):
+                args = schema.model_fields.get(key).annotation.__dict__.get('__args__') or []
+                if args and issubclass(args[0], BaseModel):
+                    value = self.obj_with_relations_to_schema(
+                        obj=value, schema=args[0], recursion_level=recursion_level + 1)
+                new_schema[key] = value
+        return schema(**new_schema)
+
+    @staticmethod
+    def __update_obj_data_with_relations(obj: T) -> dict:
+        new_obj_data = {}
+        for key in type(obj).__dict__.keys():
+            if key[0] == '_':
+                continue
+            field_parts = key.rsplit('_', 1)
+            if len(field_parts) > 1 and field_parts[-1] == 'rel':
+                new_obj_data[field_parts[0]] = getattr(obj, key, None)
+            else:
+                if new_obj_data.get(key) is None:
+                    new_obj_data[key] = getattr(obj, key, None)
+
+        return new_obj_data
+
     async def get(self, obj_id: str) -> Optional[T]:
-        query = select(self._model).where(self._model.id == obj_id)
-        rows = await self._session.execute(query)
-        return rows.scalars().first()
+        return await self._session.get(entity=self._model, ident=obj_id)
 
     async def create(self, obj: T) -> T:
         if not obj.id:

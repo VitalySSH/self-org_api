@@ -8,7 +8,7 @@ from datastorage.crud.entities.community_settings.schemas import (
     ReadCS, CreateCS
 )
 from datastorage.database.base import get_async_session
-from datastorage.models import CommunitySettings, User
+from datastorage.models import CommunitySettings
 
 cs_router = APIRouter()
 
@@ -25,7 +25,7 @@ async def get_community_settings(
     cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
     cs: CommunitySettings = await cs_ds.get(cs_id)
     if cs:
-        return cs_ds.obj_to_schema(obj=cs, schema=ReadCS)
+        return cs_ds.obj_with_relations_to_schema(obj=cs, schema=ReadCS)
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f'Пользователь с id: {cs_id} не найден',

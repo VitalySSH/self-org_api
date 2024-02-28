@@ -26,8 +26,7 @@ async def get_user(
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadUser:
     user_ds = CRUDDataStorage(model=User, session=session)
-    fields = ["firstname", "surname"]
-    user: User = await user_ds.get(obj_id=user_id, fields=fields)
+    user: User = await user_ds.get(user_id)
     if user:
         return user_ds.obj_to_schema(obj=user, schema=ReadUser)
     raise HTTPException(

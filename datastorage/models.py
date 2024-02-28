@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from sqlalchemy import Column, String, ForeignKey, TIMESTAMP, SmallInteger, Boolean
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.utils import build_uuid
@@ -28,6 +28,7 @@ class CommunitySettings(Base):
 
     id = Column(String, primary_key=True, default=build_uuid)
     user = Column(String, ForeignKey(f'{TableName.USER}.id'), nullable=True, index=True)
+    user_rel = relationship(argument=User, join_depth=1, load_on_pending=True)
     community = Column(String, ForeignKey('community.id'), nullable=True, index=True)
     name = Column(String, nullable=False)
     quorum = Column(SmallInteger, nullable=False)
