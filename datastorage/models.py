@@ -28,7 +28,7 @@ class CommunitySettings(Base):
 
     id = Column(String, primary_key=True, default=build_uuid)
     user = Column(String, ForeignKey(f'{TableName.USER}.id'), nullable=True, index=True)
-    user_rel = relationship(argument=User, join_depth=1, load_on_pending=True)
+    user_rel = relationship(argument=User, join_depth=1)
     community = Column(String, ForeignKey('community.id'), nullable=True, index=True)
     name = Column(String, nullable=False)
     quorum = Column(SmallInteger, nullable=False)

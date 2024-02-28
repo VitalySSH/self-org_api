@@ -40,7 +40,7 @@ async def get_user(
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=List[ReadUser],
 )
-async def get_users(
+async def list_users(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
@@ -103,4 +103,3 @@ async def delete_user(
             status_code=e.status_code,
             detail=e.description,
         )
-

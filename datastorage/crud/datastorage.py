@@ -2,6 +2,7 @@ import json
 from typing import Optional, Generic, Type, Dict, List, cast, Any
 
 from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
 
@@ -32,10 +33,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     def schema_to_obj(self, schema: S) -> T:
         new_obj: Dict[str, Any] = {}
-        for key in type(schema).__dict__.keys():
-            if key[0] == '_':
-                continue
-
+        for key in type(schema).model_fields.keys():
             value = getattr(schema, key, None)
             if type(value) == DirtyAttribute:
                 continue
@@ -94,9 +92,12 @@ class CRUDDataStorage(Generic[T], DataStorage):
     async def create(self, obj: T) -> T:
         if not obj.id:
             obj.id = build_uuid()
-        self._session.add(obj)
-        await self._session.commit()
-        await self._session.refresh(obj)
+        try:
+            self._session.add(obj)
+            await self._session.commit()
+            await self._session.refresh(obj)
+        except IntegrityError as e:
+            raise CRUDConflict(f'Объект модели {self._model.__name__} не может быть создан: {e}')
         return obj
 
     async def update(self, obj_id: str, schema: S) -> None:

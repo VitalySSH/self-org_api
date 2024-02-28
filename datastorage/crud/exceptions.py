@@ -20,4 +20,4 @@ class CRUDNotFound(CRUDException):
 
 class CRUDConflict(CRUDException):
     status_code: int = 409
-    title: str = 'Объект не может быть удалён или изменён'
+    title: str = 'Объект не может быть создан, удалён или изменён'
