@@ -22,6 +22,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     MAX_PAGE_SIZE = 20
     DEFAULT_INDEX = 1
+    __NOT_FOUND_ATTR = 'not_found_attr'
 
     def __init__(
             self,
@@ -64,10 +65,18 @@ class CRUDDataStorage(Generic[T], DataStorage):
         new_schema: Dict[str, Any] = {}
         for key, value in self.__update_obj_data_with_relations(obj).items():
             if schema.model_fields.get(key):
-                args = schema.model_fields.get(key).annotation.__dict__.get('__args__') or []
-                if args and issubclass(args[0], BaseModel):
+                field_type = schema.model_fields.get(key).annotation
+                try:
+                    is_relation = issubclass(field_type, BaseModel)
+                except TypeError:
+                    args = field_type.__dict__.get('__args__') or []
+                    is_relation = args and issubclass(args[0], BaseModel)
+                    if is_relation:
+                        field_type = args[0]
+                if is_relation:
                     value = self.obj_with_relations_to_schema(
-                        obj=value, schema=args[0], recursion_level=recursion_level + 1)
+                        obj=value, schema=field_type, recursion_level=recursion_level + 1)
+
                 new_schema[key] = value
         return schema(**new_schema)
 
@@ -107,7 +116,8 @@ class CRUDDataStorage(Generic[T], DataStorage):
         for key, value in schema.__dict__.items():
             if type(value) == DirtyAttribute:
                 continue
-            if getattr(db_obj, key, False):
+            if self.__class__.__NOT_FOUND_ATTR != getattr(
+                    db_obj, key, self.__class__.__NOT_FOUND_ATTR):
                 setattr(db_obj, key, value)
         self._session.add(db_obj)
         await self._session.commit()

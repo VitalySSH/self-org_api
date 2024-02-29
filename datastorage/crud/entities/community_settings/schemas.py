@@ -15,6 +15,7 @@ class BaseCS(BaseModel):
 class ReadCS(BaseCS):
     id: str
     user: Optional[ReadUser]
+    community: Optional[str]
 
     class Config:
         from_attributes = True

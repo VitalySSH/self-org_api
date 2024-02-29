@@ -28,7 +28,7 @@ class CommunitySettings(Base):
 
     id = Column(String, primary_key=True, default=build_uuid)
     user = Column(String, ForeignKey(f'{TableName.USER}.id'), nullable=True, index=True)
-    user_rel = relationship(argument=User, join_depth=1)
+    user_rel = relationship(argument=User, join_depth=1, lazy=False)
     community = Column(String, ForeignKey('community.id'), nullable=True, index=True)
     name = Column(String, nullable=False)
     quorum = Column(SmallInteger, nullable=False)
@@ -41,5 +41,9 @@ class Community(Base):
     id = Column(String, primary_key=True, default=build_uuid)
     main_settings = Column(String, ForeignKey(
         f'{TableName.COMMUNITY_SETTINGS}.id'), nullable=False, index=True)
+    main_settings_rel = relationship(
+        argument=CommunitySettings, join_depth=1, lazy=False,
+        foreign_keys=f'{TableName.COMMUNITY}.c.main_settings')
     creator = Column(String, ForeignKey(f'{TableName.USER}.id'), nullable=False, index=True)
+    creator_rel = relationship(argument=User, join_depth=1, lazy=False)
     created = Column(TIMESTAMP, default=datetime.now)
