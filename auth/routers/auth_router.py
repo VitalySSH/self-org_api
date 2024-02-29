@@ -4,11 +4,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from auth.auth import auth_service
-from datastorage.schemas.list import ListData
+from datastorage.crud.schemas.list import ListData, Filter, Operation
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.base import get_async_session
-from datastorage.schemas.list import Filter, Operation
-from datastorage.models import User
+from datastorage.database.models import User
 
 auth_router = APIRouter()
 

@@ -8,7 +8,7 @@ from starlette.status import HTTP_401_UNAUTHORIZED
 from auth.interfaces import Auth, Token, TokenDelivery
 from auth.token.delivery.cookie import COOKIE_TOKEN_NAME
 from datastorage.database.base import get_async_session
-from datastorage.models import User
+from datastorage.database.models import User
 
 DS = TypeVar('DS')
 

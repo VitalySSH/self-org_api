@@ -6,11 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
 
-from datastorage.schemas.list import ListData
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
-from datastorage.interfaces.base import DataStorage, T, S
-from datastorage.schemas.list import Filters, Operation, Orders, Direction
-from datastorage.schemas.base import DirtyAttribute
+from datastorage.crud.interfaces.base import DataStorage, T, S
+from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData
+from datastorage.crud.schemas.base import DirtyAttribute
 from datastorage.utils import build_uuid
 
 
@@ -24,11 +23,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
     DEFAULT_INDEX = 1
     __NOT_FOUND_ATTR = 'not_found_attr'
 
-    def __init__(
-            self,
-            model: Type[T],
-            session: AsyncSession,
-    ) -> None:
+    def __init__(self, model: Type[T], session: AsyncSession) -> None:
         self._model = model
         self._session = session
 

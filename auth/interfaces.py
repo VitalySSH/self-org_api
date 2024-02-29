@@ -3,7 +3,7 @@ from fastapi import Response, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datastorage.database.base import get_async_session
-from datastorage.models import User
+from datastorage.database.models import User
 
 
 class TokenDelivery(abc.ABC):

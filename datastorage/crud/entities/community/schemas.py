@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 from auth.user.schemas import ReadUser
 from datastorage.crud.entities.community_settings.schemas import ReadCS
-from datastorage.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
+from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
 
 
 class ReadCommunity(BaseModel):

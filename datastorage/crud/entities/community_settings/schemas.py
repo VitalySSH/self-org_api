@@ -3,7 +3,7 @@ from typing import Optional, Union
 from pydantic import BaseModel
 
 from auth.user.schemas import ReadUser
-from datastorage.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
+from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
 
 
 class BaseCS(BaseModel):

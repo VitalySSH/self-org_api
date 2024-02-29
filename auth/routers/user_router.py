@@ -6,12 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
 from auth.user.schemas import ReadUser, CreateUser, UpdateUser
-from datastorage.schemas.list import ListData
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.database.base import get_async_session
-from datastorage.schemas.list import Filters, Orders, Pagination
-from datastorage.models import User
+from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.database.models import User
 
 user_router = APIRouter()
 

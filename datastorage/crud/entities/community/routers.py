@@ -10,8 +10,8 @@ from datastorage.crud.entities.community.schemas import ReadCommunity, CreateCom
     UpdateCommunity
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
-from datastorage.models import Community
-from datastorage.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.database.models import Community
+from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
 
 community_router = APIRouter()
 

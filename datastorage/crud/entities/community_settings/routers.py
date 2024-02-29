@@ -11,8 +11,8 @@ from datastorage.crud.entities.community_settings.schemas import (
 )
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
-from datastorage.models import CommunitySettings
-from datastorage.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.database.models import CommunitySettings
+from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
 
 cs_router = APIRouter()
 

@@ -5,7 +5,7 @@ from typing import Union
 from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, EmailStr
 
-from datastorage.schemas.base import DirtyAttribute, dirty_attribute, BaseUpdateScheme
+from datastorage.crud.schemas.base import DirtyAttribute, dirty_attribute, BaseUpdateScheme
 
 LETTER_MATCH_PATTERN = re.compile(r'^[а-яА-Яa-zA-Z\-]+$')
 
