@@ -66,7 +66,7 @@ async def create_community_settings(
     cs_to_add = cs_ds.schema_to_obj(schema=body)
     try:
         new_cs = await cs_ds.create(cs_to_add)
-        return cs_ds.obj_to_schema(obj=new_cs, schema=ReadCS)
+        return cs_ds.obj_with_relations_to_schema(obj=new_cs, schema=ReadCS)
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,

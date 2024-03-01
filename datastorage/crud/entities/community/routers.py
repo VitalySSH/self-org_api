@@ -2,7 +2,6 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
 
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
