@@ -1,8 +1,10 @@
-from typing import Optional, Union
+from typing import Optional, Union, List
 
 from pydantic import BaseModel
 
-from auth.user.schemas import ReadUser
+
+from datastorage.crud.entities.initiative_category.schemas import ReadIC
+from datastorage.crud.entities.user.schemas import ReadUser
 from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
 
 
@@ -16,6 +18,7 @@ class ReadCS(BaseCS):
     id: str
     user: Optional[ReadUser]
     community: Optional[str]
+    init_categories: List[ReadIC]
 
     class Config:
         from_attributes = True

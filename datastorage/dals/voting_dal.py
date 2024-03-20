@@ -1,6 +1,6 @@
-from typing import List, cast
+from typing import List
 
-from sqlalchemy import select, func, distinct
+from sqlalchemy import select, func
 
 from datastorage.dals.base import DAL
 from datastorage.database.models import CommunitySettings
@@ -21,21 +21,22 @@ class VotingDAL(DAL):
         query = select(CommunitySettings.name).distinct()
         query.filter(CommunitySettings.community == community_id)
         query.group_by(CommunitySettings.name)
-        rows = await self._session.execute(query)
+        rows = await self._session.scalars(query)
 
-        return cast(List[str], rows.scalars().all())
+        return list(rows)
 
     async def get_voting_data_by_names(self, community_id) -> List[PercentByName]:
         query = select(func.count()).select_from(CommunitySettings)
         query.filter(CommunitySettings.community == community_id)
-        all_rows = await self._session.execute(query)
-        total_count = all_rows.scalars().first()
+        all_rows = await self._session.scalars(query)
+        data = list(all_rows)
+        total_count = data[0] if data else 0
         query = (
             select(CommunitySettings.name, func.count(CommunitySettings.name).label('count'))
             .filter(CommunitySettings.community == community_id)
             .group_by(CommunitySettings.name)
         )
-        rows = await self._session.execute(query)
+        rows = await self._session.scalars(query)
 
         return [PercentByName(name=row[0], percent=int((row[1]/total_count) * 100))
-                for row in rows.all()]
+                for row in list(rows)]

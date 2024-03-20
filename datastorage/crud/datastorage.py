@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Generic, Type, Dict, List, cast, Any
+from typing import Optional, Generic, Type, Dict, List, Any
 
 from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
@@ -69,8 +69,16 @@ class CRUDDataStorage(Generic[T], DataStorage):
                     if is_relation:
                         field_type = args[0]
                 if is_relation:
-                    value = self.obj_with_relations_to_schema(
-                        obj=value, schema=field_type, recursion_level=recursion_level + 1)
+                    if isinstance(value, list):
+                        value = [
+                            self.obj_with_relations_to_schema(
+                                obj=sub_obj, schema=field_type,
+                                recursion_level=recursion_level + 1)
+                            for sub_obj in value
+                        ]
+                    else:
+                        value = self.obj_with_relations_to_schema(
+                            obj=value, schema=field_type, recursion_level=recursion_level + 1)
 
                 new_schema[key] = value
         return schema(**new_schema)
@@ -132,13 +140,14 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     async def list(self, list_data: ListData) -> List[T]:
         query = self._query_for_list(list_data)
-        rows = await self._session.execute(query)
-        return cast(List[T], rows.scalars().all())
+        rows = await self._session.scalars(query)
+        return list(rows)
 
-    async def first(self, list_data: ListData) -> T:
+    async def first(self, list_data: ListData) -> Optional[T]:
         query = self._query_for_list(list_data)
-        rows = await self._session.execute(query)
-        return rows.scalars().first()
+        rows = await self._session.scalars(query)
+        data = list(rows)
+        return data[0] if data else None
 
     def _query_for_list(self, list_data: ListData) -> Select[Any]:
         limit = list_data.pagination.limit if list_data.pagination else self.MAX_PAGE_SIZE

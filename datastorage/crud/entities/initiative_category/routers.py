@@ -6,67 +6,65 @@ from starlette import status
 
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.crud.entities.community_settings.schemas import (
-    ReadCS, CreateCS, UpdateCS
-)
+from datastorage.crud.entities.initiative_category.schemas import ReadIC, CreateIC, UpdateIC
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
-from datastorage.database.models import CommunitySettings
+from datastorage.database.models import InitiativeCategory
 from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
 
-cs_router = APIRouter()
+ic_router = APIRouter()
 
 
-@cs_router.get(
-    '/get/{community_settings_id}',
+@ic_router.get(
+    '/get/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCS,
+    response_model=ReadIC,
 )
-async def get_community_settings(
-    cs_id: str,
+async def get_initiative_category(
+    ic_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCS:
-    cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
-    cs: CommunitySettings = await cs_ds.get(cs_id)
-    if cs:
-        return cs_ds.obj_with_relations_to_schema(obj=cs, schema=ReadCS)
+) -> ReadIC:
+    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ic: InitiativeCategory = await ic_ds.get(ic_id)
+    if ic:
+        return ic_ds.obj_with_relations_to_schema(obj=ic, schema=ReadIC)
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail=f'Настройки сообщества с id: {cs_id} не найдены',
+        detail=f'Настройки сообщества с id: {ic_id} не найдены',
     )
 
 
-@cs_router.post(
+@ic_router.post(
     '/list',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=List[ReadCS],
+    response_model=List[ReadIC],
 )
-async def list_community_settings(
+async def list_initiative_category(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
     session: AsyncSession = Depends(get_async_session),
-) -> List[ReadCS]:
-    cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
+) -> List[ReadIC]:
+    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
     list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    cs_list: List[CommunitySettings] = await cs_ds.list(list_data)
-    return [cs_ds.obj_with_relations_to_schema(obj=cs, schema=ReadCS) for cs in cs_list]
+    ic_list: List[InitiativeCategory] = await ic_ds.list(list_data)
+    return [ic_ds.obj_with_relations_to_schema(obj=ic, schema=ReadIC) for ic in ic_list]
 
 
-@cs_router.post(
+@ic_router.post(
     '/create',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCS,
+    response_model=ReadIC,
 )
-async def create_community_settings(
-    body: CreateCS,
+async def create_initiative_category(
+    body: CreateIC,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCS:
-    cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
-    cs_to_add: CommunitySettings = cs_ds.schema_to_obj(schema=body)
+) -> ReadIC:
+    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ic_to_add: InitiativeCategory = ic_ds.schema_to_obj(schema=body)
     try:
-        new_cs = await cs_ds.create(cs_to_add)
-        return cs_ds.obj_with_relations_to_schema(obj=new_cs, schema=ReadCS)
+        new_ic = await ic_ds.create(ic_to_add)
+        return ic_ds.obj_with_relations_to_schema(obj=new_ic, schema=ReadIC)
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -74,19 +72,19 @@ async def create_community_settings(
         )
 
 
-@cs_router.patch(
-    '/update/{community_settings_id}',
+@ic_router.patch(
+    '/update/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
-async def update_community_settings(
-    cs_id: str,
-    body: UpdateCS,
+async def update_initiative_category(
+    ic_id: str,
+    body: UpdateIC,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
+    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
     try:
-        await cs_ds.update(obj_id=cs_id, schema=body)
+        await ic_ds.update(obj_id=ic_id, schema=body)
     except CRUDNotFound as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -94,18 +92,18 @@ async def update_community_settings(
         )
 
 
-@cs_router.delete(
-    '/update/{community_settings_id}',
+@ic_router.delete(
+    '/update/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
-async def delete_community_settings(
-    cs_id: str,
+async def delete_initiative_category(
+    ic_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
+    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
     try:
-        await cs_ds.delete(cs_id)
+        await ic_ds.delete(ic_id)
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,

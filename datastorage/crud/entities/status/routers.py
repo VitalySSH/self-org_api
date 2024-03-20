@@ -6,67 +6,68 @@ from starlette.status import HTTP_404_NOT_FOUND
 
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.crud.entities.community.schemas import ReadCommunity, CreateCommunity, \
-    UpdateCommunity
+from datastorage.crud.entities.community.schemas import UpdateCommunity
+from datastorage.crud.entities.status.schemas import ReadStatus, CreateStatus
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
-from datastorage.database.models import Community
+from datastorage.database.models import Status
 from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
 
-community_router = APIRouter()
+
+status_router = APIRouter()
 
 
-@community_router.get(
-    '/get/{community_id}',
+@status_router.get(
+    '/get/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCommunity,
+    response_model=ReadStatus,
 )
-async def get_community(
-    community_id: str,
+async def get_status(
+    status_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCommunity:
-    community_ds = CRUDDataStorage(model=Community, session=session)
-    community: Community = await community_ds.get(community_id)
+) -> ReadStatus:
+    status_ds = CRUDDataStorage(model=Status, session=session)
+    community: Status = await status_ds.get(status_id)
     if community:
-        return community_ds.obj_with_relations_to_schema(obj=community, schema=ReadCommunity)
+        return status_ds.obj_to_schema(obj=community, schema=ReadStatus)
     raise HTTPException(
         status_code=HTTP_404_NOT_FOUND,
-        detail=f'Сообщество с id: {community_id} не найдено',
+        detail=f'Статус с id: {status_id} не найден',
     )
 
 
-@community_router.post(
+@status_router.post(
     '/list',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=List[ReadCommunity],
+    response_model=List[ReadStatus],
 )
-async def list_community(
+async def list_status(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
     session: AsyncSession = Depends(get_async_session),
-) -> List[ReadCommunity]:
-    community_ds = CRUDDataStorage(model=Community, session=session)
+) -> List[ReadStatus]:
+    status_ds = CRUDDataStorage(model=Status, session=session)
     list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    community_list: List[Community] = await community_ds.list(list_data)
-    return [community_ds.obj_with_relations_to_schema(obj=cm, schema=ReadCommunity)
-            for cm in community_list]
+    status_list: List[Status] = await status_ds.list(list_data)
+    return [status_ds.obj_to_schema(obj=status, schema=ReadStatus)
+            for status in status_list]
 
 
-@community_router.post(
+@status_router.post(
     '/create',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCommunity,
+    response_model=ReadStatus,
 )
-async def create_community(
-    body: CreateCommunity,
+async def create_status(
+    body: CreateStatus,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCommunity:
-    community_ds = CRUDDataStorage(model=Community, session=session)
-    community_to_add = community_ds.schema_to_obj(schema=body)
+) -> ReadStatus:
+    status_ds = CRUDDataStorage(model=Status, session=session)
+    status_to_add = status_ds.schema_to_obj(schema=body)
     try:
-        new_community = await community_ds.create(community_to_add)
-        return community_ds.obj_with_relations_to_schema(obj=new_community, schema=ReadCommunity)
+        new_status = await status_ds.create(status_to_add)
+        return status_ds.obj_to_schema(obj=new_status, schema=ReadStatus)
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -74,19 +75,19 @@ async def create_community(
         )
 
 
-@community_router.patch(
-    '/update/{community_id}',
+@status_router.patch(
+    '/update/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
-async def update_community(
-    community_id: str,
+async def update_status(
+    status_id: str,
     body: UpdateCommunity,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    community_ds = CRUDDataStorage(model=Community, session=session)
+    status_ds = CRUDDataStorage(model=Status, session=session)
     try:
-        await community_ds.update(obj_id=community_id, schema=body)
+        await status_ds.update(obj_id=status_id, schema=body)
     except CRUDNotFound as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -94,18 +95,18 @@ async def update_community(
         )
 
 
-@community_router.delete(
-    '/update/{community_settings_id}',
+@status_router.delete(
+    '/update/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
 async def delete_community_settings(
-    community_id: str,
+    status_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    community_ds = CRUDDataStorage(model=Community, session=session)
+    status_ds = CRUDDataStorage(model=Status, session=session)
     try:
-        await community_ds.delete(community_id)
+        await status_ds.delete(status_id)
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,

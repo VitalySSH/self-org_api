@@ -3,8 +3,8 @@ from typing import Union
 
 from pydantic import BaseModel
 
-from auth.user.schemas import ReadUser
 from datastorage.crud.entities.community_settings.schemas import ReadCS
+from datastorage.crud.entities.user.schemas import ReadUser
 from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
 
 

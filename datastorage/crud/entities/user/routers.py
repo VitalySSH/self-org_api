@@ -5,8 +5,8 @@ from starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
-from auth.user.schemas import ReadUser, CreateUser, UpdateUser
 from datastorage.crud.datastorage import CRUDDataStorage
+from datastorage.crud.entities.user.schemas import ReadUser, CreateUser, UpdateUser
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.database.base import get_async_session
 from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
