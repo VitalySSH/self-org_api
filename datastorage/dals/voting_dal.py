@@ -23,7 +23,7 @@ class VotingDAL(DAL):
         query.group_by(CommunitySettings.name)
         rows = await self._session.scalars(query)
 
-        return list(rows)
+        return list(rows.unique())
 
     async def get_voting_data_by_names(self, community_id) -> List[PercentByName]:
         query = select(func.count()).select_from(CommunitySettings)
@@ -36,7 +36,7 @@ class VotingDAL(DAL):
             .filter(CommunitySettings.community == community_id)
             .group_by(CommunitySettings.name)
         )
-        rows = await self._session.scalars(query)
+        rows = await self._session.scalars(query.unique())
 
         return [PercentByName(name=row[0], percent=int((row[1]/total_count) * 100))
                 for row in list(rows)]

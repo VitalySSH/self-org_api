@@ -10,6 +10,7 @@ from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.crud.interfaces.base import DataStorage, T, S
 from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData
 from datastorage.crud.schemas.base import DirtyAttribute
+from datastorage.interfaces import SchemaInstance
 from datastorage.utils import build_uuid
 
 
@@ -26,6 +27,45 @@ class CRUDDataStorage(Generic[T], DataStorage):
     def __init__(self, model: Type[T], session: AsyncSession) -> None:
         self._model = model
         self._session = session
+
+    async def schema_to_model(self, schema: SchemaInstance, model: Type[T] = None) -> T:
+        if model is None:
+            model = self._model
+        new_obj = model()
+        new_obj.id = schema.get('id') or build_uuid()
+        attributes = schema.get('attributes', {})
+        for attr_name, attr_value in attributes.items():
+            setattr(new_obj, attr_name, attributes.get(attr_name))
+
+        relations = schema.get('relations', {})
+        for rel_name, rel_value in relations.items():
+            if isinstance(rel_value, list):
+                many_to_many_objs: List[T] = []
+                for sub_rel_value in rel_value:
+                    rel_obj_id = sub_rel_value.get('id')
+                    rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
+                    rel_obj = await self.get(obj_id=rel_obj_id, model=rel_obj_model)
+                    many_to_many_objs.append(rel_obj)
+                setattr(new_obj, rel_name, many_to_many_objs)
+            else:
+                rel_obj_id = rel_value.get('id')
+                rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
+                rel_obj = await self.get(obj_id=rel_obj_id, model=rel_obj_model)
+                setattr(new_obj, rel_name, rel_obj)
+
+        return new_obj
+
+    @staticmethod
+    def _get_relation_model(model: Type[T], field_name: str) -> Type[S]:
+        field = getattr(model, field_name, None)
+        if field is None:
+            raise Exception(f'Ошибка сериализации. '
+                            f'Модель {model.__name__} не имеет аттрибута {field_name}')
+        try:
+            return field.prop.entity.class_
+        except Exception as e:
+            raise Exception(f'Аттрибут {field_name} модели '
+                            f'{model.__name__} не является типом Relationship')
 
     def schema_to_obj(self, schema: S) -> T:
         new_obj: Dict[str, Any] = {}
@@ -98,8 +138,10 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
         return new_obj_data
 
-    async def get(self, obj_id: str) -> Optional[T]:
-        return await self._session.get(entity=self._model, ident=obj_id)
+    async def get(self, obj_id: str, model: Type[T] = None) -> Optional[T]:
+        if model is None:
+            model = self._model
+        return await self._session.get(entity=model, ident=obj_id)
 
     async def create(self, obj: T) -> T:
         if not obj.id:
@@ -141,12 +183,12 @@ class CRUDDataStorage(Generic[T], DataStorage):
     async def list(self, list_data: ListData) -> List[T]:
         query = self._query_for_list(list_data)
         rows = await self._session.scalars(query)
-        return list(rows)
+        return list(rows.unique())
 
     async def first(self, list_data: ListData) -> Optional[T]:
         query = self._query_for_list(list_data)
         rows = await self._session.scalars(query)
-        data = list(rows)
+        data = list(rows.unique())
         return data[0] if data else None
 
     def _query_for_list(self, list_data: ListData) -> Select[Any]:

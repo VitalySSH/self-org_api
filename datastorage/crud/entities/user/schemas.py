@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Union
+from typing import Union, TypedDict
 
 from fastapi import HTTPException
 from pydantic import BaseModel, field_validator, EmailStr
@@ -29,6 +29,32 @@ class ValidateMixin:
                 status_code=422, detail='Фамилия должна состоять только из букв'
             )
         return value
+
+
+class UserReadAttributes(TypedDict):
+    firstname: str
+    surname: str
+    email: str
+    is_active: bool
+    created: datetime
+
+
+class UserRead(TypedDict):
+    id: str
+    attributes: UserReadAttributes
+
+
+class UserCreateAttributes(TypedDict):
+    firstname: str
+    surname: str
+    email: str
+    is_active: bool
+    hashed_password: str
+
+
+class UserCreate(TypedDict, total=False):
+    id: str
+    attributes: UserCreateAttributes
 
 
 class BaseUser(BaseModel):

@@ -1,5 +1,3 @@
-from typing import List, cast
-
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -25,10 +23,4 @@ class InitiativeCategory(Base):
         join_depth=JOIN_DEPTH,
         lazy=False,
         foreign_keys=f'{TableName.INITIATIVE_CATEGORY}.c.status'
-    )
-    cs_set: Mapped[List[cast(Base, 'CommunitySettings')]] = relationship(
-        secondary=TableName.CS_CATEGORIES,
-        back_populates='init_categories_rel',
-        join_depth=JOIN_DEPTH,
-        lazy=False,
     )

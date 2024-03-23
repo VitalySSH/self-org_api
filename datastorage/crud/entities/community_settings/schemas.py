@@ -1,4 +1,4 @@
-from typing import Optional, Union, List
+from typing import Optional, Union, List, TypedDict
 
 from pydantic import BaseModel
 
@@ -6,6 +6,25 @@ from pydantic import BaseModel
 from datastorage.crud.entities.initiative_category.schemas import ReadIC
 from datastorage.crud.entities.user.schemas import ReadUser
 from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
+from datastorage.database.interfaces import SchemaInstance
+
+
+class CSAttributes(TypedDict):
+    name: str
+    quorum: int
+    vote: int
+
+
+class CSRelations(TypedDict):
+    user_rel: SchemaInstance
+    community: SchemaInstance
+    init_categories_rel: List[SchemaInstance]
+
+
+class CreateComSet(TypedDict):
+    id: str
+    attributes: CSAttributes
+    relations: CSRelations
 
 
 class BaseCS(BaseModel):

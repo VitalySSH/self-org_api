@@ -1,4 +1,6 @@
-from typing import TypedDict
+from typing import TypedDict, TypeVar
+
+SchemaInstance = TypeVar('SchemaInstance')
 
 
 class VotingParams(TypedDict):

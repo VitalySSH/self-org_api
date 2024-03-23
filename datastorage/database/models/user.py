@@ -9,6 +9,8 @@ from datastorage.database.models import Base
 class User(Base):
     __tablename__ = TableName.USER
 
+    EXCLUDE_READ_FIELDS = ['hashed_password']
+
     firstname: Mapped[str] = mapped_column(nullable=False)
     surname: Mapped[str] = mapped_column(nullable=False)
     email: Mapped[str] = mapped_column(nullable=False, unique=True)

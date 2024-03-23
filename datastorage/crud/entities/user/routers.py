@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.crud.entities.user.schemas import ReadUser, CreateUser, UpdateUser
+from datastorage.crud.entities.user.schemas import ReadUser, CreateUser, UpdateUser, UserCreate, \
+    UserRead
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.database.base import get_async_session
 from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
@@ -18,16 +19,16 @@ user_router = APIRouter()
 @user_router.get(
     '/get/{user_id}',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadUser,
+    response_model=UserRead,
 )
 async def get_user(
     user_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadUser:
+) -> UserRead:
     user_ds = CRUDDataStorage(model=User, session=session)
     user: User = await user_ds.get(user_id)
     if user:
-        return user_ds.obj_to_schema(obj=user, schema=ReadUser)
+        return user.to_read_schema()
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f'Пользователь с id: {user_id} не найден',
@@ -53,16 +54,16 @@ async def list_users(
 
 @user_router.post(
     '/create',
-    response_model=ReadUser,
+    response_model=UserRead,
 )
 async def create_user(
-    body: CreateUser,
+    body: UserCreate,
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadUser:
     user_ds = CRUDDataStorage(model=User, session=session)
-    user_to_add: User = user_ds.schema_to_obj(schema=body)
+    user_to_add: User = await user_ds.schema_to_model(schema=body)
     new_user = await user_ds.create(user_to_add)
-    return user_ds.obj_to_schema(obj=new_user, schema=ReadUser)
+    return new_user.to_read_schema()
 
 
 @user_router.patch(

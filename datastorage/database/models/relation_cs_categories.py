@@ -12,8 +12,8 @@ class RelationCSCategories(Base):
     )
 
     cs_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id'),
+        ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
         nullable=False, index=True)
     init_category_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id'),
+        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id', ondelete='CASCADE'),
         nullable=False, index=True)

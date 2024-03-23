@@ -7,7 +7,7 @@ from starlette import status
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.entities.community_settings.schemas import (
-    ReadCS, CreateCS, UpdateCS
+    ReadCS, CreateCS, UpdateCS, CreateComSet
 )
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
@@ -20,16 +20,16 @@ cs_router = APIRouter()
 @cs_router.get(
     '/get/{community_settings_id}',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCS,
+    response_model=CreateComSet,
 )
 async def get_community_settings(
     cs_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCS:
+) -> CreateComSet:
     cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
     cs: CommunitySettings = await cs_ds.get(cs_id)
     if cs:
-        return cs_ds.obj_with_relations_to_schema(obj=cs, schema=ReadCS)
+        return cs.to_read_schema()
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
         detail=f'Настройки сообщества с id: {cs_id} не найдены',
