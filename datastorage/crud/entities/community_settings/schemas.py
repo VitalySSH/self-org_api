@@ -1,12 +1,7 @@
-from typing import Optional, Union, List, TypedDict
+from typing import List, TypedDict
 
-from pydantic import BaseModel
-
-
-from datastorage.crud.entities.initiative_category.schemas import ReadIC
-from datastorage.crud.entities.user.schemas import ReadUser
-from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
-from datastorage.database.interfaces import SchemaInstance
+from datastorage.crud.entities.user.schemas import UserRead
+from datastorage.crud.schemas.interfaces import SchemaInstance
 
 
 class CSAttributes(TypedDict):
@@ -15,42 +10,23 @@ class CSAttributes(TypedDict):
     vote: int
 
 
-class CSRelations(TypedDict):
-    user_rel: SchemaInstance
+class CSRelations(TypedDict, total=False):
+    user: SchemaInstance
     community: SchemaInstance
-    init_categories_rel: List[SchemaInstance]
+    init_categories: List[SchemaInstance]
 
 
-class CreateComSet(TypedDict):
+class ReadComSettings(TypedDict, total=False):
     id: str
     attributes: CSAttributes
     relations: CSRelations
 
 
-class BaseCS(BaseModel):
-    name: str
-    quorum: int
-    vote: int
-
-
-class ReadCS(BaseCS):
+class CreateComSettings(TypedDict, total=False):
     id: str
-    user: Optional[ReadUser]
-    community: Optional[str]
-    init_categories: List[ReadIC]
-
-    class Config:
-        from_attributes = True
+    attributes: CSAttributes
+    relations: CSRelations
 
 
-class CreateCS(BaseCS):
-    user: Optional[str] = None
-    community: Optional[str] = None
-
-
-class UpdateCS(BaseUpdateScheme):
-    name: Union[str, DirtyAttribute] = dirty_attribute
-    quorum: Union[int, DirtyAttribute] = dirty_attribute
-    vote: Union[int, DirtyAttribute] = dirty_attribute
-    user: Union[str, None, DirtyAttribute] = dirty_attribute
-    community: Union[str, None, DirtyAttribute] = dirty_attribute
+class updateComSettings(CreateComSettings):
+    pass

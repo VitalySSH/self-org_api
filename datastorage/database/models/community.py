@@ -10,19 +10,19 @@ from datastorage.database.models import Base, CommunitySettings, User, JOIN_DEPT
 class Community(Base):
     __tablename__ = TableName.COMMUNITY
 
-    main_settings: Mapped[str] = mapped_column(
+    main_settings_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id'),
         nullable=False, index=True
     )
-    main_settings_rel: Mapped[CommunitySettings] = relationship(
+    main_settings: Mapped[CommunitySettings] = relationship(
         join_depth=JOIN_DEPTH,
         lazy=False,
-        foreign_keys=f'{TableName.COMMUNITY}.c.main_settings'
+        foreign_keys=f'{TableName.COMMUNITY}.c.main_settings_id'
     )
-    creator: Mapped[str] = mapped_column(
+    creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
         index=True,
     )
-    creator_rel: Mapped[User] = relationship(join_depth=JOIN_DEPTH, lazy=False)
+    creator: Mapped[User] = relationship(join_depth=JOIN_DEPTH, lazy=False)
     created: Mapped[datetime] = mapped_column(default=datetime.now)

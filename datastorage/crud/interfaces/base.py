@@ -2,6 +2,7 @@ import abc
 from typing import TypeVar, Optional, Type, List
 
 from datastorage.crud.schemas.list import ListData
+from datastorage.interfaces import SchemaInstance
 
 T = TypeVar('T')
 S = TypeVar('S')
@@ -10,17 +11,7 @@ S = TypeVar('S')
 class DataStorage(abc.ABC):
 
     @abc.abstractmethod
-    def schema_to_obj(self, schema: S) -> T:
-        raise NotImplementedError
-
-    @staticmethod
-    @abc.abstractmethod
-    def obj_to_schema(obj: T, schema: Type[S]) -> S:
-        raise NotImplementedError
-
-    @abc.abstractmethod
-    def obj_with_relations_to_schema(self, obj: T, schema: Type[S],
-                                     recursion_level: Optional[int] = None) -> S:
+    async def schema_to_model(self, schema: SchemaInstance, model: Type[T] = None) -> T:
         raise NotImplementedError
 
     @abc.abstractmethod

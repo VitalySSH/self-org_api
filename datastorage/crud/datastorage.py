@@ -1,7 +1,6 @@
 import json
-from typing import Optional, Generic, Type, Dict, List, Any
+from typing import Optional, Generic, Type, List, Any
 
-from pydantic import BaseModel
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
@@ -9,7 +8,6 @@ from sqlalchemy import select, func, Select
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
 from datastorage.crud.interfaces.base import DataStorage, T, S
 from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData
-from datastorage.crud.schemas.base import DirtyAttribute
 from datastorage.interfaces import SchemaInstance
 from datastorage.utils import build_uuid
 
@@ -22,7 +20,6 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     MAX_PAGE_SIZE = 20
     DEFAULT_INDEX = 1
-    __NOT_FOUND_ATTR = 'not_found_attr'
 
     def __init__(self, model: Type[T], session: AsyncSession) -> None:
         self._model = model
@@ -32,10 +29,17 @@ class CRUDDataStorage(Generic[T], DataStorage):
         if model is None:
             model = self._model
         new_obj = model()
-        new_obj.id = schema.get('id') or build_uuid()
+
+        return await self._update_object(obj=new_obj, schema=schema)
+
+    async def _update_object(self, obj: T, schema: SchemaInstance, model: Type[T] = None) -> T:
+        if model is None:
+            model = self._model
+
+        obj.id = schema.get('id') or build_uuid()
         attributes = schema.get('attributes', {})
         for attr_name, attr_value in attributes.items():
-            setattr(new_obj, attr_name, attributes.get(attr_name))
+            setattr(obj, attr_name, attributes.get(attr_name))
 
         relations = schema.get('relations', {})
         for rel_name, rel_value in relations.items():
@@ -46,14 +50,14 @@ class CRUDDataStorage(Generic[T], DataStorage):
                     rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
                     rel_obj = await self.get(obj_id=rel_obj_id, model=rel_obj_model)
                     many_to_many_objs.append(rel_obj)
-                setattr(new_obj, rel_name, many_to_many_objs)
+                setattr(obj, rel_name, many_to_many_objs)
             else:
                 rel_obj_id = rel_value.get('id')
                 rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
                 rel_obj = await self.get(obj_id=rel_obj_id, model=rel_obj_model)
-                setattr(new_obj, rel_name, rel_obj)
+                setattr(obj, rel_name, rel_obj)
 
-        return new_obj
+        return obj
 
     @staticmethod
     def _get_relation_model(model: Type[T], field_name: str) -> Type[S]:
@@ -66,77 +70,6 @@ class CRUDDataStorage(Generic[T], DataStorage):
         except Exception as e:
             raise Exception(f'Аттрибут {field_name} модели '
                             f'{model.__name__} не является типом Relationship')
-
-    def schema_to_obj(self, schema: S) -> T:
-        new_obj: Dict[str, Any] = {}
-        for key in type(schema).model_fields.keys():
-            value = getattr(schema, key, None)
-            if type(value) == DirtyAttribute:
-                continue
-
-            new_obj[key] = value
-
-        return self._model(**new_obj)
-
-    @staticmethod
-    def obj_to_schema(obj: T, schema: Type[S]) -> S:
-        new_schema: Dict[str, Any] = {}
-        for key in type(obj).__dict__.keys():
-            if key[0] == '_':
-                continue
-
-            if schema.model_fields.get(key):
-                new_schema[key] = getattr(obj, key, None)
-
-        return schema(**new_schema)
-
-    def obj_with_relations_to_schema(self, obj: T, schema: Type[S],
-                                     recursion_level: Optional[int] = None) -> S:
-        if recursion_level is None:
-            recursion_level = 1
-        if recursion_level > 10:
-            raise Exception('Ошибка сериализации. '
-                            'Схемы объектов циклически ссылаются друг на друга')
-        new_schema: Dict[str, Any] = {}
-        for key, value in self.__update_obj_data_with_relations(obj).items():
-            if schema.model_fields.get(key):
-                field_type = schema.model_fields.get(key).annotation
-                try:
-                    is_relation = issubclass(field_type, BaseModel)
-                except TypeError:
-                    args = field_type.__dict__.get('__args__') or []
-                    is_relation = args and issubclass(args[0], BaseModel)
-                    if is_relation:
-                        field_type = args[0]
-                if is_relation:
-                    if isinstance(value, list):
-                        value = [
-                            self.obj_with_relations_to_schema(
-                                obj=sub_obj, schema=field_type,
-                                recursion_level=recursion_level + 1)
-                            for sub_obj in value
-                        ]
-                    else:
-                        value = self.obj_with_relations_to_schema(
-                            obj=value, schema=field_type, recursion_level=recursion_level + 1)
-
-                new_schema[key] = value
-        return schema(**new_schema)
-
-    @staticmethod
-    def __update_obj_data_with_relations(obj: T) -> dict:
-        new_obj_data = {}
-        for key in type(obj).__dict__.keys():
-            if key[0] == '_':
-                continue
-            field_parts = key.rsplit('_', 1)
-            if len(field_parts) > 1 and field_parts[-1] == 'rel':
-                new_obj_data[field_parts[0]] = getattr(obj, key, None)
-            else:
-                if new_obj_data.get(key) is None:
-                    new_obj_data[key] = getattr(obj, key, None)
-
-        return new_obj_data
 
     async def get(self, obj_id: str, model: Type[T] = None) -> Optional[T]:
         if model is None:
@@ -154,16 +87,12 @@ class CRUDDataStorage(Generic[T], DataStorage):
             raise CRUDConflict(f'Объект модели {self._model.__name__} не может быть создан: {e}')
         return obj
 
-    async def update(self, obj_id: str, schema: S) -> None:
+    async def update(self, obj_id: str, schema: SchemaInstance) -> None:
         db_obj = await self.get(obj_id)
         if not db_obj:
             raise CRUDNotFound(f'Object with id {obj_id} not found')
-        for key, value in schema.__dict__.items():
-            if type(value) == DirtyAttribute:
-                continue
-            if self.__class__.__NOT_FOUND_ATTR != getattr(
-                    db_obj, key, self.__class__.__NOT_FOUND_ATTR):
-                setattr(db_obj, key, value)
+
+        db_obj = await self._update_object(obj=db_obj, schema=schema)
         self._session.add(db_obj)
         await self._session.commit()
         await self._session.refresh(db_obj)

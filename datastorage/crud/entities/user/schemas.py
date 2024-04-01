@@ -1,15 +1,14 @@
 import re
 from datetime import datetime
-from typing import Union, TypedDict
+from typing import TypedDict
 
 from fastapi import HTTPException
-from pydantic import BaseModel, field_validator, EmailStr
-
-from datastorage.crud.schemas.base import DirtyAttribute, dirty_attribute, BaseUpdateScheme
+from pydantic import field_validator
 
 LETTER_MATCH_PATTERN = re.compile(r'^[а-яА-Яa-zA-Z\-]+$')
 
 
+# TODO: Придумать, как сделать валидацию
 class ValidateMixin:
 
     @classmethod
@@ -57,28 +56,5 @@ class UserCreate(TypedDict, total=False):
     attributes: UserCreateAttributes
 
 
-class BaseUser(BaseModel):
-    firstname: str
-    surname: str
-    email: EmailStr
-    is_active: bool
-
-
-class ReadUser(BaseUser):
-    id: str
-    created: datetime
-
-    class Config:
-        from_attributes = True
-
-
-class CreateUser(BaseUser, ValidateMixin):
-    hashed_password: str
-
-
-class UpdateUser(BaseUpdateScheme, ValidateMixin):
-    firstname: Union[str, DirtyAttribute] = dirty_attribute
-    surname: Union[str, DirtyAttribute] = dirty_attribute
-    email: Union[EmailStr, DirtyAttribute] = dirty_attribute
-    is_active: Union[bool, DirtyAttribute] = dirty_attribute
-    hashed_password: Union[str, DirtyAttribute] = dirty_attribute
+class UserUpdate(UserCreate):
+    pass

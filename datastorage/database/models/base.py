@@ -40,7 +40,7 @@ class Base(DeclarativeBase):
                 direction = field.prop.direction.name
                 if direction == 'MANYTOMANY':
                     m_2_m_result = []
-                    for field_model in getattr(model, field_name):
+                    for field_model in getattr(model, field_name, []):
                         if self.id == field_model.id:
                             raise Exception(f'Модель {self.__class__.__name__} '
                                             f'в связанных моделях ссылается сама на себя')
@@ -53,12 +53,13 @@ class Base(DeclarativeBase):
 
                 elif direction == 'MANYTOONE':
                     field_model = getattr(model, field_name)
-                    if str(self.id) == field_model.id:
-                        raise Exception(f'Модель {self.__class__.__name__} '
-                                        f'в связанных моделях ссылается сама на себя')
-                    else:
-                        relations[field_name] = self.to_read_schema(
-                            model=field_model, recursion_level=recursion_level + 1)
+                    if field_model:
+                        if str(self.id) == field_model.id:
+                            raise Exception(f'Модель {self.__class__.__name__} '
+                                            f'в связанных моделях ссылается сама на себя')
+                        else:
+                            relations[field_name] = self.to_read_schema(
+                                model=field_model, recursion_level=recursion_level + 1)
             else:
                 if len(class_attr.foreign_keys) == 0:
                     attributes[field_name] = getattr(model, field_name)

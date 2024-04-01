@@ -1,28 +1,46 @@
 from datetime import datetime
-from typing import Union
+from typing import TypedDict, List
 
-from pydantic import BaseModel
-
-from datastorage.crud.entities.community_settings.schemas import ReadCS
-from datastorage.crud.entities.user.schemas import ReadUser
-from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
+from datastorage.crud.schemas.interfaces import SchemaInstance
 
 
-class ReadCommunity(BaseModel):
+class CSAttributes(TypedDict):
+    name: str
+    quorum: int
+    vote: int
+
+
+class CSRelations(TypedDict):
+    user: SchemaInstance
+    community: SchemaInstance
+    init_categories: List[SchemaInstance]
+
+
+class ReadComSettings(TypedDict):
     id: str
-    main_settings: ReadCS
-    creator: ReadUser
+    attributes: CSAttributes
+    relations: CSRelations
+
+
+class CommunityReadAttributes(TypedDict):
     created: datetime
 
-    class Config:
-        from_attributes = True
+
+class CommunityRelations(TypedDict, total=False):
+    main_settings: SchemaInstance
+    creator: SchemaInstance
 
 
-class CreateCommunity(BaseModel):
-    main_settings: str
-    creator: str
+class CommunityRead(TypedDict, total=False):
+    id: str
+    attributes: CommunityReadAttributes
+    relations: CommunityRelations
 
 
-class UpdateCommunity(BaseUpdateScheme):
-    main_settings: Union[str, None, DirtyAttribute] = dirty_attribute
-    creator: Union[str, None, DirtyAttribute] = dirty_attribute
+class CommunityCreate(TypedDict, total=False):
+    id: str
+    relations: CommunityRelations
+
+
+class CommunityUpdate(CommunityCreate):
+    pass

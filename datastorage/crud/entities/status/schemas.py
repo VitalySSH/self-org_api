@@ -1,24 +1,20 @@
-from typing import Union
-
-from pydantic import BaseModel
-
-from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
+from typing import TypedDict
 
 
-class ReadStatus(BaseModel):
+class StatusAttributes(TypedDict):
+    code: str
+    name: str
+
+
+class StatusRead(TypedDict):
     id: str
-    code: str
-    name: str
-
-    class Config:
-        from_attributes = True
+    attributes: StatusAttributes
 
 
-class CreateStatus(BaseModel):
-    code: str
-    name: str
+class StatusCreate(TypedDict, total=False):
+    id: str
+    attributes: StatusAttributes
 
 
-class UpdateStatus(BaseUpdateScheme):
-    code: Union[str, None, DirtyAttribute] = dirty_attribute
-    name: Union[str, None, DirtyAttribute] = dirty_attribute
+class StatusUpdate(TypedDict, total=False):
+    pass

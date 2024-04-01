@@ -6,8 +6,9 @@ from starlette.status import HTTP_404_NOT_FOUND
 
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.crud.entities.community.schemas import ReadCommunity, CreateCommunity, \
-    UpdateCommunity
+from datastorage.crud.entities.community.schemas import CommunityRead, CommunityCreate, \
+    CommunityUpdate
+
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
 from datastorage.database.models import Community
@@ -19,16 +20,16 @@ community_router = APIRouter()
 @community_router.get(
     '/get/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCommunity,
+    response_model=CommunityRead,
 )
 async def get_community(
     community_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCommunity:
+) -> CommunityRead:
     community_ds = CRUDDataStorage(model=Community, session=session)
     community: Community = await community_ds.get(community_id)
     if community:
-        return community_ds.obj_with_relations_to_schema(obj=community, schema=ReadCommunity)
+        return community.to_read_schema()
     raise HTTPException(
         status_code=HTTP_404_NOT_FOUND,
         detail=f'Сообщество с id: {community_id} не найдено',
@@ -38,35 +39,34 @@ async def get_community(
 @community_router.post(
     '/list',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=List[ReadCommunity],
+    response_model=List[CommunityRead],
 )
 async def list_community(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
     session: AsyncSession = Depends(get_async_session),
-) -> List[ReadCommunity]:
+) -> List[CommunityRead]:
     community_ds = CRUDDataStorage(model=Community, session=session)
     list_data = ListData(filters=filters, orders=orders, pagination=pagination)
     community_list: List[Community] = await community_ds.list(list_data)
-    return [community_ds.obj_with_relations_to_schema(obj=cm, schema=ReadCommunity)
-            for cm in community_list]
+    return [community.to_read_schema() for community in community_list]
 
 
 @community_router.post(
     '/create',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadCommunity,
+    response_model=CommunityRead,
 )
 async def create_community(
-    body: CreateCommunity,
+    body: CommunityCreate,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadCommunity:
+) -> CommunityRead:
     community_ds = CRUDDataStorage(model=Community, session=session)
-    community_to_add = community_ds.schema_to_obj(schema=body)
+    community_to_add: Community = await community_ds.schema_to_model(schema=body)
     try:
         new_community = await community_ds.create(community_to_add)
-        return community_ds.obj_with_relations_to_schema(obj=new_community, schema=ReadCommunity)
+        return new_community.to_read_schema()
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -81,7 +81,7 @@ async def create_community(
 )
 async def update_community(
     community_id: str,
-    body: UpdateCommunity,
+    body: CommunityUpdate,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
     community_ds = CRUDDataStorage(model=Community, session=session)

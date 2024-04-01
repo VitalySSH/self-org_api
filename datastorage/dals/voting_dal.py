@@ -11,7 +11,7 @@ class VotingDAL(DAL):
 
     async def calculate_voting_params(self, community_id) -> VotingParams:
         query = select(func.avg(CommunitySettings.vote), func.avg(CommunitySettings.quorum))
-        query.filter(CommunitySettings.community == community_id)
+        query.filter(CommunitySettings.community_id == community_id)
         rows = await self._session.execute(query)
         vote, quorum = rows.first()
 
@@ -19,7 +19,7 @@ class VotingDAL(DAL):
 
     async def get_all_community_names(self, community_id) -> List[str]:
         query = select(CommunitySettings.name).distinct()
-        query.filter(CommunitySettings.community == community_id)
+        query.filter(CommunitySettings.community_id == community_id)
         query.group_by(CommunitySettings.name)
         rows = await self._session.scalars(query)
 
@@ -27,16 +27,16 @@ class VotingDAL(DAL):
 
     async def get_voting_data_by_names(self, community_id) -> List[PercentByName]:
         query = select(func.count()).select_from(CommunitySettings)
-        query.filter(CommunitySettings.community == community_id)
+        query.filter(CommunitySettings.community_id == community_id)
         all_rows = await self._session.scalars(query)
         data = list(all_rows)
         total_count = data[0] if data else 0
         query = (
             select(CommunitySettings.name, func.count(CommunitySettings.name).label('count'))
-            .filter(CommunitySettings.community == community_id)
+            .filter(CommunitySettings.community_id == community_id)
             .group_by(CommunitySettings.name)
         )
-        rows = await self._session.scalars(query.unique())
+        rows = await self._session.scalars(query)
 
         return [PercentByName(name=row[0], percent=int((row[1]/total_count) * 100))
-                for row in list(rows)]
+                for row in list(rows.unique())]

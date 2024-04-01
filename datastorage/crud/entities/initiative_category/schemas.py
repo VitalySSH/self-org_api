@@ -1,29 +1,28 @@
-from typing import Union
+from typing import TypedDict
 
-from pydantic import BaseModel
-
-from datastorage.crud.entities.status.schemas import ReadStatus
-from datastorage.crud.schemas.base import BaseUpdateScheme, DirtyAttribute, dirty_attribute
+from datastorage.crud.schemas.interfaces import SchemaInstance
 
 
-class BaseIC(BaseModel):
+class InitCategoryAttributes(TypedDict):
     name: str
-    creator: str
 
 
-class ReadIC(BaseIC):
+class InitCategoryRelations(TypedDict):
+    creator: SchemaInstance
+    status: SchemaInstance
+
+
+class InitCategoryRead(TypedDict):
     id: str
-    status: ReadStatus
-
-    class Config:
-        from_attributes = True
+    attributes: InitCategoryAttributes
+    relations: InitCategoryRelations
 
 
-class CreateIC(BaseIC):
-    status: str
+class InitCategoryCreate(TypedDict, total=False):
+    id: str
+    attributes: InitCategoryAttributes
+    relations: InitCategoryRelations
 
 
-class UpdateIC(BaseUpdateScheme):
-    name: Union[str, DirtyAttribute] = dirty_attribute
-    creator: Union[str, DirtyAttribute] = dirty_attribute
-    status: Union[str, DirtyAttribute] = dirty_attribute
+class InitCategoryUpdate(TypedDict, total=False):
+    pass

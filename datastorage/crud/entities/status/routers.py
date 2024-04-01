@@ -6,8 +6,7 @@ from starlette.status import HTTP_404_NOT_FOUND
 
 from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.crud.entities.community.schemas import UpdateCommunity
-from datastorage.crud.entities.status.schemas import ReadStatus, CreateStatus
+from datastorage.crud.entities.status.schemas import StatusRead, StatusCreate, StatusUpdate
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.database.base import get_async_session
 from datastorage.database.models import Status
@@ -20,16 +19,16 @@ status_router = APIRouter()
 @status_router.get(
     '/get/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadStatus,
+    response_model=StatusRead,
 )
 async def get_status(
     status_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadStatus:
+) -> StatusRead:
     status_ds = CRUDDataStorage(model=Status, session=session)
-    community: Status = await status_ds.get(status_id)
-    if community:
-        return status_ds.obj_to_schema(obj=community, schema=ReadStatus)
+    status: Status = await status_ds.get(status_id)
+    if status:
+        return status.to_read_schema()
     raise HTTPException(
         status_code=HTTP_404_NOT_FOUND,
         detail=f'Статус с id: {status_id} не найден',
@@ -39,35 +38,34 @@ async def get_status(
 @status_router.post(
     '/list',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=List[ReadStatus],
+    response_model=List[StatusRead],
 )
 async def list_status(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
     session: AsyncSession = Depends(get_async_session),
-) -> List[ReadStatus]:
+) -> List[StatusRead]:
     status_ds = CRUDDataStorage(model=Status, session=session)
     list_data = ListData(filters=filters, orders=orders, pagination=pagination)
     status_list: List[Status] = await status_ds.list(list_data)
-    return [status_ds.obj_to_schema(obj=status, schema=ReadStatus)
-            for status in status_list]
+    return [status.to_read_schema() for status in status_list]
 
 
 @status_router.post(
     '/create',
     dependencies=[Depends(auth_service.get_current_user)],
-    response_model=ReadStatus,
+    response_model=StatusRead,
 )
 async def create_status(
-    body: CreateStatus,
+    body: StatusCreate,
     session: AsyncSession = Depends(get_async_session),
-) -> ReadStatus:
+) -> StatusRead:
     status_ds = CRUDDataStorage(model=Status, session=session)
-    status_to_add = status_ds.schema_to_obj(schema=body)
+    status_to_add = await status_ds.schema_to_model(schema=body)
     try:
         new_status = await status_ds.create(status_to_add)
-        return status_ds.obj_to_schema(obj=new_status, schema=ReadStatus)
+        return new_status.to_read_schema()
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -82,7 +80,7 @@ async def create_status(
 )
 async def update_status(
     status_id: str,
-    body: UpdateCommunity,
+    body: StatusUpdate,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
     status_ds = CRUDDataStorage(model=Status, session=session)
