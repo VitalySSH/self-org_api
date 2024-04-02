@@ -36,7 +36,7 @@ class VotingDAL(DAL):
             .filter(CommunitySettings.community_id == community_id)
             .group_by(CommunitySettings.name)
         )
-        rows = await self._session.scalars(query)
+        rows = await self._session.execute(query)
 
         return [PercentByName(name=row[0], percent=int((row[1]/total_count) * 100))
-                for row in list(rows.unique())]
+                for row in rows.all()]

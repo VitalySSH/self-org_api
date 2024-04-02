@@ -35,8 +35,8 @@ class CRUDDataStorage(Generic[T], DataStorage):
     async def _update_object(self, obj: T, schema: SchemaInstance, model: Type[T] = None) -> T:
         if model is None:
             model = self._model
-
-        obj.id = schema.get('id') or build_uuid()
+        if not obj.id:
+            obj.id = schema.get('id') or build_uuid()
         attributes = schema.get('attributes', {})
         for attr_name, attr_value in attributes.items():
             setattr(obj, attr_name, attributes.get(attr_name))
