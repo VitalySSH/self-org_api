@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from starlette import status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,10 +22,11 @@ user_router = APIRouter()
 )
 async def get_user(
     user_id: str,
+    include: List[str] = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> UserRead:
     user_ds = CRUDDataStorage(model=User, session=session)
-    user: User = await user_ds.get(user_id)
+    user: User = await user_ds.get(obj_id=user_id, include=include)
     if user:
         return user.to_read_schema()
     raise HTTPException(

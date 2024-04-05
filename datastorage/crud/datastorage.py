@@ -1,12 +1,14 @@
 import json
-from typing import Optional, Generic, Type, List, Any
+from typing import Optional, Generic, Type, List, Any, cast
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
+from sqlalchemy.orm import selectinload, lazyload, Load
 
-from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
+from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
 from datastorage.crud.interfaces.base import DataStorage, T, S
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData
 from datastorage.interfaces import SchemaInstance
 from datastorage.utils import build_uuid
@@ -71,10 +73,47 @@ class CRUDDataStorage(Generic[T], DataStorage):
             raise Exception(f'Аттрибут {field_name} модели '
                             f'{model.__name__} не является типом Relationship')
 
-    async def get(self, obj_id: str, model: Type[T] = None) -> Optional[T]:
+    async def get(self, obj_id: str,
+                  include: Optional[Include] = None,
+                  model: Type[T] = None) -> Optional[T]:
         if model is None:
             model = self._model
-        return await self._session.get(entity=model, ident=obj_id)
+        query = select(model).where(model.id == obj_id)
+        if include:
+            options = self._build_options(include=include)
+            query = query.options(*options)
+        rows = await self._session.scalars(query)
+        return rows.first()
+
+    def _build_options(self, include: List[str], model: Type[T] = None) -> List[Load]:
+        if model is None:
+            model = self._model
+        options = []
+        for incl in include:
+            option: Optional[Load] = None
+            field_model: Type[T] = model
+            current_field_name: Optional[str] = None
+            for idx, field_name in enumerate(incl.split('.'), 1):
+                if idx == 1:
+                    current_field_name = field_name
+                else:
+                    field_ = getattr(field_model, current_field_name, None)
+                    if field_:
+                        field_model = field_.comparator.entity.class_
+                    else:
+                        raise CRUDException(f'Модель {field_model.__class__} не имеет атрибута'
+                                            f' {field_name} указанный в include {incl}')
+
+                field = getattr(field_model, field_name, None)
+                if field:
+                    if option:
+                        option = option.selectinload(field)
+                    else:
+                        option = cast(Load, selectinload(field))
+
+            options.append(option)
+
+        return options
 
     async def create(self, obj: T) -> T:
         if not obj.id:
@@ -111,6 +150,7 @@ class CRUDDataStorage(Generic[T], DataStorage):
 
     async def list(self, list_data: ListData) -> List[T]:
         query = self._query_for_list(list_data)
+        print(query.compile(compile_kwargs={"literal_binds": True}))
         rows = await self._session.scalars(query)
         return list(rows.unique())
 

@@ -1,6 +1,7 @@
 import abc
 from typing import TypeVar, Optional, Type, List
 
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.crud.schemas.list import ListData
 from datastorage.interfaces import SchemaInstance
 
@@ -15,7 +16,9 @@ class DataStorage(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get(self, obj_id: str) -> Optional[T]:
+    async def get(self, obj_id: str,
+                  include: Optional[Include] = None,
+                  model: Type[T] = None) -> Optional[T]:
         raise NotImplementedError
 
     @abc.abstractmethod

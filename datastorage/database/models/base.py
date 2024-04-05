@@ -5,8 +5,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from datastorage.interfaces import SchemaInstance
 from datastorage.utils import build_uuid
 
-JOIN_DEPTH = 2
-
 
 class Base(DeclarativeBase):
     EXCLUDE_READ_FIELDS: List[str] = []
@@ -60,6 +58,8 @@ class Base(DeclarativeBase):
                         else:
                             relations[field_name] = self.to_read_schema(
                                 model=field_model, recursion_level=recursion_level + 1)
+                    else:
+                        relations[field_name] = {}
             else:
                 if len(class_attr.foreign_keys) == 0:
                     attributes[field_name] = getattr(model, field_name)

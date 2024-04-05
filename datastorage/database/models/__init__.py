@@ -1,5 +1,4 @@
 __all__ = (
-    'JOIN_DEPTH',
     'Base',
     'User',
     'CommunitySettings',
@@ -10,7 +9,6 @@ __all__ = (
     'Initiative',
 )
 
-from .base import JOIN_DEPTH
 from .base import Base
 from .user import User
 from .community_settings import CommunitySettings

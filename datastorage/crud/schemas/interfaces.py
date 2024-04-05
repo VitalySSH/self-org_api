@@ -1,6 +1,9 @@
 from typing import TypedDict, Dict, Any, Union, List
 
 
+Include = List[str]
+
+
 class RelationsSchema(TypedDict, total=False):
     id: str
     attributes: Dict[str, Any]
@@ -10,5 +13,5 @@ class RelationsSchema(TypedDict, total=False):
 class SchemaInstance(TypedDict, total=False):
     id: str
     attributes: Dict[str, Any]
-    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema]]]
+    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema], None]]
 

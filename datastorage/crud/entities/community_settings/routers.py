@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -24,10 +24,11 @@ cs_router = APIRouter()
 )
 async def get_community_settings(
     cs_id: str,
+    include: List[str] = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadComSettings:
     cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
-    cs: CommunitySettings = await cs_ds.get(cs_id)
+    cs: CommunitySettings = await cs_ds.get(obj_id=cs_id, include=include)
     if cs:
         return cs.to_read_schema()
     raise HTTPException(
