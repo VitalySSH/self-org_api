@@ -19,8 +19,7 @@ async def login_for_access_token(
 ):
     user_ds = CRUDDataStorage(model=User, session=session)
     filters = [Filter(field='email', op=Operation.EQ, val=email)]
-    list_data = ListData(filters=filters)
-    user = await user_ds.first(list_data)
+    user = await user_ds.first(filters=filters)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

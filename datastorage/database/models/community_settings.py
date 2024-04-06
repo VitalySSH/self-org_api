@@ -4,10 +4,12 @@ from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from datastorage.database.classes import TableName
-from datastorage.database.models import Base, User
+from datastorage.database.models import Base
 
 if TYPE_CHECKING:
-    from datastorage.database.models import InitiativeCategory, Community
+    from datastorage.database.models import (
+        InitiativeCategory, Community, User, DelegateSettings
+    )
 
 
 class CommunitySettings(Base):
@@ -18,7 +20,7 @@ class CommunitySettings(Base):
         nullable=True,
         index=True,
     )
-    user: Mapped[User] = relationship(lazy='noload')
+    user: Mapped['User'] = relationship(lazy='noload')
     community_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY}.id', ondelete='CASCADE'),
         nullable=True,
@@ -30,4 +32,6 @@ class CommunitySettings(Base):
     quorum: Mapped[int] = mapped_column(nullable=False)
     vote: Mapped[int] = mapped_column(nullable=False)
     init_categories: Mapped[List['InitiativeCategory']] = relationship(
-        secondary=TableName.CS_CATEGORIES, lazy='noload')
+        secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
+    delegate_settings: Mapped[List['DelegateSettings']] = relationship(
+        secondary=TableName.RELATION_CS_DS, lazy='noload')

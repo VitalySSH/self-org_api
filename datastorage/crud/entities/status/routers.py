@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
@@ -8,9 +8,10 @@ from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.entities.status.schemas import StatusRead, StatusCreate, StatusUpdate
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.database.base import get_async_session
 from datastorage.database.models import Status
-from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.crud.schemas.list import Filters, Orders, Pagination
 
 
 status_router = APIRouter()
@@ -23,6 +24,7 @@ status_router = APIRouter()
 )
 async def get_status(
     status_id: str,
+    include: Include = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> StatusRead:
     status_ds = CRUDDataStorage(model=Status, session=session)
@@ -44,11 +46,12 @@ async def list_status(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
+    include: Optional[Include] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[StatusRead]:
     status_ds = CRUDDataStorage(model=Status, session=session)
-    list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    status_list: List[Status] = await status_ds.list(list_data)
+    status_list: List[Status] = await status_ds.list(
+        filters=filters, orders=orders, pagination=pagination, include=include)
     return [status.to_read_schema() for status in status_list]
 
 

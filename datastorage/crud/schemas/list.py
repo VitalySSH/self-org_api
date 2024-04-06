@@ -3,6 +3,8 @@ from typing import Union, List, Optional
 
 from pydantic import BaseModel
 
+from datastorage.crud.schemas.interfaces import Include
+
 
 class Direction(Enum):
     ASC = 'asc'
@@ -49,3 +51,4 @@ class ListData (BaseModel):
     filters: Optional[Filters] = None
     orders: Optional[Orders] = None
     pagination: Optional[Pagination] = None
+    include: Optional[Include] = None

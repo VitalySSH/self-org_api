@@ -4,12 +4,13 @@ from typing import Optional, Generic, Type, List, Any, cast
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
-from sqlalchemy.orm import selectinload, lazyload, Load
+from sqlalchemy.orm import selectinload, Load
 
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
 from datastorage.crud.interfaces.base import DataStorage, T, S
 from datastorage.crud.schemas.interfaces import Include
-from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData
+from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData, \
+    Pagination
 from datastorage.interfaces import SchemaInstance
 from datastorage.utils import build_uuid
 
@@ -73,25 +74,25 @@ class CRUDDataStorage(Generic[T], DataStorage):
             raise Exception(f'Аттрибут {field_name} модели '
                             f'{model.__name__} не является типом Relationship')
 
-    async def get(self, obj_id: str,
-                  include: Optional[Include] = None,
-                  model: Type[T] = None) -> Optional[T]:
+    async def get(
+            self, obj_id: str,
+            include: Optional[Include] = None,
+            model: Type[T] = None
+    ) -> Optional[T]:
         if model is None:
             model = self._model
         query = select(model).where(model.id == obj_id)
         if include:
-            options = self._build_options(include=include)
+            options = self._build_options(include)
             query = query.options(*options)
         rows = await self._session.scalars(query)
         return rows.first()
 
-    def _build_options(self, include: List[str], model: Type[T] = None) -> List[Load]:
-        if model is None:
-            model = self._model
+    def _build_options(self, include: List[str]) -> List[Load]:
         options = []
         for incl in include:
             option: Optional[Load] = None
-            field_model: Type[T] = model
+            field_model: Type[T] = self._model
             current_field_name: Optional[str] = None
             for idx, field_name in enumerate(incl.split('.'), 1):
                 if idx == 1:
@@ -148,13 +149,26 @@ class CRUDDataStorage(Generic[T], DataStorage):
             await self._session.rollback()
             raise CRUDConflict(f"Object with id {obj_id} can't be deleted: {e}")
 
-    async def list(self, list_data: ListData) -> List[T]:
+    async def list(
+            self, filters: Optional[Filters] = None,
+            orders: Optional[Orders] = None,
+            pagination: Optional[Pagination] = None,
+            include: Optional[Include] = None,
+    ) -> List[T]:
+        list_data = ListData(filters=filters, orders=orders,
+                             pagination=pagination, include=include)
         query = self._query_for_list(list_data)
-        print(query.compile(compile_kwargs={"literal_binds": True}))
         rows = await self._session.scalars(query)
         return list(rows.unique())
 
-    async def first(self, list_data: ListData) -> Optional[T]:
+    async def first(
+            self, filters: Optional[Filters] = None,
+            orders: Optional[Orders] = None,
+            pagination: Optional[Pagination] = None,
+            include: Optional[Include] = None,
+    ) -> Optional[T]:
+        list_data = ListData(filters=filters, orders=orders,
+                             pagination=pagination, include=include)
         query = self._query_for_list(list_data)
         rows = await self._session.scalars(query)
         data = list(rows.unique())
@@ -167,6 +181,9 @@ class CRUDDataStorage(Generic[T], DataStorage):
         filters = self._get_filter_params(list_data.filters)
         orders = self._get_order_params(list_data.orders)
         query = select(self._model).filter(*filters)
+        if list_data.include:
+            options = self._build_options(list_data.include)
+            query = query.options(*options)
         query.order_by(*orders).limit(limit).offset(skip)
 
         return query

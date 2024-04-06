@@ -13,5 +13,5 @@ class RelationsSchema(TypedDict, total=False):
 class SchemaInstance(TypedDict, total=False):
     id: str
     attributes: Dict[str, Any]
-    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema], None]]
+    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema]]]
 

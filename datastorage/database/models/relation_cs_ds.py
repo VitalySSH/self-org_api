@@ -5,15 +5,15 @@ from datastorage.database.classes import TableName
 from datastorage.database.models import Base
 
 
-class RelationCSCategories(Base):
-    __tablename__ = TableName.RELATION_CS_CATEGORIES
+class RelationCsDs(Base):
+    __tablename__ = TableName.RELATION_CS_DS
     __table_args__ = (
-        UniqueConstraint('cs_id', 'init_category_id', name='idx_unique_cs_init_category'),
+        UniqueConstraint('cs_id', 'ds_id', name='idx_unique_cs_ds'),
     )
 
     cs_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
         nullable=False, index=True)
-    init_category_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id', ondelete='CASCADE'),
+    ds_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.DELEGATE_SETTINGS}.id', ondelete='CASCADE'),
         nullable=False, index=True)

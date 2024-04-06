@@ -8,8 +8,9 @@ from auth.auth import auth_service
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.entities.user.schemas import UserCreate, UserRead, UserUpdate
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.database.base import get_async_session
-from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.crud.schemas.list import Filters, Orders, Pagination
 from datastorage.database.models import User
 
 user_router = APIRouter()
@@ -22,7 +23,7 @@ user_router = APIRouter()
 )
 async def get_user(
     user_id: str,
-    include: List[str] = Query(None),
+    include: Include = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> UserRead:
     user_ds = CRUDDataStorage(model=User, session=session)
@@ -44,11 +45,12 @@ async def list_users(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
+    include: Optional[Include] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[UserRead]:
     user_ds = CRUDDataStorage(model=User, session=session)
-    list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    users: List[User] = await user_ds.list(list_data)
+    users: List[User] = await user_ds.list(
+        filters=filters, orders=orders, pagination=pagination, include=include)
     return [user.to_read_schema() for user in users]
 
 

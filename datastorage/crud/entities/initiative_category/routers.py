@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -10,9 +10,10 @@ from datastorage.crud.entities.initiative_category.schemas import (
     InitCategoryRead, InitCategoryCreate, InitCategoryUpdate,
 )
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.database.base import get_async_session
 from datastorage.database.models import InitiativeCategory
-from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.crud.schemas.list import Filters, Orders, Pagination
 
 ic_router = APIRouter()
 
@@ -24,10 +25,11 @@ ic_router = APIRouter()
 )
 async def get_initiative_category(
     ic_id: str,
+    include: Include = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> InitCategoryRead:
     ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
-    ic: InitiativeCategory = await ic_ds.get(ic_id)
+    ic: InitiativeCategory = await ic_ds.get(obj_id=ic_id, include=include)
     if ic:
         return ic.to_read_schema()
     raise HTTPException(
@@ -45,11 +47,12 @@ async def list_initiative_category(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
+    include: Optional[Include] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[InitCategoryRead]:
     ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
-    list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    ic_list: List[InitiativeCategory] = await ic_ds.list(list_data)
+    ic_list: List[InitiativeCategory] = await ic_ds.list(
+        filters=filters, orders=orders, pagination=pagination, include=include)
     return [ic.to_read_schema() for ic in ic_list]
 
 

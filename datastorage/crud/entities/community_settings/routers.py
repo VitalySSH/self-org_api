@@ -10,9 +10,10 @@ from datastorage.crud.entities.community_settings.schemas import (
     CreateComSettings, ReadComSettings, updateComSettings
 )
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.database.base import get_async_session
 from datastorage.database.models import CommunitySettings
-from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.crud.schemas.list import Filters, Orders, Pagination
 
 cs_router = APIRouter()
 
@@ -24,7 +25,7 @@ cs_router = APIRouter()
 )
 async def get_community_settings(
     cs_id: str,
-    include: List[str] = Query(None),
+    include: Include = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> ReadComSettings:
     cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
@@ -46,11 +47,12 @@ async def list_community_settings(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
+    include: Optional[Include] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[ReadComSettings]:
     cs_ds = CRUDDataStorage(model=CommunitySettings, session=session)
-    list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    cs_list: List[CommunitySettings] = await cs_ds.list(list_data)
+    cs_list: List[CommunitySettings] = await cs_ds.list(
+        filters=filters, orders=orders, pagination=pagination, include=include)
     return [cs.to_read_schema() for cs in cs_list]
 
 

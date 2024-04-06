@@ -2,7 +2,7 @@ import abc
 from typing import TypeVar, Optional, Type, List
 
 from datastorage.crud.schemas.interfaces import Include
-from datastorage.crud.schemas.list import ListData
+from datastorage.crud.schemas.list import ListData, Filters, Orders, Pagination
 from datastorage.interfaces import SchemaInstance
 
 T = TypeVar('T')
@@ -16,9 +16,11 @@ class DataStorage(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get(self, obj_id: str,
-                  include: Optional[Include] = None,
-                  model: Type[T] = None) -> Optional[T]:
+    async def get(
+            self, obj_id: str,
+            include: Optional[Include] = None,
+            model: Type[T] = None
+    ) -> Optional[T]:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -34,9 +36,19 @@ class DataStorage(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def list(self, list_data: ListData) -> List[T]:
+    async def list(
+            self, filters: Optional[Filters] = None,
+            orders: Optional[Orders] = None,
+            pagination: Optional[Pagination] = None,
+            include: Optional[Include] = None,
+    ) -> List[T]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def first(self, list_data: ListData) -> T:
+    async def first(
+            self, filters: Optional[Filters] = None,
+            orders: Optional[Orders] = None,
+            pagination: Optional[Pagination] = None,
+            include: Optional[Include] = None,
+    ) -> Optional[T]:
         raise NotImplementedError

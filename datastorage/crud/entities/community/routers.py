@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
@@ -10,9 +10,10 @@ from datastorage.crud.entities.community.schemas import CommunityRead, Community
     CommunityUpdate
 
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
+from datastorage.crud.schemas.interfaces import Include
 from datastorage.database.base import get_async_session
 from datastorage.database.models import Community
-from datastorage.crud.schemas.list import Filters, Orders, Pagination, ListData
+from datastorage.crud.schemas.list import Filters, Orders, Pagination
 
 community_router = APIRouter()
 
@@ -24,10 +25,11 @@ community_router = APIRouter()
 )
 async def get_community(
     community_id: str,
+    include: Include = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> CommunityRead:
     community_ds = CRUDDataStorage(model=Community, session=session)
-    community: Community = await community_ds.get(community_id)
+    community: Community = await community_ds.get(obj_id=community_id, include=include)
     if community:
         return community.to_read_schema()
     raise HTTPException(
@@ -45,11 +47,12 @@ async def list_community(
     filters: Optional[Filters] = None,
     orders: Optional[Orders] = None,
     pagination: Optional[Pagination] = None,
+    include: Optional[Include] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[CommunityRead]:
     community_ds = CRUDDataStorage(model=Community, session=session)
-    list_data = ListData(filters=filters, orders=orders, pagination=pagination)
-    community_list: List[Community] = await community_ds.list(list_data)
+    community_list: List[Community] = await community_ds.list(
+        filters=filters, orders=orders, pagination=pagination, include=include)
     return [community.to_read_schema() for community in community_list]
 
 
