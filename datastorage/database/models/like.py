@@ -8,22 +8,28 @@ from datastorage.database.models import Base
 
 
 if TYPE_CHECKING:
-    from datastorage.database.models import User, Initiative
+    from datastorage.database.models import User, Initiative, Opinion
 
 
-class ResultVoting(Base):
-    __tablename__ = TableName.RESULT_VOTING
+class Like(Base):
+    __tablename__ = TableName.LIKE
 
-    vote: Mapped[int] = mapped_column(nullable=False)
-    member_id: Mapped[str] = mapped_column(
+    is_like: Mapped[bool] = mapped_column(nullable=False)
+    creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
     )
-    member: Mapped['User'] = relationship(lazy='noload')
+    creator: Mapped['User'] = relationship(lazy='noload')
     initiative_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.INITIATIVE}.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
     )
     initiative: Mapped['Initiative'] = relationship(lazy='noload')
+    opinion_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.OPINION}.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True,
+    )
+    opinion: Mapped['Opinion'] = relationship(lazy='noload')

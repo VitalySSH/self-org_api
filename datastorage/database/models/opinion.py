@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -8,22 +8,24 @@ from datastorage.database.models import Base
 
 
 if TYPE_CHECKING:
-    from datastorage.database.models import User, Initiative
+    from datastorage.database.models import User, Initiative, Like
 
 
-class ResultVoting(Base):
-    __tablename__ = TableName.RESULT_VOTING
+class Opinion(Base):
+    __tablename__ = TableName.OPINION
 
-    vote: Mapped[int] = mapped_column(nullable=False)
-    member_id: Mapped[str] = mapped_column(
+    text: Mapped[str] = mapped_column(nullable=False)
+    creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
     )
-    member: Mapped['User'] = relationship(lazy='noload')
+    creator: Mapped['User'] = relationship(lazy='noload')
     initiative_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.INITIATIVE}.id', ondelete='CASCADE'),
         nullable=False,
         index=True,
     )
     initiative: Mapped['Initiative'] = relationship(lazy='noload')
+    likes: Mapped[List['Like']] = relationship(
+        secondary=TableName.RELATION_OPINION_LIKE, lazy='noload')
