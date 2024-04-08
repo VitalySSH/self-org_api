@@ -9,7 +9,7 @@ from datastorage.interfaces import VotingParams, PercentByName
 
 class VotingDAL(DAL):
 
-    async def calculate_voting_params(self, community_id) -> VotingParams:
+    async def calculate_voting_params(self, community_id: str) -> VotingParams:
         query = select(func.avg(CommunitySettings.vote), func.avg(CommunitySettings.quorum))
         query.filter(CommunitySettings.community_id == community_id)
         rows = await self._session.execute(query)
@@ -17,7 +17,7 @@ class VotingDAL(DAL):
 
         return VotingParams(vote=int(vote), quorum=int(quorum))
 
-    async def get_all_community_names(self, community_id) -> List[str]:
+    async def get_all_community_names(self, community_id: str) -> List[str]:
         query = select(CommunitySettings.name).distinct()
         query.filter(CommunitySettings.community_id == community_id)
         query.group_by(CommunitySettings.name)
@@ -25,7 +25,7 @@ class VotingDAL(DAL):
 
         return list(rows.unique())
 
-    async def get_voting_data_by_names(self, community_id) -> List[PercentByName]:
+    async def get_voting_data_by_names(self, community_id: str) -> List[PercentByName]:
         query = select(func.count()).select_from(CommunitySettings)
         query.filter(CommunitySettings.community_id == community_id)
         all_rows = await self._session.scalars(query)

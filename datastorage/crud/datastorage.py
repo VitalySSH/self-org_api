@@ -42,7 +42,8 @@ class CRUDDataStorage(Generic[T], DataStorage):
             obj.id = schema.get('id') or build_uuid()
         attributes = schema.get('attributes', {})
         for attr_name, attr_value in attributes.items():
-            setattr(obj, attr_name, attributes.get(attr_name))
+            if getattr(type(obj), attr_name, False):
+                setattr(obj, attr_name, attributes.get(attr_name))
 
         relations = schema.get('relations', {})
         for rel_name, rel_value in relations.items():

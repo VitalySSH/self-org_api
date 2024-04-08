@@ -20,5 +20,11 @@ class DelegateSettings(Base):
         index=True,
     )
     init_category: Mapped['InitiativeCategory'] = relationship(lazy='noload')
-    voting_results: Mapped[List['User']] = relationship(
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        nullable=True,
+        index=True,
+    )
+    user: Mapped['User'] = relationship(lazy='noload')
+    delegates: Mapped[List['User']] = relationship(
         secondary=TableName.RELATION_DS_USERS, lazy='noload')

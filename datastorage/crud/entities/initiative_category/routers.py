@@ -15,30 +15,30 @@ from datastorage.database.base import get_async_session
 from datastorage.database.models import InitiativeCategory
 from datastorage.crud.schemas.list import Filters, Orders, Pagination
 
-ic_router = APIRouter()
+router = APIRouter()
 
 
-@ic_router.get(
+@router.get(
     '/get/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=InitCategoryRead,
 )
 async def get_initiative_category(
-    ic_id: str,
+    obj_id: str,
     include: Include = Query(None),
     session: AsyncSession = Depends(get_async_session),
 ) -> InitCategoryRead:
-    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
-    ic: InitiativeCategory = await ic_ds.get(obj_id=ic_id, include=include)
+    ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ic: InitiativeCategory = await ds.get(obj_id=obj_id, include=include)
     if ic:
         return ic.to_read_schema()
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
-        detail=f'Настройки сообщества с id: {ic_id} не найдены',
+        detail=f'Категория инициативы с id: {obj_id} не найдена',
     )
 
 
-@ic_router.post(
+@router.post(
     '/list',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=List[InitCategoryRead],
@@ -50,13 +50,13 @@ async def list_initiative_category(
     include: Optional[Include] = None,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[InitCategoryRead]:
-    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
-    ic_list: List[InitiativeCategory] = await ic_ds.list(
+    ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ic_list: List[InitiativeCategory] = await ds.list(
         filters=filters, orders=orders, pagination=pagination, include=include)
     return [ic.to_read_schema() for ic in ic_list]
 
 
-@ic_router.post(
+@router.post(
     '/create',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=InitCategoryRead,
@@ -65,11 +65,11 @@ async def create_initiative_category(
     body: InitCategoryCreate,
     session: AsyncSession = Depends(get_async_session),
 ) -> InitCategoryRead:
-    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
-    ic_to_add: InitiativeCategory = await ic_ds.schema_to_model(schema=body)
+    ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ic_to_add: InitiativeCategory = await ds.schema_to_model(schema=body)
     try:
-        new_ic = await ic_ds.create(ic_to_add)
-        return new_ic.to_read_schema()
+        new_init_category = await ds.create(ic_to_add)
+        return new_init_category.to_read_schema()
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -77,19 +77,19 @@ async def create_initiative_category(
         )
 
 
-@ic_router.patch(
+@router.patch(
     '/update/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
 async def update_initiative_category(
-    ic_id: str,
+    obj_id: str,
     body: InitCategoryUpdate,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ds = CRUDDataStorage(model=InitiativeCategory, session=session)
     try:
-        await ic_ds.update(obj_id=ic_id, schema=body)
+        await ds.update(obj_id=obj_id, schema=body)
     except CRUDNotFound as e:
         raise HTTPException(
             status_code=e.status_code,
@@ -97,18 +97,18 @@ async def update_initiative_category(
         )
 
 
-@ic_router.delete(
+@router.delete(
     '/update/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
 async def delete_initiative_category(
-    ic_id: str,
+    obj_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    ic_ds = CRUDDataStorage(model=InitiativeCategory, session=session)
+    ds = CRUDDataStorage(model=InitiativeCategory, session=session)
     try:
-        await ic_ds.delete(ic_id)
+        await ds.delete(obj_id)
     except CRUDConflict as e:
         raise HTTPException(
             status_code=e.status_code,

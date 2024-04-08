@@ -14,6 +14,8 @@ if TYPE_CHECKING:
 class Opinion(Base):
     __tablename__ = TableName.OPINION
 
+    EXCLUDE_READ_FIELDS = ['likes']
+
     text: Mapped[str] = mapped_column(nullable=False)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, List
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -33,3 +33,7 @@ class Like(Base):
         index=True,
     )
     opinion: Mapped['Opinion'] = relationship(lazy='noload')
+    initiatives_set: Mapped[List['Initiative']] = relationship(
+        back_populates='likes', lazy='noload')
+    opinions_set: Mapped[List['Opinion']] = relationship(
+        back_populates='likes', lazy='noload')

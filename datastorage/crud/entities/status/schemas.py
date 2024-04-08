@@ -16,5 +16,5 @@ class StatusCreate(TypedDict, total=False):
     attributes: StatusAttributes
 
 
-class StatusUpdate(TypedDict, total=False):
+class StatusUpdate(StatusCreate):
     pass

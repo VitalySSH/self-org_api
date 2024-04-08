@@ -1,6 +1,5 @@
 from typing import List, TypedDict
 
-from datastorage.crud.entities.user.schemas import UserRead
 from datastorage.crud.schemas.interfaces import SchemaInstance
 
 
@@ -16,7 +15,7 @@ class CSRelations(TypedDict, total=False):
     init_categories: List[SchemaInstance]
 
 
-class ReadComSettings(TypedDict, total=False):
+class ReadComSettings(TypedDict):
     id: str
     attributes: CSAttributes
     relations: CSRelations
@@ -28,5 +27,5 @@ class CreateComSettings(TypedDict, total=False):
     relations: CSRelations
 
 
-class updateComSettings(CreateComSettings):
+class UpdateComSettings(CreateComSettings):
     pass

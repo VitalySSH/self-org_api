@@ -24,5 +24,5 @@ class InitCategoryCreate(TypedDict, total=False):
     relations: InitCategoryRelations
 
 
-class InitCategoryUpdate(TypedDict, total=False):
+class InitCategoryUpdate(InitCategoryCreate):
     pass

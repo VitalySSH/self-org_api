@@ -47,7 +47,7 @@ Filters = List[Filter]
 Orders = List[Order]
 
 
-class ListData (BaseModel):
+class ListData(BaseModel):
     filters: Optional[Filters] = None
     orders: Optional[Orders] = None
     pagination: Optional[Pagination] = None

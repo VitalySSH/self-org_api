@@ -17,6 +17,8 @@ if TYPE_CHECKING:
 class Initiative(Base):
     __tablename__ = TableName.INITIATIVE
 
+    EXCLUDE_READ_FIELDS = ['likes']
+
     content: Mapped[str] = mapped_column(nullable=False)
     type_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.INITIATIVE_TYPE}.id', ondelete='CASCADE'),
