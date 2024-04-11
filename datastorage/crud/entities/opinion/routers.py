@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{opinion_id}',
+    '/{opinion_id}',
     response_model=OpinionRead,
 )
 async def get_opinion(
@@ -80,7 +80,7 @@ async def create_opinion(
 
 
 @router.patch(
-    '/update/{opinion_id}',
+    '/{opinion_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -100,7 +100,7 @@ async def update_opinion(
 
 
 @router.delete(
-    '/update/{opinion_id}',
+    '/{opinion_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

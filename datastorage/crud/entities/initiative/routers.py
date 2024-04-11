@@ -20,7 +20,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{initiative_id}',
+    '/{initiative_id}',
     response_model=InitiativeRead,
 )
 async def get_initiative(
@@ -82,7 +82,7 @@ async def create_initiative(
 
 
 @router.patch(
-    '/update/{initiative_id}',
+    '/{initiative_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -102,7 +102,7 @@ async def update_initiative(
 
 
 @router.delete(
-    '/update/{initiative_id}',
+    '/{initiative_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

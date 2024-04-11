@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{community_id}',
+    '/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=CommunityRead,
 )
@@ -78,7 +78,7 @@ async def create_community(
 
 
 @router.patch(
-    '/update/{community_id}',
+    '/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -98,7 +98,7 @@ async def update_community(
 
 
 @router.delete(
-    '/update/{community_id}',
+    '/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{result_voting_id}',
+    '/{result_voting_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=ResultVotingRead,
 )
@@ -78,7 +78,7 @@ async def create_result_voting(
 
 
 @router.patch(
-    '/update/{result_voting_id}',
+    '/{result_voting_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -98,7 +98,7 @@ async def update_result_voting(
 
 
 @router.delete(
-    '/update/{result_voting_id}',
+    '/{result_voting_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

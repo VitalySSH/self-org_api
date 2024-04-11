@@ -17,7 +17,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{user_id}',
+    '/{user_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=UserRead,
 )
@@ -69,7 +69,7 @@ async def create_user(
 
 
 @router.patch(
-    '/update/{user_id}',
+    '/{user_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -89,7 +89,7 @@ async def update_user(
 
 
 @router.delete(
-    '/update/{user_id}',
+    '/{user_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

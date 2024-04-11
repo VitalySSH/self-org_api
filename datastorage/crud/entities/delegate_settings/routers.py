@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{community_settings_id}',
+    '/{community_settings_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=DelegateSettingsRead,
 )
@@ -78,7 +78,7 @@ async def create_community_settings(
 
 
 @router.patch(
-    '/update/{community_settings_id}',
+    '/{community_settings_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -98,7 +98,7 @@ async def update_community_settings(
 
 
 @router.delete(
-    '/update/{community_settings_id}',
+    '/{community_settings_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

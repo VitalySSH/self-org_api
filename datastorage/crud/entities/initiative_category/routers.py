@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{initiative_category_id}',
+    '/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=InitCategoryRead,
 )
@@ -78,7 +78,7 @@ async def create_initiative_category(
 
 
 @router.patch(
-    '/update/{initiative_category_id}',
+    '/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -98,7 +98,7 @@ async def update_initiative_category(
 
 
 @router.delete(
-    '/update/{initiative_category_id}',
+    '/{initiative_category_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

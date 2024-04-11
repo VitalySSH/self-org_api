@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{status_id}',
+    '/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=StatusRead,
 )
@@ -77,7 +77,7 @@ async def create_status(
 
 
 @router.patch(
-    '/update/{status_id}',
+    '/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -97,7 +97,7 @@ async def update_status(
 
 
 @router.delete(
-    '/update/{status_id}',
+    '/{status_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )

@@ -19,7 +19,7 @@ router = APIRouter()
 
 
 @router.get(
-    '/get/{like_id}',
+    '/{result_voting_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=LikeRead,
 )
@@ -78,7 +78,7 @@ async def create_like(
 
 
 @router.patch(
-    '/update/{like_id}',
+    '/{result_voting_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
@@ -98,7 +98,7 @@ async def update_like(
 
 
 @router.delete(
-    '/update/{like_id}',
+    '/{result_voting_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=204,
 )
