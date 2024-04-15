@@ -18,7 +18,8 @@ class VotingResult(Base):
         nullable=True,
         index=True,
     )
-    only_option: Mapped['VotingOption'] = relationship(lazy='noload')
+    only_option: Mapped['VotingOption'] = relationship(
+        foreign_keys=f'{TableName.VOTING_RESULT}.c.only_option_id', lazy='noload')
     multiple_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_VR_VO, lazy='noload')
     member_id: Mapped[str] = mapped_column(nullable=False, index=True)

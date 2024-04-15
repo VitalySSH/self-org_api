@@ -14,6 +14,7 @@ __all__ = (
     'Opinion',
     'Like',
     'RelationCsCategories',
+    'RelationUserCsCategories',
     'RelationUCsDs',
     'RelationDsUsers',
     'RelationInitiativeRV',
@@ -39,6 +40,7 @@ from entities.voting_option.model import VotingOption
 from entities.status.model import Status
 from entities.user.model import User
 from .relation_community_settings_categories import RelationCsCategories
+from .relation_user_community_settings_categories import RelationUserCsCategories
 from .relation_user_community_settings_delegate_settings import RelationUCsDs
 from .relation_delegate_settings_users import RelationDsUsers
 from .relation_initiative_voting_results import RelationInitiativeRV

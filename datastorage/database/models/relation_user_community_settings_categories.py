@@ -5,15 +5,16 @@ from datastorage.database.classes import TableName
 from datastorage.database.models import Base
 
 
-class RelationVrVo(Base):
-    __tablename__ = TableName.RELATION_VR_VO
+class RelationUserCsCategories(Base):
+    __tablename__ = TableName.RELATION_UCS_CATEGORIES
     __table_args__ = (
-        UniqueConstraint('from_id', 'to_id', name='idx_unique_voting_result_voting_option'),
+        UniqueConstraint(
+            'from_id', 'to_id', name='idx_unique_user_community_settings_init_categories'),
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_RESULT}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_OPTION}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id', ondelete='CASCADE'),
         nullable=False, index=True)

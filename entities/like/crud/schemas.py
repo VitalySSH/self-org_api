@@ -10,21 +10,14 @@ class LikeAttributes(TypedDict):
     opinion_id: Optional[str]
 
 
-class LikeRelations(TypedDict):
-    initiatives_set: List[SchemaInstance]
-    opinions_set: List[SchemaInstance]
-
-
 class LikeRead(TypedDict):
     id: str
     attributes: LikeAttributes
-    relations: LikeRelations
 
 
 class LikeCreate(TypedDict, total=False):
     id: str
     attributes: LikeAttributes
-    relations: LikeRelations
 
 
 class LikeUpdate(LikeCreate):

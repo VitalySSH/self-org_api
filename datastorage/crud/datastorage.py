@@ -7,11 +7,11 @@ from sqlalchemy.orm import selectinload, Load
 
 from datastorage.base import DataStorage
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
-from datastorage.crud.interfaces.base import CRUD, S, Include
+from datastorage.crud.interfaces.base import CRUD, S, Include, SchemaInstance
 from datastorage.crud.interfaces.list import (
     Filters, Operation, Orders, Direction, ListData, Pagination
 )
-from datastorage.interfaces import SchemaInstance, T
+from datastorage.interfaces import T, SchemaInstanceAbstract
 from datastorage.utils import build_uuid
 
 
@@ -21,16 +21,12 @@ class CRUDDataStorage(DataStorage, CRUD):
     MAX_PAGE_SIZE = 20
     DEFAULT_INDEX = 1
 
-    async def schema_to_model(self, schema: SchemaInstance, model: Type[T] = None) -> T:
-        if model is None:
-            model = self._model
-        new_obj = model()
+    async def schema_to_model(self, schema: SchemaInstanceAbstract) -> T:
+        """Сериализует схему в объект модели."""
+        return await self._update_object(obj=self._model(), schema=schema)
 
-        return await self._update_object(obj=new_obj, schema=schema)
-
-    async def _update_object(self, obj: T, schema: SchemaInstance, model: Type[T] = None) -> T:
-        if model is None:
-            model = self._model
+    async def _update_object(self, obj: T, schema: SchemaInstance) -> T:
+        model = type(obj)
         if not obj.id:
             obj.id = schema.get('id') or build_uuid()
         attributes = schema.get('attributes', {})

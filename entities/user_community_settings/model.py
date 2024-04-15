@@ -28,7 +28,7 @@ class UserCommunitySettings(Base):
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
     init_categories: Mapped[List['InitiativeCategory']] = relationship(
-        secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
+        secondary=TableName.RELATION_UCS_CATEGORIES, lazy='noload')
     delegate_settings: Mapped[List['DelegateSettings']] = relationship(
         secondary=TableName.RELATION_UCS_DS, lazy='noload')
     is_not_delegate: Mapped[bool] = mapped_column(nullable=False, default=False)

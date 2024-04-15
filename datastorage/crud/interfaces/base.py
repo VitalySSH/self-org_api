@@ -4,6 +4,7 @@ from typing import TypeVar, Optional, Type, List, TypedDict, Any, Dict, Union
 from sqlalchemy.orm import DeclarativeBase
 
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination
+from datastorage.interfaces import SchemaInstanceAbstract
 
 T = TypeVar('T', bound=DeclarativeBase)
 S = TypeVar('S')
@@ -34,7 +35,7 @@ class SchemaInstance(TypedDict, total=False):
 class CRUD(abc.ABC):
 
     @abc.abstractmethod
-    async def schema_to_model(self, schema: SchemaInstance, model: Type[T] = None) -> T:
+    async def schema_to_model(self, schema: SchemaInstanceAbstract) -> T:
         raise NotImplementedError
 
     @abc.abstractmethod

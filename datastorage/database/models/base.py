@@ -2,7 +2,8 @@ from typing import Optional, List
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from datastorage.interfaces import InstanceSchema
+from datastorage.crud.interfaces.base import SchemaInstance
+from datastorage.interfaces import SchemaInstanceAbstract, T
 from datastorage.utils import build_uuid
 
 
@@ -11,11 +12,15 @@ class Base(DeclarativeBase):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
 
-    def to_read_schema(
+    def to_read_schema(self) -> SchemaInstanceAbstract:
+        """Вернёт сериализованный объект модели."""
+        return self._to_read_schema()
+
+    def _to_read_schema(
             self,
-            model=None,
+            model: Optional[T] = None,
             recursion_level: Optional[int] = None,
-    ) -> InstanceSchema:
+    ) -> SchemaInstance:
         if recursion_level is None:
             recursion_level = 1
         if recursion_level > 10:
@@ -43,7 +48,7 @@ class Base(DeclarativeBase):
                             raise Exception(f'Модель {self.__class__.__name__} '
                                             f'в связанных моделях ссылается сама на себя')
                         else:
-                            field_model_obj = self.to_read_schema(
+                            field_model_obj = self._to_read_schema(
                                 model=field_model, recursion_level=recursion_level + 1)
                             m_2_m_result.append(field_model_obj)
 
@@ -56,7 +61,7 @@ class Base(DeclarativeBase):
                             raise Exception(f'Модель {self.__class__.__name__} '
                                             f'в связанных моделях ссылается сама на себя')
                         else:
-                            relations[field_name] = self.to_read_schema(
+                            relations[field_name] = self._to_read_schema(
                                 model=field_model, recursion_level=recursion_level + 1)
                     else:
                         relations[field_name] = {}
