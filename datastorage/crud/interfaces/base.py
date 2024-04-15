@@ -1,15 +1,37 @@
 import abc
-from typing import TypeVar, Optional, Type, List
+from typing import TypeVar, Optional, Type, List, TypedDict, Any, Dict, Union
 
-from datastorage.crud.schemas.interfaces import Include
-from datastorage.crud.schemas.list import ListData, Filters, Orders, Pagination
-from datastorage.interfaces import SchemaInstance
+from sqlalchemy.orm import DeclarativeBase
 
-T = TypeVar('T')
+from datastorage.crud.interfaces.list import Filters, Orders, Pagination
+
+T = TypeVar('T', bound=DeclarativeBase)
 S = TypeVar('S')
 
 
-class DataStorage(abc.ABC):
+Include = List[str]
+
+
+class RelationsSchema(TypedDict, total=False):
+    id: str
+    attributes: Dict[str, Any]
+    relations: Dict[str, Any]
+
+
+class SchemaReadInstance(TypedDict, total=False):
+    id: str
+    attributes: Dict[str, Any]
+    read_only: Dict[str, Any]
+    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema]]]
+
+
+class SchemaInstance(TypedDict, total=False):
+    id: str
+    attributes: Dict[str, Any]
+    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema]]]
+
+
+class CRUD(abc.ABC):
 
     @abc.abstractmethod
     async def schema_to_model(self, schema: SchemaInstance, model: Type[T] = None) -> T:

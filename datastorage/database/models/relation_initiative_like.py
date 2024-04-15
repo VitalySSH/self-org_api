@@ -8,13 +8,12 @@ from datastorage.database.models import Base
 class RelationInitiativeLike(Base):
     __tablename__ = TableName.RELATION_INITIATIVE_LIKE
     __table_args__ = (
-        UniqueConstraint(
-            'initiative_id', 'like_id', name='idx_unique_initiative_like'),
+        UniqueConstraint('from_id', 'to_id', name='idx_unique_initiative_like'),
     )
 
-    initiative_id: Mapped[str] = mapped_column(
+    from_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.INITIATIVE}.id', ondelete='CASCADE'),
         nullable=False, index=True)
-    like_id: Mapped[str] = mapped_column(
+    to_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.LIKE}.id', ondelete='CASCADE'),
         nullable=False, index=True)

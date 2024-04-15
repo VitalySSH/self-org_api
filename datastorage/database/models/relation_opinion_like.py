@@ -8,13 +8,12 @@ from datastorage.database.models import Base
 class RelationOpinionLike(Base):
     __tablename__ = TableName.RELATION_OPINION_LIKE
     __table_args__ = (
-        UniqueConstraint(
-            'opinion_id', 'like_id', name='idx_unique_opinion_like'),
+        UniqueConstraint('from_id', 'to_id', name='idx_unique_opinion_like'),
     )
 
-    opinion_id: Mapped[str] = mapped_column(
+    from_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.OPINION}.id', ondelete='CASCADE'),
         nullable=False, index=True)
-    like_id: Mapped[str] = mapped_column(
+    to_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.LIKE}.id', ondelete='CASCADE'),
         nullable=False, index=True)

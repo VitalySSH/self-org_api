@@ -2,7 +2,7 @@ from typing import Optional, List
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-from datastorage.interfaces import SchemaInstance
+from datastorage.interfaces import InstanceSchema
 from datastorage.utils import build_uuid
 
 
@@ -15,7 +15,7 @@ class Base(DeclarativeBase):
             self,
             model=None,
             recursion_level: Optional[int] = None,
-    ) -> SchemaInstance:
+    ) -> InstanceSchema:
         if recursion_level is None:
             recursion_level = 1
         if recursion_level > 10:
@@ -68,4 +68,3 @@ class Base(DeclarativeBase):
         read_obj['relations'] = relations
 
         return read_obj
-

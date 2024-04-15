@@ -1,32 +1,25 @@
 import json
-from typing import Optional, Generic, Type, List, Any, cast
+from typing import Optional, Type, List, Any, cast
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, Select
 from sqlalchemy.orm import selectinload, Load
 
+from datastorage.base import DataStorage
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
-from datastorage.crud.interfaces.base import DataStorage, T, S
-from datastorage.crud.schemas.interfaces import Include
-from datastorage.crud.schemas.list import Filters, Operation, Orders, Direction, ListData, \
-    Pagination
-from datastorage.interfaces import SchemaInstance
+from datastorage.crud.interfaces.base import CRUD, S, Include
+from datastorage.crud.interfaces.list import (
+    Filters, Operation, Orders, Direction, ListData, Pagination
+)
+from datastorage.interfaces import SchemaInstance, T
 from datastorage.utils import build_uuid
 
 
-class CRUDDataStorage(Generic[T], DataStorage):
+class CRUDDataStorage(DataStorage, CRUD):
     """Выполняет CRUD-операция для модели."""
-
-    _model: Type[T]
-    _session: AsyncSession
 
     MAX_PAGE_SIZE = 20
     DEFAULT_INDEX = 1
-
-    def __init__(self, model: Type[T], session: AsyncSession) -> None:
-        self._model = model
-        self._session = session
 
     async def schema_to_model(self, schema: SchemaInstance, model: Type[T] = None) -> T:
         if model is None:
