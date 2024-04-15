@@ -1,6 +1,6 @@
 from typing import List, TYPE_CHECKING
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, UniqueConstraint
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from datastorage.database.classes import TableName
@@ -14,6 +14,10 @@ if TYPE_CHECKING:
 
 class UserCommunitySettings(Base):
     __tablename__ = TableName.USER_COMMUNITY_SETTINGS
+    __table_args__ = (
+        UniqueConstraint(
+            'user_id', 'community_id', name='idx_unique_user_cs_community_user'),
+    )
 
     user_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),

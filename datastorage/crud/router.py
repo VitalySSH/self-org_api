@@ -52,7 +52,7 @@ def get_crud_router(
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
             ds = CRUDDataStorage(model=model, session=session)
-            instance: model = await ds.get(obj_id=instance_id, include=include)
+            instance: model = await ds.get(instance_id=instance_id, include=include)
             if instance:
                 if is_likes:
                     return update_instance_by_likes(instance=instance, current_user=current_user)
@@ -98,8 +98,10 @@ def get_crud_router(
         ) -> read_schema:
             ds = CRUDDataStorage(model=model, session=session)
             instance_to_add: model = await ds.schema_to_model(schema=body)
+            relation_fields: List[str] = ds.get_relation_fields(body)
             try:
-                new_instance = await ds.create(instance_to_add)
+                new_instance = await ds.create(
+                    instance=instance_to_add, relation_fields=relation_fields)
                 if is_likes:
                     return update_instance_by_likes(
                         instance=new_instance, current_user=current_user)
@@ -125,8 +127,13 @@ def get_crud_router(
         ) -> None:
             ds = CRUDDataStorage(model=model, session=session)
             try:
-                await ds.update(obj_id=instance_id, schema=body)
+                await ds.update(instance_id=instance_id, schema=body)
             except CRUDNotFound as e:
+                raise HTTPException(
+                    status_code=e.status_code,
+                    detail=e.description,
+                )
+            except CRUDConflict as e:
                 raise HTTPException(
                     status_code=e.status_code,
                     detail=e.description,

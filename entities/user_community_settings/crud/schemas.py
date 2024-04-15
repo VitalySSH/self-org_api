@@ -3,7 +3,7 @@ from typing import List, TypedDict
 from datastorage.crud.interfaces.base import SchemaInstance
 
 
-class UserCsAttributes(TypedDict):
+class UserCsAttributes(TypedDict, total=False):
     community_id: str
     name: str
     quorum: int

@@ -33,7 +33,7 @@ async def create_instance(
     ds = CRUDDataStorage(model=User, session=session)
     instance_to_add: User = await ds.schema_to_model(schema=body)
     try:
-        new_instance = await ds.create(instance_to_add)
+        new_instance = await ds.create(instance=instance_to_add)
         return new_instance.to_read_schema()
 
     except CRUDConflict as e:

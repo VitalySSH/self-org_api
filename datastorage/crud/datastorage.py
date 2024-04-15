@@ -23,16 +23,16 @@ class CRUDDataStorage(DataStorage, CRUD):
 
     async def schema_to_model(self, schema: SchemaInstanceAbstract) -> T:
         """Сериализует схему в объект модели."""
-        return await self._update_object(obj=self._model(), schema=schema)
+        return await self._update_instance_from_schema(instance=self._model(), schema=schema)
 
-    async def _update_object(self, obj: T, schema: SchemaInstance) -> T:
-        model = type(obj)
-        if not obj.id:
-            obj.id = schema.get('id') or build_uuid()
+    async def _update_instance_from_schema(self, instance: T, schema: SchemaInstance) -> T:
+        model = type(instance)
+        if not instance.id:
+            instance.id = schema.get('id') or build_uuid()
         attributes = schema.get('attributes', {})
         for attr_name, attr_value in attributes.items():
-            if getattr(type(obj), attr_name, False):
-                setattr(obj, attr_name, attributes.get(attr_name))
+            if getattr(type(instance), attr_name, False):
+                setattr(instance, attr_name, attributes.get(attr_name))
 
         relations = schema.get('relations', {})
         for rel_name, rel_value in relations.items():
@@ -41,16 +41,20 @@ class CRUDDataStorage(DataStorage, CRUD):
                 for sub_rel_value in rel_value:
                     rel_obj_id = sub_rel_value.get('id')
                     rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
-                    rel_obj = await self.get(obj_id=rel_obj_id, model=rel_obj_model)
+                    rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
                     many_to_many_objs.append(rel_obj)
-                setattr(obj, rel_name, many_to_many_objs)
+                setattr(instance, rel_name, many_to_many_objs)
             else:
                 rel_obj_id = rel_value.get('id')
                 rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
-                rel_obj = await self.get(obj_id=rel_obj_id, model=rel_obj_model)
-                setattr(obj, rel_name, rel_obj)
+                rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
+                setattr(instance, rel_name, rel_obj)
 
-        return obj
+        return instance
+
+    @staticmethod
+    def get_relation_fields(schema: SchemaInstanceAbstract) -> List[str]:
+        return list(schema.get('relations', {}).keys())
 
     @staticmethod
     def _get_relation_model(model: Type[T], field_name: str) -> Type[S]:
@@ -65,13 +69,13 @@ class CRUDDataStorage(DataStorage, CRUD):
                             f'{model.__name__} не является типом Relationship')
 
     async def get(
-            self, obj_id: str,
+            self, instance_id: str,
             include: Optional[Include] = None,
             model: Type[T] = None
     ) -> Optional[T]:
         if model is None:
             model = self._model
-        query = select(model).where(model.id == obj_id)
+        query = select(model).where(model.id == instance_id)
         if include:
             options = self._build_options(include)
             query = query.options(*options)
@@ -106,38 +110,47 @@ class CRUDDataStorage(DataStorage, CRUD):
 
         return options
 
-    async def create(self, obj: T) -> T:
-        if not obj.id:
-            obj.id = build_uuid()
+    async def create(self, instance: T, relation_fields: Optional[List[str]] = None) -> T:
+        if not instance.id:
+            instance.id = build_uuid()
+        relation_data = {rel_field: value for rel_field in relation_fields or []
+                         if (value := getattr(instance, rel_field, None))}
         try:
-            self._session.add(obj)
+            self._session.add(instance)
             await self._session.commit()
-            await self._session.refresh(obj)
+            await self._session.refresh(instance)
         except IntegrityError as e:
             raise CRUDConflict(f'Объект модели {self._model.__name__} не может быть создан: {e}')
-        return obj
 
-    async def update(self, obj_id: str, schema: SchemaInstance) -> None:
-        db_obj = await self.get(obj_id)
-        if not db_obj:
-            raise CRUDNotFound(f'Object with id {obj_id} not found')
+        for field, value in relation_data.items():
+            setattr(instance, field, value)
 
-        db_obj = await self._update_object(obj=db_obj, schema=schema)
-        self._session.add(db_obj)
-        await self._session.commit()
-        await self._session.refresh(db_obj)
+        return instance
 
-    async def delete(self, obj_id: str) -> None:
-        db_obj = await self.get(obj_id)
-        if not db_obj:
-            raise CRUDNotFound(f'Object with id {obj_id} not found')
+    async def update(self, instance_id: str, schema: SchemaInstance) -> None:
+        include = self.get_relation_fields(schema)
+        instance = await self.get(instance_id=instance_id, include=include)
+        if not instance:
+            raise CRUDNotFound(
+                f'Объект с id {instance_id} модели {self._model.__name__} не найден')
+
         try:
-            await self._session.delete(db_obj)
+            await self._update_instance_from_schema(instance=instance, schema=schema)
             await self._session.commit()
-            await self._session.refresh(db_obj)
+        except Exception as e:
+            raise CRUDConflict(
+                f'Ошибка обновления объекта с id {instance_id} модели {self._model.__name__}: {e}')
+
+    async def delete(self, instance_id: str) -> None:
+        instance = await self.get(instance_id=instance_id)
+        if not instance:
+            raise CRUDNotFound(f'Объект с id {instance_id} не найден')
+        try:
+            await self._session.delete(instance)
+            await self._session.commit()
         except Exception as e:
             await self._session.rollback()
-            raise CRUDConflict(f"Object with id {obj_id} can't be deleted: {e}")
+            raise CRUDConflict(f'Объект с id {instance_id} не может быть удалён: {e}')
 
     async def list(
             self, filters: Optional[Filters] = None,

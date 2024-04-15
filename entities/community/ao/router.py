@@ -46,3 +46,16 @@ async def community_names_by_percen(
 ) -> List[PercentByName]:
     ds = CommunityDS(model=Community, session=session)
     return await ds.get_voting_data_by_names(community_id)
+
+
+@router.post(
+    '/change_community_settings',
+    dependencies=[Depends(auth_service.get_current_user)],
+    status_code=204,
+)
+async def change_community_settings(
+    community_id: str,
+    session: AsyncSession = Depends(get_async_session),
+) -> None:
+    ds = CommunityDS(model=Community, session=session)
+    await ds.change_community_settings(community_id)

@@ -21,3 +21,8 @@ class CRUDNotFound(CRUDException):
 class CRUDConflict(CRUDException):
     status_code: int = 409
     title: str = 'Объект не может быть создан, удалён или изменён'
+
+
+class CRUDValidationError(CRUDException):
+    status_code: int = 422
+    title: str = 'Ошибка валидации объекта'

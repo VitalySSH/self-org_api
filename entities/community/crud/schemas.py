@@ -8,7 +8,7 @@ class CommunityAttributes(TypedDict):
     created: datetime
 
 
-class CommunityRelations(TypedDict):
+class CommunityRelations(TypedDict, total=False):
     main_settings: SchemaInstance
     creator: SchemaInstance
     user_settings: List[SchemaInstance]
