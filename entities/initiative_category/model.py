@@ -15,6 +15,7 @@ class InitiativeCategory(Base):
     __tablename__ = TableName.INITIATIVE_CATEGORY
 
     name: Mapped[str] = mapped_column(nullable=False)
+    community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
         nullable=False,

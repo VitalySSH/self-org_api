@@ -4,7 +4,10 @@ from sqlalchemy import select, func, desc
 from sqlalchemy.orm import selectinload
 
 from datastorage.base import DataStorage
-from datastorage.database.models import UserCommunitySettings, CommunitySettings
+from datastorage.database.models import (
+    UserCommunitySettings, CommunitySettings, RelationUserCsCategories, InitiativeCategory
+)
+from datastorage.dataclasses import OtherCommunitySettings
 from datastorage.interfaces import VotingParams, PercentByName
 
 
@@ -28,11 +31,11 @@ class CommunityDS(DataStorage):
         return list(rows.unique())
 
     async def get_voting_data_by_names(self, community_id: str) -> List[PercentByName]:
-        query = select(func.count()).select_from(UserCommunitySettings)
-        query.filter(UserCommunitySettings.community_id == community_id)
-        all_rows = await self._session.scalars(query)
-        data = list(all_rows)
-        total_count = data[0] if data else 0
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.community_id == community_id)
+        )
+        total_count = await self._session.scalar(query)
         query = (
             select(UserCommunitySettings.name,
                    func.count(UserCommunitySettings.name).label('count'))
@@ -42,8 +45,8 @@ class CommunityDS(DataStorage):
         )
         rows = await self._session.execute(query)
 
-        return [PercentByName(name=row[0], percent=int((row[1]/total_count) * 100))
-                for row in rows.all()]
+        return [PercentByName(name=name, percent=int((count / total_count) * 100))
+                for name, count in rows.all()]
 
     async def change_community_settings(self, community_id: str):
         voting_params = await self.calculate_voting_params(community_id)
@@ -56,13 +59,67 @@ class CommunityDS(DataStorage):
             name = names_data[0].get('name')
         query = (
             select(self._model).where(self._model.id == community_id)
-            .options(selectinload(self._model.main_settings))
+            .options(selectinload(self._model.main_settings)
+                     .selectinload(CommunitySettings.init_categories))
         )
+        other_settings = await self._get_other_community_settings(
+            community_id=community_id, vote=vote)
+
         community = await self._session.scalar(query)
         community_settings: CommunitySettings = community.main_settings
         community_settings.vote = vote
         community_settings.quorum = quorum
+        community_settings.is_secret_ballot = other_settings.is_secret_ballot
+        community_settings.is_can_offer = other_settings.is_can_offer
         if name:
             community_settings.name = name
+        if other_settings.categories:
+            community_settings.init_categories = other_settings.categories
         await self._session.commit()
 
+    async def _get_other_community_settings(self, community_id: str, vote: int):
+        query = (
+            select(UserCommunitySettings.id)
+            .filter(UserCommunitySettings.community_id == community_id)
+        )
+        user_cs = await self._session.scalars(query)
+        user_cs_ids = list(user_cs)
+        user_count = len(user_cs_ids)
+        category_ids = []
+        query = (
+            select(RelationUserCsCategories.to_id,
+                   func.count(RelationUserCsCategories.to_id).label('count'))
+            .filter(RelationUserCsCategories.from_id.in_(user_cs_ids))
+            .group_by(RelationUserCsCategories.to_id)
+            .order_by(desc('count'))
+        )
+        init_categories = await self._session.execute(query)
+        for category_id, count in init_categories.all():
+            if int(count / user_count * 100) >= vote:
+                category_ids.append(category_id)
+
+        categories: List[InitiativeCategory] = []
+        if category_ids:
+            query = select(InitiativeCategory).filter(InitiativeCategory.id.in_(category_ids))
+            categories_data = await self._session.scalars(query)
+            categories = list(categories_data)
+
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.is_secret_ballot.is_(True))
+        )
+        is_secret_ballot_count = await self._session.scalar(query)
+        is_secret_ballot = int(is_secret_ballot_count / user_count * 100) >= vote
+
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.is_can_offer.is_(True))
+        )
+        is_can_offer_count = await self._session.scalar(query)
+        is_can_offer = int(is_can_offer_count / user_count * 100) >= vote
+
+        return OtherCommunitySettings(
+            categories=categories,
+            is_secret_ballot=is_secret_ballot,
+            is_can_offer=is_can_offer,
+        )

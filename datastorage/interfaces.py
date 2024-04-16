@@ -5,6 +5,7 @@ from sqlalchemy.orm import DeclarativeBase
 
 T = TypeVar('T', bound=DeclarativeBase)
 SchemaInstanceAbstract = TypeVar('SchemaInstanceAbstract')
+InitiativeCategory = TypeVar('InitiativeCategory')
 
 
 class VotingParams(TypedDict):
