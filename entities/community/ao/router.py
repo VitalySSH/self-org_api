@@ -5,15 +5,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
 from datastorage.database.base import get_async_session
-from datastorage.interfaces import VotingParams, PercentByName
-from entities.community.ao.ao import CommunityDS
+from datastorage.interfaces import VotingParams, CsByPercent
+from entities.community.ao.data_storage import CommunityDS
 from entities.community.model import Community
 
 router = APIRouter()
 
 
 @router.get(
-    '/main_voting_settings/{community_id}',
+    '/voting_params/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)]
 )
 async def voting_settings(
@@ -25,7 +25,7 @@ async def voting_settings(
 
 
 @router.get(
-    '/community_names/{community_id}',
+    '/names/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)]
 )
 async def community_names(
@@ -37,15 +37,15 @@ async def community_names(
 
 
 @router.get(
-    '/community_names_by_percen/{community_id}',
+    '/settings_in_percen/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)]
 )
-async def community_names_by_percen(
+async def community_settings_by_percen(
     community_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> List[PercentByName]:
+) -> CsByPercent:
     ds = CommunityDS(model=Community, session=session)
-    return await ds.get_voting_data_by_names(community_id)
+    return await ds.get_community_settings_in_percent(community_id)
 
 
 @router.post(

@@ -1,4 +1,5 @@
-from datastorage.crud.router import get_crud_router, Method
+from datastorage.crud.enum import Method
+from datastorage.crud.router import get_crud_router
 from datastorage.database.models import Opinion
 from .schemas import OpinionRead, OpinionUpdate, OpinionCreate
 
@@ -7,12 +8,6 @@ router = get_crud_router(
     read_schema=OpinionRead,
     create_schema=OpinionCreate,
     update_schema=OpinionUpdate,
-    methods=[
-        Method.get,
-        Method.list,
-        Method.create,
-        Method.update,
-        Method.delete,
-    ],
+    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
     is_likes=True,
 )

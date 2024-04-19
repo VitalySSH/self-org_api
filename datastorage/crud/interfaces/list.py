@@ -25,7 +25,7 @@ class Operation(Enum):
     NULL = 'null'
 
 
-class Pagination(BaseModel):
+class PaginationModel(BaseModel):
     skip: int
     limit: int
 
@@ -41,12 +41,13 @@ class Order(BaseModel):
     direction: Direction
 
 
-Filters = List[Filter]
-Orders = List[Order]
+Filters = Optional[List[Filter]]
+Orders = Optional[List[Order]]
+Pagination = Optional[PaginationModel]
 
 
 class ListData(BaseModel):
-    filters: Optional[Filters] = None
-    orders: Optional[Orders] = None
-    pagination: Optional[Pagination] = None
+    filters: Filters = None
+    orders: Orders = None
+    pagination: Pagination = None
     include: Optional[List[str]] = None

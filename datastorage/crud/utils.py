@@ -1,5 +1,6 @@
-from datastorage.crud.interfaces.base import T, SchemaReadInstance
+from datastorage.crud.interfaces.schema import SchemaReadInstance
 from datastorage.database.models import User
+from datastorage.interfaces import T
 
 
 def update_instance_by_likes(instance: T, current_user: User) -> SchemaReadInstance:

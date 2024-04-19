@@ -1,6 +1,6 @@
 from typing import TypedDict, Optional
 
-from datastorage.crud.interfaces.base import SchemaInstance
+from datastorage.crud.interfaces.schema import SchemaInstance
 
 
 class OpinionAttributes(TypedDict):

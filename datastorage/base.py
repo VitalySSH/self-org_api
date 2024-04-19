@@ -1,4 +1,4 @@
-from typing import Generic, Type
+from typing import Generic, Type, Optional
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,8 +9,14 @@ class DataStorage(Generic[T]):
     """DAL."""
 
     _model: Type[T]
-    _session: AsyncSession
+    _session: Optional[AsyncSession]
 
-    def __init__(self, model: Type[T], session: AsyncSession) -> None:
+    def __init__(
+            self, model: Type[T],
+            session: Optional[AsyncSession] = None
+    ) -> None:
         self._model = model
+        self._session = session
+
+    def set_session(self, session: AsyncSession) -> None:
         self._session = session

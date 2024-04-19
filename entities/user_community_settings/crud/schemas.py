@@ -1,6 +1,6 @@
 from typing import List, TypedDict
 
-from datastorage.crud.interfaces.base import SchemaInstance
+from datastorage.crud.interfaces.schema import SchemaInstance
 
 
 class UserCsAttributes(TypedDict, total=False):

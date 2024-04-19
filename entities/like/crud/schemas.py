@@ -1,6 +1,4 @@
-from typing import TypedDict, List, Optional
-
-from datastorage.crud.interfaces.base import SchemaInstance
+from typing import TypedDict, Optional
 
 
 class LikeAttributes(TypedDict):

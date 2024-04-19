@@ -1,52 +1,34 @@
 import abc
-from typing import TypeVar, Optional, Type, List, TypedDict, Any, Dict, Union
+from typing import Optional, Type, List
 
-from sqlalchemy.orm import DeclarativeBase
-
+from datastorage.crud.dataclasses import InitPostProcessing
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination
-from datastorage.interfaces import SchemaInstanceAbstract
-
-T = TypeVar('T', bound=DeclarativeBase)
-S = TypeVar('S')
+from datastorage.crud.interfaces.schema import S
+from datastorage.interfaces import T
 
 
-Include = List[str]
-
-
-class RelationsSchema(TypedDict, total=False):
-    id: str
-    attributes: Dict[str, Any]
-    relations: Dict[str, Any]
-
-
-class SchemaReadInstance(TypedDict, total=False):
-    id: str
-    attributes: Dict[str, Any]
-    read_only: Dict[str, Any]
-    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema]]]
-
-
-class SchemaInstance(TypedDict, total=False):
-    id: str
-    attributes: Dict[str, Any]
-    relations: Dict[str, Union[RelationsSchema, List[RelationsSchema]]]
+Include = Optional[List[str]]
 
 
 class CRUD(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def get_relation_fields(schema: SchemaInstanceAbstract) -> List[str]:
+    def get_relation_fields(schema: S) -> List[str]:
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def schema_to_model(self, schema: SchemaInstanceAbstract) -> T:
+    def execute_post_processing(self, execute_data: InitPostProcessing) -> None:
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    async def schema_to_model(self, schema: S) -> T:
         raise NotImplementedError
 
     @abc.abstractmethod
     async def get(
             self, instance_id: str,
-            include: Optional[Include] = None,
+            include: Include = None,
             model: Type[T] = None
     ) -> Optional[T]:
         raise NotImplementedError
@@ -56,7 +38,7 @@ class CRUD(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def update(self, instance_id: str, schema: SchemaInstance) -> None:
+    async def update(self, instance_id: str, schema: S) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -65,18 +47,26 @@ class CRUD(abc.ABC):
 
     @abc.abstractmethod
     async def list(
-            self, filters: Optional[Filters] = None,
-            orders: Optional[Orders] = None,
-            pagination: Optional[Pagination] = None,
-            include: Optional[Include] = None,
+            self, filters: Filters = None,
+            orders: Orders = None,
+            pagination: Pagination = None,
+            include: Include = None,
     ) -> List[T]:
         raise NotImplementedError
 
     @abc.abstractmethod
     async def first(
-            self, filters: Optional[Filters] = None,
-            orders: Optional[Orders] = None,
-            pagination: Optional[Pagination] = None,
-            include: Optional[Include] = None,
+            self, filters: Filters = None,
+            orders: Orders = None,
+            pagination: Pagination = None,
+            include: Include = None,
     ) -> Optional[T]:
         raise NotImplementedError
+
+
+class PostProcessing(abc.ABC):
+
+    @abc.abstractmethod
+    def execute(self, execute_data: InitPostProcessing) -> None:
+        raise NotImplementedError
+

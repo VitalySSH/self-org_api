@@ -1,11 +1,8 @@
-from typing import TypedDict, TypeVar
+from typing import TypedDict, TypeVar, List
 
-from sqlalchemy.orm import DeclarativeBase
+from datastorage.database.models import Base
 
-
-T = TypeVar('T', bound=DeclarativeBase)
-SchemaInstanceAbstract = TypeVar('SchemaInstanceAbstract')
-InitiativeCategory = TypeVar('InitiativeCategory')
+T = TypeVar('T', bound=Base)
 
 
 class VotingParams(TypedDict):
@@ -17,3 +14,9 @@ class PercentByName(TypedDict):
     percent: int
     name: str
 
+
+class CsByPercent(TypedDict):
+    names: List[PercentByName]
+    secret_ballot: List[PercentByName]
+    can_offer: List[PercentByName]
+    categories: List[PercentByName]

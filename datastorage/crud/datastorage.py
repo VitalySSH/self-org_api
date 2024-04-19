@@ -6,22 +6,29 @@ from sqlalchemy import select, func, Select
 from sqlalchemy.orm import selectinload, Load
 
 from datastorage.base import DataStorage
+from datastorage.crud.dataclasses import InitPostProcessing
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
-from datastorage.crud.interfaces.base import CRUD, S, Include, SchemaInstance
+from datastorage.crud.interfaces.base import CRUD, Include
 from datastorage.crud.interfaces.list import (
     Filters, Operation, Orders, Direction, ListData, Pagination
 )
-from datastorage.interfaces import T, SchemaInstanceAbstract
+from datastorage.crud.interfaces.schema import SchemaInstance, S
+from datastorage.crud.post_processing import CRUDPostProcessing
+from datastorage.decorators import ds_async_with_session
+from datastorage.enum import SessionAction
+from datastorage.interfaces import T
 from datastorage.utils import build_uuid
 
 
-class CRUDDataStorage(DataStorage, CRUD):
+class CRUDDataStorage(DataStorage[T], CRUD):
     """Выполняет CRUD-операция для модели."""
+
+    _post_processing_type = CRUDPostProcessing
 
     MAX_PAGE_SIZE = 20
     DEFAULT_INDEX = 1
 
-    async def schema_to_model(self, schema: SchemaInstanceAbstract) -> T:
+    async def schema_to_model(self, schema: S) -> T:
         """Сериализует схему в объект модели."""
         return await self._update_instance_from_schema(instance=self._model(), schema=schema)
 
@@ -52,12 +59,17 @@ class CRUDDataStorage(DataStorage, CRUD):
 
         return instance
 
+    @ds_async_with_session(SessionAction.INVALIDATE_START)
+    async def execute_post_processing(self, execute_data: InitPostProcessing) -> None:
+        post_processing = self._post_processing_type()
+        post_processing.execute(execute_data)
+
     @staticmethod
-    def get_relation_fields(schema: SchemaInstanceAbstract) -> List[str]:
+    def get_relation_fields(schema: S) -> List[str]:
         return list(schema.get('relations', {}).keys())
 
     @staticmethod
-    def _get_relation_model(model: Type[T], field_name: str) -> Type[S]:
+    def _get_relation_model(model: Type[T], field_name: str) -> Type[T]:
         field = getattr(model, field_name, None)
         if field is None:
             raise Exception(f'Ошибка сериализации. '
@@ -66,11 +78,12 @@ class CRUDDataStorage(DataStorage, CRUD):
             return field.prop.entity.class_
         except Exception as e:
             raise Exception(f'Аттрибут {field_name} модели '
-                            f'{model.__name__} не является типом Relationship')
+                            f'{model.__name__} не является типом Relationship: {e}')
 
+    @ds_async_with_session()
     async def get(
             self, instance_id: str,
-            include: Optional[Include] = None,
+            include: Include = None,
             model: Type[T] = None
     ) -> Optional[T]:
         if model is None:
@@ -110,6 +123,7 @@ class CRUDDataStorage(DataStorage, CRUD):
 
         return options
 
+    @ds_async_with_session()
     async def create(self, instance: T, relation_fields: Optional[List[str]] = None) -> T:
         if not instance.id:
             instance.id = build_uuid()
@@ -127,6 +141,7 @@ class CRUDDataStorage(DataStorage, CRUD):
 
         return instance
 
+    @ds_async_with_session()
     async def update(self, instance_id: str, schema: SchemaInstance) -> None:
         include = self.get_relation_fields(schema)
         instance = await self.get(instance_id=instance_id, include=include)
@@ -141,6 +156,7 @@ class CRUDDataStorage(DataStorage, CRUD):
             raise CRUDConflict(
                 f'Ошибка обновления объекта с id {instance_id} модели {self._model.__name__}: {e}')
 
+    @ds_async_with_session()
     async def delete(self, instance_id: str) -> None:
         instance = await self.get(instance_id=instance_id)
         if not instance:
@@ -152,11 +168,12 @@ class CRUDDataStorage(DataStorage, CRUD):
             await self._session.rollback()
             raise CRUDConflict(f'Объект с id {instance_id} не может быть удалён: {e}')
 
+    @ds_async_with_session()
     async def list(
-            self, filters: Optional[Filters] = None,
-            orders: Optional[Orders] = None,
-            pagination: Optional[Pagination] = None,
-            include: Optional[Include] = None,
+            self, filters: Filters = None,
+            orders: Orders = None,
+            pagination: Pagination = None,
+            include: Include = None,
     ) -> List[T]:
         list_data = ListData(filters=filters, orders=orders,
                              pagination=pagination, include=include)
@@ -164,11 +181,12 @@ class CRUDDataStorage(DataStorage, CRUD):
         rows = await self._session.scalars(query)
         return list(rows.unique())
 
+    @ds_async_with_session()
     async def first(
-            self, filters: Optional[Filters] = None,
-            orders: Optional[Orders] = None,
-            pagination: Optional[Pagination] = None,
-            include: Optional[Include] = None,
+            self, filters: Filters = None,
+            orders: Orders = None,
+            pagination: Pagination = None,
+            include: Include = None,
     ) -> Optional[T]:
         list_data = ListData(filters=filters, orders=orders,
                              pagination=pagination, include=include)
@@ -191,7 +209,7 @@ class CRUDDataStorage(DataStorage, CRUD):
 
         return query
     
-    def _get_filter_params(self, filters: Optional[Filters]) -> List:
+    def _get_filter_params(self, filters: Filters) -> List:
         params = []
         for _filter in filters or []:
             field = getattr(self._model, _filter.field)
@@ -226,7 +244,7 @@ class CRUDDataStorage(DataStorage, CRUD):
 
         return params
 
-    def _get_order_params(self, orders: Optional[Orders] = None) -> List:
+    def _get_order_params(self, orders: Orders = None) -> List:
         params = []
         for order in orders or []:
             field = getattr(self._model, order.field, None)

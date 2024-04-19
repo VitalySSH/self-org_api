@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TypedDict, List, Optional
 
-from datastorage.crud.interfaces.base import SchemaInstance
+from datastorage.crud.interfaces.schema import SchemaInstance
 
 
 class InitiativeAttributes(TypedDict):

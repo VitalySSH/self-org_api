@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from auth.auth import auth_service
-from datastorage.crud.interfaces.list import ListData, Filter, Operation
+from datastorage.crud.interfaces.list import Filter, Operation
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.base import get_async_session
 from datastorage.database.models import User
@@ -17,7 +17,7 @@ async def login_for_access_token(
     email: EmailStr = Form(), hashed_password: str = Form(),
     session: AsyncSession = Depends(get_async_session),
 ):
-    user_ds = CRUDDataStorage(model=User, session=session)
+    user_ds = CRUDDataStorage[User](model=User, session=session)
     filters = [Filter(field='email', op=Operation.EQ, val=email)]
     user = await user_ds.first(filters=filters)
     if not user:
