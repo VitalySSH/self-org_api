@@ -6,7 +6,7 @@ from sqlalchemy import select, func, Select
 from sqlalchemy.orm import selectinload, Load
 
 from datastorage.base import DataStorage
-from datastorage.crud.dataclasses import InitPostProcessing, PostProcessingData
+from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
 from datastorage.crud.interfaces.base import CRUD, Include
 from datastorage.crud.interfaces.list import (

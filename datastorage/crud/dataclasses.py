@@ -20,9 +20,3 @@ class PostProcessingData:
 class ThreadFuncData:
     func: Callable
     kwargs: Dict[str, Any]
-
-
-@dataclass
-class InitPostProcessing:
-    instance: T
-    post_processing_data: PostProcessingData

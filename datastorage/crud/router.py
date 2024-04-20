@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
 from auth.auth import auth_service
-from datastorage.crud.dataclasses import PostProcessingData, InitPostProcessing
+from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.enum import Method
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
