@@ -6,7 +6,7 @@ from sqlalchemy import select, func, Select
 from sqlalchemy.orm import selectinload, Load
 
 from datastorage.base import DataStorage
-from datastorage.crud.dataclasses import InitPostProcessing
+from datastorage.crud.dataclasses import InitPostProcessing, PostProcessingData
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
 from datastorage.crud.interfaces.base import CRUD, Include
 from datastorage.crud.interfaces.list import (
@@ -15,7 +15,6 @@ from datastorage.crud.interfaces.list import (
 from datastorage.crud.interfaces.schema import SchemaInstance, S
 from datastorage.crud.post_processing import CRUDPostProcessing
 from datastorage.decorators import ds_async_with_session
-from datastorage.enum import SessionAction
 from datastorage.interfaces import T
 from datastorage.utils import build_uuid
 
@@ -59,10 +58,11 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return instance
 
-    @ds_async_with_session(SessionAction.INVALIDATE_START)
-    async def execute_post_processing(self, execute_data: InitPostProcessing) -> None:
+    async def execute_post_processing(
+            self, instance: T, post_processing_data: PostProcessingData) -> None:
+        await self.invalidate_session()
         post_processing = self._post_processing_type()
-        post_processing.execute(execute_data)
+        post_processing.execute(instance=instance, post_processing_data=post_processing_data)
 
     @staticmethod
     def get_relation_fields(schema: S) -> List[str]:
@@ -80,7 +80,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise Exception(f'Аттрибут {field_name} модели '
                             f'{model.__name__} не является типом Relationship: {e}')
 
-    @ds_async_with_session()
     async def get(
             self, instance_id: str,
             include: Include = None,
@@ -168,7 +167,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             await self._session.rollback()
             raise CRUDConflict(f'Объект с id {instance_id} не может быть удалён: {e}')
 
-    @ds_async_with_session()
     async def list(
             self, filters: Filters = None,
             orders: Orders = None,
@@ -181,7 +179,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         rows = await self._session.scalars(query)
         return list(rows.unique())
 
-    @ds_async_with_session()
     async def first(
             self, filters: Filters = None,
             orders: Orders = None,

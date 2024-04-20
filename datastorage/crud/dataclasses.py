@@ -7,17 +7,12 @@ from datastorage.interfaces import T
 
 
 @dataclass
-class PostProcessingSettings:
-    methods: List[Method]
-    func_name: str
-    instance_attr: str
-
-
-@dataclass
 class PostProcessingData:
     data_storage: Type[DataStorage]
     model: Type[T]
-    settings: PostProcessingSettings
+    methods: List[Method]
+    func_name: str
+    instance_attr: str
     include: Optional[List[str]] = None
 
 
@@ -30,5 +25,4 @@ class ThreadFuncData:
 @dataclass
 class InitPostProcessing:
     instance: T
-    method: Method
     post_processing_data: PostProcessingData

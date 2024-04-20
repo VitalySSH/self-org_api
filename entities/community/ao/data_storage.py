@@ -15,7 +15,6 @@ from entities.community.ao.dataclasses import OtherCommunitySettings
 
 class CommunityDS(DataStorage[Community]):
 
-    @ds_async_with_session()
     async def calculate_voting_params(self, community_id: str) -> VotingParams:
         query = select(func.avg(UserCommunitySettings.vote),
                        func.avg(UserCommunitySettings.quorum))
@@ -25,7 +24,6 @@ class CommunityDS(DataStorage[Community]):
 
         return VotingParams(vote=int(vote), quorum=int(quorum))
 
-    @ds_async_with_session()
     async def get_all_community_names(self, community_id: str) -> List[str]:
         query = select(UserCommunitySettings.name).distinct()
         query.filter(UserCommunitySettings.community_id == community_id)
@@ -34,7 +32,6 @@ class CommunityDS(DataStorage[Community]):
 
         return list(rows.unique())
 
-    @ds_async_with_session()
     async def _get_voting_data_by_names(self, community_id: str) -> List[PercentByName]:
         query = (
             select(func.count()).select_from(UserCommunitySettings)
@@ -53,7 +50,6 @@ class CommunityDS(DataStorage[Community]):
         return [PercentByName(name=name, percent=int((count / total_count) * 100))
                 for name, count in name_data.all()]
 
-    @ds_async_with_session()
     async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
         categories_data, user_count = await self._get_user_init_categories(community_id)
         category_data = {category_id: count for category_id, count in categories_data}
@@ -121,7 +117,6 @@ class CommunityDS(DataStorage[Community]):
             community_settings.init_categories = other_settings.categories
         await self._session.commit()
 
-    @ds_async_with_session()
     async def _get_user_init_categories(
             self, community_id: str) -> Tuple[List[Tuple[str, int]], int]:
         query = (
@@ -142,7 +137,6 @@ class CommunityDS(DataStorage[Community]):
 
         return cast(List[Tuple[str, int]], init_categories.all()), user_count
 
-    @ds_async_with_session()
     async def _get_other_community_settings(
             self, community_id: str, vote: int) -> OtherCommunitySettings:
         category_ids = []

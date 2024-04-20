@@ -1,4 +1,4 @@
-from datastorage.crud.dataclasses import PostProcessingData, PostProcessingSettings
+from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.enum import Method
 from datastorage.crud.router import get_crud_router
 from datastorage.database.models import UserCommunitySettings
@@ -10,11 +10,9 @@ from ...community.ao.data_storage import CommunityDS
 post_processing = PostProcessingData(
     data_storage=CommunityDS,
     model=Community,
-    settings=PostProcessingSettings(
-        methods=[Method.CREATE, Method.UPDATE, Method.DELETE],
-        func_name='change_community_settings',
-        instance_attr='community_id',
-    )
+    methods=[Method.CREATE, Method.UPDATE, Method.DELETE],
+    func_name='change_community_settings',
+    instance_attr='community_id',
 )
 
 router = get_crud_router(

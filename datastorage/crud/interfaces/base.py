@@ -1,7 +1,7 @@
 import abc
 from typing import Optional, Type, List
 
-from datastorage.crud.dataclasses import InitPostProcessing
+from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination
 from datastorage.crud.interfaces.schema import S
 from datastorage.interfaces import T
@@ -18,7 +18,8 @@ class CRUD(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def execute_post_processing(self, execute_data: InitPostProcessing) -> None:
+    async def execute_post_processing(
+            self, instance: T, post_processing_data: PostProcessingData) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -67,6 +68,6 @@ class CRUD(abc.ABC):
 class PostProcessing(abc.ABC):
 
     @abc.abstractmethod
-    def execute(self, execute_data: InitPostProcessing) -> None:
+    def execute(self, instance: T, post_processing_data: PostProcessingData) -> None:
         raise NotImplementedError
 

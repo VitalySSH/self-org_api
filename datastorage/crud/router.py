@@ -51,16 +51,14 @@ def get_crud_router(
             instance: model = await ds.get(instance_id=instance_id, include=include)
             if instance:
                 if post_processing_data:
-                    if post_processing_data.include:
-                        post_instance: model = await ds.get(
-                            instance_id=instance_id, include=post_processing_data.include)
-                    else:
-                        post_instance = deepcopy(instance)
-                    execute_data = InitPostProcessing(
-                        instance=post_instance, method=Method.GET,
-                        post_processing_data=post_processing_data,
-                    )
-                    await ds.execute_post_processing(execute_data)
+                    if Method.GET in post_processing_data.methods:
+                        if post_processing_data.include:
+                            post_instance: model = await ds.get(
+                                instance_id=instance_id, include=post_processing_data.include)
+                        else:
+                            post_instance = deepcopy(instance)
+                        await ds.execute_post_processing(
+                            instance=post_instance, post_processing_data=post_processing_data)
 
                 if is_likes:
                     return update_instance_by_likes(instance=instance, current_user=current_user)
@@ -112,16 +110,14 @@ def get_crud_router(
                     instance=instance_to_add, relation_fields=relation_fields)
 
                 if post_processing_data:
-                    if post_processing_data.include:
-                        post_instance: model = await ds.get(
-                            instance_id=new_instance.id, include=post_processing_data.include)
-                    else:
-                        post_instance = deepcopy(new_instance)
-                    execute_data = InitPostProcessing(
-                        instance=post_instance, method=Method.CREATE,
-                        post_processing_data=post_processing_data,
-                    )
-                    await ds.execute_post_processing(execute_data)
+                    if Method.CREATE in post_processing_data.methods:
+                        if post_processing_data.include:
+                            post_instance: model = await ds.get(
+                                instance_id=new_instance.id, include=post_processing_data.include)
+                        else:
+                            post_instance = deepcopy(new_instance)
+                        await ds.execute_post_processing(
+                            instance=post_instance, post_processing_data=post_processing_data)
 
                 if is_likes:
                     return update_instance_by_likes(
@@ -160,13 +156,11 @@ def get_crud_router(
                     detail=e.description,
                 )
             if post_processing_data:
-                post_instance: model = await ds.get(
-                    instance_id=instance_id, include=post_processing_data.include)
-                execute_data = InitPostProcessing(
-                    instance=post_instance, method=Method.UPDATE,
-                    post_processing_data=post_processing_data,
-                )
-                await ds.execute_post_processing(execute_data)
+                if Method.UPDATE in post_processing_data.methods:
+                    post_instance: model = await ds.get(
+                        instance_id=instance_id, include=post_processing_data.include)
+                    await ds.execute_post_processing(
+                        instance=post_instance, post_processing_data=post_processing_data)
 
     if Method.DELETE in methods:
         @router.delete(
@@ -187,12 +181,10 @@ def get_crud_router(
                     detail=e.description,
                 )
             if post_processing_data:
-                post_instance: model = await ds.get(
-                    instance_id=instance_id, include=post_processing_data.include)
-                execute_data = InitPostProcessing(
-                    instance=post_instance, method=Method.DELETE,
-                    post_processing_data=post_processing_data,
-                )
-                await ds.execute_post_processing(execute_data)
+                if Method.DELETE in post_processing_data.methods:
+                    post_instance: model = await ds.get(
+                        instance_id=instance_id, include=post_processing_data.include)
+                    await ds.execute_post_processing(
+                        instance=post_instance, post_processing_data=post_processing_data)
 
     return router

@@ -21,6 +21,11 @@ class DataStorage(Generic[T]):
     def set_session(self, session: AsyncSession) -> None:
         self._session = session
 
+    async def close_session(self) -> None:
+        if self._session:
+            await self._session.close()
+
     async def invalidate_session(self) -> None:
         if self._session:
             await self._session.invalidate()
+            self._session = None
