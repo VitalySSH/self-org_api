@@ -40,6 +40,7 @@ def get_crud_router(
         @router.get(
             '/{instance_id}',
             response_model=read_schema,
+            status_code=200,
         )
         async def get_instance(
                 instance_id: str,
@@ -74,6 +75,7 @@ def get_crud_router(
         @router.post(
             '/list',
             response_model=List[read_schema],
+            status_code=200,
         )
         async def list_instances(
                 filters: Filters = None,
@@ -96,6 +98,7 @@ def get_crud_router(
         @router.post(
             '/create',
             response_model=read_schema,
+            status_code=201,
         )
         async def create_instance(
                 body: create_schema,

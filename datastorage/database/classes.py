@@ -1,5 +1,6 @@
 class TableName:
     USER = 'user'
+    FILE_METADATA = 'file_metadata'
     COMMUNITY_SETTINGS = 'community_settings'
     USER_COMMUNITY_SETTINGS = 'user_community_settings'
     COMMUNITY = 'community'

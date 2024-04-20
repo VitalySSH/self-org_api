@@ -55,16 +55,6 @@ cover/
 *.mo
 *.pot
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
 # Scrapy stuff:
 .scrapy
 
@@ -151,6 +141,9 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# Files
+uploaded_files/
 
 # PyCharm
 #  JetBrains specific template is maintained in a separate JetBrains.gitignore that can

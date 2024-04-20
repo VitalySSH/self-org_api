@@ -21,3 +21,5 @@ JWT_LIFE_TIME_SECONDS = int(os.environ.get('JWT_LIFE_TIME_SECONDS'))
 
 HOST = str(os.environ.get('HOST', 'localhost'))
 PORT = int(os.environ.get('PORT', '8080'))
+
+UPLOADED_FILES_PATH = 'filestorage/uploaded_files/'

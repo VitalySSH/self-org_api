@@ -1,5 +1,6 @@
 __all__ = (
     'Base',
+    'FileMetaData',
     'User',
     'CommunitySettings',
     'UserCommunitySettings',
@@ -26,6 +27,7 @@ __all__ = (
 )
 
 from .base import Base
+from .file_metadata import FileMetaData
 from entities.community.model import Community
 from entities.community_settings.model import CommunitySettings
 from entities.user_community_settings.model import UserCommunitySettings
