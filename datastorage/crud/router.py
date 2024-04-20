@@ -167,7 +167,6 @@ def get_crud_router(
                     post_processing_data=post_processing_data,
                 )
                 await ds.execute_post_processing(execute_data)
-                print('Я вернул ответ клиенту')
 
     if Method.DELETE in methods:
         @router.delete(

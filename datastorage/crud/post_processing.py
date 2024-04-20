@@ -1,6 +1,6 @@
 import asyncio
 from threading import Thread
-from typing import Optional, List
+from typing import Optional
 
 from datastorage.base import DataStorage
 from datastorage.crud.dataclasses import (
@@ -19,14 +19,8 @@ class CRUDPostProcessing(Thread, PostProcessing):
     _method: Optional[Method]
 
     def run(self) -> None:
-        funcs_data = self._build_thread_func_data(
-            instance=self._instance, method=self._method)
-        if self._post_processing.is_consistently:
-            for func_data in funcs_data:
-                asyncio.run(self._wrap_consistently_task(func_data))
-        else:
-            tasks = [func_data.func(**func_data.kwargs) for func_data in funcs_data]
-            asyncio.gather(*tasks)
+        func_data = self._build_func_data(instance=self._instance, method=self._method)
+        asyncio.gather(*[func_data.func(**func_data.kwargs)])
 
     def execute(self, execute_data: InitPostProcessing) -> None:
         self._instance = execute_data.instance
@@ -34,16 +28,11 @@ class CRUDPostProcessing(Thread, PostProcessing):
         self._post_processing = execute_data.post_processing_data
         self.run()
 
-    @staticmethod
-    async def _wrap_consistently_task(data: ThreadFuncData):
-        await data.func(**data.kwargs)
-
-    def _build_thread_func_data(self, instance: T, method: Method) -> List[ThreadFuncData]:
+    def _build_func_data(self, instance: T, method: Method) -> Optional[ThreadFuncData]:
         ds: DataStorage = self._init_data_storage()
-        funcs_data: List[ThreadFuncData] = []
-        for settings in self._post_processing.settings:
-            if method not in settings.methods:
-                continue
+        settings = self._post_processing.settings
+        func_data: Optional[ThreadFuncData] = None
+        if method in settings.methods:
             func = getattr(ds, settings.func_name)
             attr_value = getattr(instance, settings.instance_attr)
             if func and attr_value:
@@ -54,9 +43,7 @@ class CRUDPostProcessing(Thread, PostProcessing):
                 else:
                     func_data = ThreadFuncData(func=func, kwargs={})
 
-                funcs_data.append(func_data)
-
-        return funcs_data
+        return func_data
 
     def _init_data_storage(self) -> DataStorage:
         ds_class = self._post_processing.data_storage

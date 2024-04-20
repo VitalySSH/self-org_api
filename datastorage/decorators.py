@@ -32,7 +32,8 @@ def ds_async_with_session(action: SessionAction = SessionAction.CLOSE):
             if inspect.iscoroutinefunction(function):
                 result = await function(self, *args, **kwargs)
             else:
-                result = function(self, *args, **kwargs)
+                raise Exception(f'Функция {function.__name__}, к которой применён декоратор '
+                                f'@ds_async_with_session, не является асинхронной')
             if action == SessionAction.CLOSE:
                 await self._session.close()
             elif action == SessionAction.INVALIDATE:

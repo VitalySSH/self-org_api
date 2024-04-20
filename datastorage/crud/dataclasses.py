@@ -17,9 +17,8 @@ class PostProcessingSettings:
 class PostProcessingData:
     data_storage: Type[DataStorage]
     model: Type[T]
-    settings: List[PostProcessingSettings]
+    settings: PostProcessingSettings
     include: Optional[List[str]] = None
-    is_consistently: bool = False
 
 
 @dataclass
