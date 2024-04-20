@@ -8,7 +8,7 @@ from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
     RelationUserCsCategories, InitiativeCategory
 )
-from datastorage.decorators import ds_async_with_session
+from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import VotingParams, PercentByName, CsByPercent
 from entities.community.ao.dataclasses import OtherCommunitySettings
 
@@ -88,7 +88,7 @@ class CommunityDS(DataStorage[Community]):
             can_offer=can_offer,
         )
 
-    @ds_async_with_session()
+    @ds_async_with_new_session
     async def change_community_settings(self, community_id: str) -> None:
         voting_params = await self.calculate_voting_params(community_id)
         vote: int = voting_params.get('vote')

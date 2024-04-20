@@ -122,7 +122,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return options
 
-    @ds_async_with_session()
+    @ds_async_with_session
     async def create(self, instance: T, relation_fields: Optional[List[str]] = None) -> T:
         if not instance.id:
             instance.id = build_uuid()
@@ -140,7 +140,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return instance
 
-    @ds_async_with_session()
+    @ds_async_with_session
     async def update(self, instance_id: str, schema: SchemaInstance) -> None:
         include = self.get_relation_fields(schema)
         instance = await self.get(instance_id=instance_id, include=include)
@@ -155,7 +155,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise CRUDConflict(
                 f'Ошибка обновления объекта с id {instance_id} модели {self._model.__name__}: {e}')
 
-    @ds_async_with_session()
+    @ds_async_with_session
     async def delete(self, instance_id: str) -> None:
         instance = await self.get(instance_id=instance_id)
         if not instance:
