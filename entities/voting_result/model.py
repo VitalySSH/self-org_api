@@ -14,7 +14,7 @@ class VotingResult(Base):
     __tablename__ = TableName.VOTING_RESULT
 
     only_option_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_OPTION}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.VOTING_OPTION}.id'),
         nullable=True,
         index=True,
     )

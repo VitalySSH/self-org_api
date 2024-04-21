@@ -12,8 +12,8 @@ class RelationOpinionLike(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.OPINION}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.OPINION}.id'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.LIKE}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.LIKE}.id'),
         nullable=False, index=True)

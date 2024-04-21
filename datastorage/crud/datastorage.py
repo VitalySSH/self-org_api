@@ -91,8 +91,12 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         if include:
             options = self._build_options(include)
             query = query.options(*options)
-        rows = await self._session.scalars(query)
-        return rows.first()
+        try:
+            rows = await self._session.scalars(query)
+            return rows.first()
+        except Exception as e:
+            raise CRUDException(f'Не удалось получить объект с id {instance_id} '
+                                f'модели {model.__name__}: {e}')
 
     def _build_options(self, include: List[str]) -> List[Load]:
         options = []
@@ -117,8 +121,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                         option = option.selectinload(field)
                     else:
                         option = cast(Load, selectinload(field))
-
-            options.append(option)
+            if option:
+                options.append(option)
 
         return options
 
@@ -177,7 +181,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                              pagination=pagination, include=include)
         query = self._query_for_list(list_data)
         rows = await self._session.scalars(query)
-        return list(rows.unique())
+        return list(rows)
 
     async def first(
             self, filters: Filters = None,
@@ -189,7 +193,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                              pagination=pagination, include=include)
         query = self._query_for_list(list_data)
         rows = await self._session.scalars(query)
-        data = list(rows.unique())
+        data = list(rows)
         return data[0] if data else None
 
     def _query_for_list(self, list_data: ListData) -> Select[Any]:

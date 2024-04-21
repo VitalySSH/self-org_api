@@ -44,7 +44,7 @@ def get_crud_router(
         )
         async def get_instance(
                 instance_id: str,
-                include: Include = Query(None),
+                include: List[str] = Query(None),
                 current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:

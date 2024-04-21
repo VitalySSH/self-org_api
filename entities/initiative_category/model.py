@@ -17,13 +17,13 @@ class InitiativeCategory(Base):
     name: Mapped[str] = mapped_column(nullable=False)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
         index=True,
     )
     creator: Mapped['User'] = relationship(lazy='noload')
     status_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.STATUS}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,
         index=True,
     )

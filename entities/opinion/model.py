@@ -18,7 +18,7 @@ class Opinion(Base):
 
     text: Mapped[str] = mapped_column(nullable=False)
     creator_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
         index=True,
     )

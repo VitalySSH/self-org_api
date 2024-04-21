@@ -5,7 +5,6 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 
 class UserCsAttributes(TypedDict, total=False):
     community_id: str
-    name: str
     quorum: int
     vote: int
     is_secret_ballot: bool
@@ -15,6 +14,8 @@ class UserCsAttributes(TypedDict, total=False):
 
 class UserCsRelations(TypedDict, total=False):
     user: SchemaInstance
+    name: SchemaInstance
+    description: SchemaInstance
     init_categories: List[SchemaInstance]
     delegate_settings: List[SchemaInstance]
 

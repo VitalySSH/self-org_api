@@ -13,8 +13,8 @@ class RelationCommunityUCs(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.COMMUNITY}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.COMMUNITY}.id'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id'),
         nullable=False, index=True)

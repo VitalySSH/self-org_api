@@ -15,13 +15,13 @@ class DelegateSettings(Base):
     __tablename__ = TableName.DELEGATE_SETTINGS
 
     init_category_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id'),
         nullable=False,
         index=True,
     )
     init_category: Mapped['InitiativeCategory'] = relationship(lazy='noload')
     user_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=True,
         index=True,
     )

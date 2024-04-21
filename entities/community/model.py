@@ -18,7 +18,7 @@ class Community(Base):
     __tablename__ = TableName.COMMUNITY
 
     main_settings_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id'),
         nullable=False,
         index=True,
     )
@@ -29,7 +29,7 @@ class Community(Base):
     user_settings: Mapped[List['UserCommunitySettings']] = relationship(
         secondary=TableName.RELATION_COMMUNITY_UCS, lazy='noload')
     creator_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
         index=True,
     )

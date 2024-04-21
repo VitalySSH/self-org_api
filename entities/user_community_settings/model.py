@@ -8,7 +8,7 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        InitiativeCategory, User, DelegateSettings
+        InitiativeCategory, User, DelegateSettings, CommunityName, CommunityDescription
     )
 
 
@@ -20,13 +20,24 @@ class UserCommunitySettings(Base):
     )
 
     user_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=True,
         index=True,
     )
     user: Mapped['User'] = relationship(lazy='noload')
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
-    name: Mapped[str] = mapped_column(nullable=False)
+    name_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.COMMUNITY_NAME}.id'),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped['CommunityName'] = relationship(lazy='noload')
+    description_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.COMMUNITY_DESCRIPTION}.id'),
+        nullable=False,
+        index=True,
+    )
+    description: Mapped['CommunityDescription'] = relationship(lazy='noload')
     quorum: Mapped[int] = mapped_column(nullable=False)
     vote: Mapped[int] = mapped_column(nullable=False)
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)

@@ -12,8 +12,8 @@ class RelationInitiativeRV(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.INITIATIVE}.id'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_RESULT}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.VOTING_RESULT}.id'),
         nullable=False, index=True)

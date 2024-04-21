@@ -12,8 +12,8 @@ class RelationVrVo(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_RESULT}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.VOTING_RESULT}.id'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_OPTION}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.VOTING_OPTION}.id'),
         nullable=False, index=True)

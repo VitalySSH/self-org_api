@@ -13,9 +13,9 @@ class RelationDsUsers(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.DELEGATE_SETTINGS}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.DELEGATE_SETTINGS}.id'),
         nullable=False, index=True)
 
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=False, index=True)

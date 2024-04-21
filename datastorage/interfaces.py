@@ -17,6 +17,7 @@ class PercentByName(TypedDict):
 
 class CsByPercent(TypedDict):
     names: List[PercentByName]
+    descriptions: List[PercentByName]
     secret_ballot: List[PercentByName]
     can_offer: List[PercentByName]
     categories: List[PercentByName]

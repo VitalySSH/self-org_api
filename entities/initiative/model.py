@@ -21,25 +21,25 @@ class Initiative(Base):
 
     content: Mapped[str] = mapped_column(nullable=False)
     type_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_TYPE}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.INITIATIVE_TYPE}.id'),
         nullable=False,
         index=True,
     )
     type: Mapped['InitiativeType'] = relationship(lazy='noload')
     creator_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
         index=True,
     )
     creator: Mapped['User'] = relationship(lazy='noload')
     status_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.STATUS}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,
         index=True,
     )
     status: Mapped['Status'] = relationship(lazy='noload')
     category_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id', ondelete='CASCADE'),
+        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id'),
         nullable=False,
         index=True,
     )

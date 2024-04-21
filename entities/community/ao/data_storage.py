@@ -1,16 +1,18 @@
 from typing import List, Optional, Tuple, cast
 
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, asc
 from sqlalchemy.orm import selectinload
 
 from datastorage.base import DataStorage
 from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
-    RelationUserCsCategories, InitiativeCategory
+    RelationUserCsCategories, InitiativeCategory, CommunityName, CommunityDescription
 )
 from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import VotingParams, PercentByName, CsByPercent
 from entities.community.ao.dataclasses import OtherCommunitySettings
+from entities.community_description.crud.schemas import CommunityDescRead
+from entities.community_name.crud.schemas import CommunityNameRead
 
 
 class CommunityDS(DataStorage[Community]):
@@ -24,13 +26,64 @@ class CommunityDS(DataStorage[Community]):
 
         return VotingParams(vote=int(vote), quorum=int(quorum))
 
-    async def get_all_community_names(self, community_id: str) -> List[str]:
-        query = select(UserCommunitySettings.name).distinct()
-        query.filter(UserCommunitySettings.community_id == community_id)
-        query.group_by(UserCommunitySettings.name)
-        rows = await self._session.scalars(query)
+    async def get_community_names(self, community_id: str) -> List[CommunityNameRead]:
+        query = select(CommunityName)
+        query.filter(CommunityName.community_id == community_id)
+        query.order_by(asc(CommunityName.name))
+        names = await self._session.scalars(query)
 
-        return list(rows.unique())
+        return [name.to_read_schema() for name in names]
+
+    async def get_community_descriptions(self, community_id: str) -> List[CommunityDescRead]:
+        query = select(CommunityDescription)
+        query.filter(CommunityDescription.community_id == community_id)
+        descriptions = await self._session.scalars(query)
+
+        return [description.to_read_schema() for description in descriptions]
+
+    async def _get_first_community_name(
+            self, community_id: str) -> Optional[Tuple[CommunityName, int]]:
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.community_id == community_id)
+        )
+        total_count = await self._session.scalar(query)
+        query = (
+            select(CommunityName,
+                   func.count(CommunityName.name).label('count'))
+            .select_from(UserCommunitySettings, CommunityName)
+            .join(CommunityName)
+            .filter(UserCommunitySettings.community_id == community_id)
+            .group_by(CommunityName.name, CommunityName)
+            .order_by(desc('count'))
+        )
+        name_data = await self._session.execute(query)
+        names = name_data.all()
+        if names:
+            return names[0][0], int((names[0][1] / total_count) * 100)
+        return None
+
+    async def _get_first_community_desc(
+            self, community_id: str) -> Optional[Tuple[CommunityDescription, int]]:
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.community_id == community_id)
+        )
+        total_count = await self._session.scalar(query)
+        query = (
+            select(CommunityDescription,
+                   func.count(CommunityDescription.value).label('count'))
+            .select_from(UserCommunitySettings, CommunityDescription)
+            .join(CommunityDescription)
+            .filter(UserCommunitySettings.community_id == community_id)
+            .group_by(CommunityDescription.value, CommunityDescription)
+            .order_by(desc('count'))
+        )
+        name_data = await self._session.execute(query)
+        names = name_data.all()
+        if names:
+            return names[0][0], int((names[0][1] / total_count) * 100)
+        return None
 
     async def _get_voting_data_by_names(self, community_id: str) -> List[PercentByName]:
         query = (
@@ -39,16 +92,38 @@ class CommunityDS(DataStorage[Community]):
         )
         total_count = await self._session.scalar(query)
         query = (
-            select(UserCommunitySettings.name,
-                   func.count(UserCommunitySettings.name).label('count'))
+            select(CommunityName.name,
+                   func.count(CommunityName.name).label('count'))
+            .select_from(UserCommunitySettings, CommunityName)
+            .join(CommunityName)
             .filter(UserCommunitySettings.community_id == community_id)
-            .group_by(UserCommunitySettings.name)
+            .group_by(CommunityName.name)
             .order_by(desc('count'))
         )
         name_data = await self._session.execute(query)
 
         return [PercentByName(name=name, percent=int((count / total_count) * 100))
                 for name, count in name_data.all()]
+
+    async def _get_voting_data_by_desc(self, community_id: str) -> List[PercentByName]:
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.community_id == community_id)
+        )
+        total_count = await self._session.scalar(query)
+        query = (
+            select(CommunityDescription.value,
+                   func.count(CommunityDescription.value).label('count'))
+            .select_from(UserCommunitySettings, CommunityDescription)
+            .join(CommunityDescription)
+            .filter(UserCommunitySettings.community_id == community_id)
+            .group_by(CommunityDescription.value)
+            .order_by(desc('count'))
+        )
+        desc_data = await self._session.execute(query)
+
+        return [PercentByName(name=desc_, percent=int((count / total_count) * 100))
+                for desc_, count in desc_data.all()]
 
     async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
         categories_data, user_count = await self._get_user_init_categories(community_id)
@@ -83,6 +158,7 @@ class CommunityDS(DataStorage[Community]):
 
         return CsByPercent(
             names=await self._get_voting_data_by_names(community_id),
+            descriptions=await self._get_voting_data_by_desc(community_id),
             categories=categories,
             secret_ballot=secret_ballot,
             can_offer=can_offer,
@@ -93,11 +169,19 @@ class CommunityDS(DataStorage[Community]):
         voting_params = await self.calculate_voting_params(community_id)
         vote: int = voting_params.get('vote')
         quorum: int = voting_params.get('quorum')
-        name: Optional[str] = None
-        names_data = await self._get_voting_data_by_names(community_id)
-        name_vote: int = names_data[0].get('percent')
-        if name_vote >= vote:
-            name = names_data[0].get('name')
+        name: Optional[CommunityName] = None
+        description: Optional[CommunityDescription] = None
+        names_data = await self._get_first_community_name(community_id)
+        if names_data:
+            name_vote = names_data[1]
+            if name_vote >= vote:
+                name = names_data[0]
+        desc_data = await self._get_first_community_desc(community_id)
+        if desc_data:
+            desc_vote = desc_data[1]
+            if desc_vote >= vote:
+                description = desc_data[0]
+
         query = (
             select(self._model).where(self._model.id == community_id)
             .options(selectinload(self._model.main_settings)
@@ -113,6 +197,8 @@ class CommunityDS(DataStorage[Community]):
         community_settings.is_can_offer = other_settings.is_can_offer
         if name:
             community_settings.name = name
+        if description:
+            community_settings.description = description
         if other_settings.categories:
             community_settings.init_categories = other_settings.categories
         await self._session.commit()

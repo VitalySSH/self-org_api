@@ -8,6 +8,8 @@ from datastorage.database.base import get_async_session
 from datastorage.interfaces import VotingParams, CsByPercent
 from entities.community.ao.data_storage import CommunityDS
 from entities.community.model import Community
+from entities.community_description.crud.schemas import CommunityDescRead
+from entities.community_name.crud.schemas import CommunityNameRead
 
 router = APIRouter()
 
@@ -26,14 +28,28 @@ async def voting_settings(
 
 @router.get(
     '/names/{community_id}',
-    dependencies=[Depends(auth_service.get_current_user)]
+    dependencies=[Depends(auth_service.get_current_user)],
+    response_model=List[CommunityNameRead],
 )
 async def community_names(
     community_id: str,
     session: AsyncSession = Depends(get_async_session),
-) -> List[str]:
+) -> List[CommunityNameRead]:
     ds = CommunityDS(model=Community, session=session)
-    return await ds.get_all_community_names(community_id)
+    return await ds.get_community_names(community_id)
+
+
+@router.get(
+    '/descriptions/{community_id}',
+    dependencies=[Depends(auth_service.get_current_user)],
+    response_model=List[CommunityDescRead],
+)
+async def community_descriptions(
+    community_id: str,
+    session: AsyncSession = Depends(get_async_session),
+) -> List[CommunityDescRead]:
+    ds = CommunityDS(model=Community, session=session)
+    return await ds.get_community_descriptions(community_id)
 
 
 @router.get(

@@ -4,7 +4,6 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 
 
 class CSAttributes(TypedDict):
-    name: str
     quorum: int
     vote: int
     is_secret_ballot: bool
@@ -12,6 +11,8 @@ class CSAttributes(TypedDict):
 
 
 class CSRelations(TypedDict, total=False):
+    name: SchemaInstance
+    description: SchemaInstance
     init_categories: List[SchemaInstance]
 
 
