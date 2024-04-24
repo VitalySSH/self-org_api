@@ -32,6 +32,7 @@ class CommunitySettings(Base):
     #  TODO для данных полей, функционал будет реализован позже
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_minority_not_participate: Mapped[bool] = mapped_column(nullable=False, default=True)
     #
     init_categories: Mapped[List['InitiativeCategory']] = relationship(
         secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')

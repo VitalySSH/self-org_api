@@ -147,6 +147,16 @@ class CommunityDS(DataStorage[Community]):
         ]
         query = (
             select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.is_minority_not_participate.is_(True))
+        )
+        is_minority_not_participate_count = await self._session.scalar(query)
+        minority_not_participate_true = int(is_minority_not_participate_count / user_count * 100)
+        minority_not_participate = [
+            PercentByName(name='Да', percent=minority_not_participate_true),
+            PercentByName(name='Нет', percent=100 - minority_not_participate_true)
+        ]
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
             .filter(UserCommunitySettings.is_can_offer.is_(True))
         )
         is_can_offer_count = await self._session.scalar(query)
@@ -161,6 +171,7 @@ class CommunityDS(DataStorage[Community]):
             descriptions=await self._get_voting_data_by_desc(community_id),
             categories=categories,
             secret_ballot=secret_ballot,
+            minority_not_participate=minority_not_participate,
             can_offer=can_offer,
         )
 
@@ -251,8 +262,17 @@ class CommunityDS(DataStorage[Community]):
         is_can_offer_count = await self._session.scalar(query)
         is_can_offer = int(is_can_offer_count / user_count * 100) >= vote
 
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .filter(UserCommunitySettings.is_minority_not_participate.is_(True))
+        )
+        is_minority_not_participate_count = await self._session.scalar(query)
+        is_minority_not_participate = int(
+            is_minority_not_participate_count / user_count * 100) >= vote
+
         return OtherCommunitySettings(
             categories=categories,
             is_secret_ballot=is_secret_ballot,
+            is_minority_not_participate=is_minority_not_participate,
             is_can_offer=is_can_offer,
         )

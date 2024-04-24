@@ -7,7 +7,21 @@ from core.config import HOST, PORT
 from datastorage.utils import get_entities_routers
 from filestorage.router import file_router
 
-app = FastAPI(title='Self-organization API')
+app = FastAPI(
+    title='Self-organization API',
+    description='Проект, основанный на принципах прямой демократии, предлагает широкие '
+                'возможности для самоорганизации различных сообществ.',
+    summary='Для тех, кто не желает властвовать и подчиняться.',
+    version='0.0.1',
+    contact={
+        'name': 'Виталий Шаронов',
+        'email': "vitaly.sharonov@gmail.com",
+    },
+    license_info={
+        'name': 'MIT'
+    },
+    debug=True,
+)
 
 origins = [
     f'http://{HOST}:{PORT}',

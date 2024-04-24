@@ -15,4 +15,4 @@ class CommunityDescription(Base):
     value: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(nullable=False, index=True)
     community_id: Mapped[str] = mapped_column(nullable=False)
-
+    is_readonly: Mapped[bool] = mapped_column(nullable=False, default=False)
