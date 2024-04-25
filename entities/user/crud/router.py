@@ -14,7 +14,7 @@ router = get_crud_router(
     read_schema=UserRead,
     create_schema=UserCreate,
     update_schema=UserUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.GET, Method.LIST, Method.UPDATE, Method.DELETE],
 )
 
 

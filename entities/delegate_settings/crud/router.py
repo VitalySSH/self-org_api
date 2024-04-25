@@ -8,5 +8,5 @@ router = get_crud_router(
     read_schema=DelegateSettingsRead,
     create_schema=DelegateSettingsCreate,
     update_schema=DelegateSettingsUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.ALL],
 )

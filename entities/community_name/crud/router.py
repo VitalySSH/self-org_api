@@ -8,5 +8,5 @@ router = get_crud_router(
     read_schema=CommunityNameRead,
     create_schema=CommunityNameCreate,
     update_schema=CommunityNameUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.ALL],
 )

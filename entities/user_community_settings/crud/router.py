@@ -20,6 +20,6 @@ router = get_crud_router(
     read_schema=UserCsRead,
     create_schema=UserCsCreate,
     update_schema=UserCsUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.ALL],
     post_processing_data=post_processing,
 )

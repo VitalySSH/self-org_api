@@ -8,5 +8,5 @@ router = get_crud_router(
     read_schema=ResultVotingRead,
     create_schema=ResultVotingCreate,
     update_schema=ResultVotingUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.ALL],
 )

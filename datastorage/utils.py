@@ -15,7 +15,7 @@ def build_uuid() -> str:
 
 def get_entities_routers() -> List[RouterParams]:
     entities_module = 'entities'
-    result: List[RouterParams] = []
+    routers: List[RouterParams] = []
     module = importlib.import_module(entities_module)
 
     for loader, module_name, error in pkgutil.walk_packages(
@@ -33,6 +33,6 @@ def get_entities_routers() -> List[RouterParams]:
                     tags=[f'entity {entity_name}'],
                     router=cast(APIRouter, filtered[0][1])
                 )
-                result.append(router_params)
+                routers.append(router_params)
 
-    return result
+    return routers

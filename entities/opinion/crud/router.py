@@ -8,6 +8,6 @@ router = get_crud_router(
     read_schema=OpinionRead,
     create_schema=OpinionCreate,
     update_schema=OpinionUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.ALL],
     is_likes=True,
 )

@@ -16,6 +16,7 @@ __all__ = (
     'DelegateSettings',
     'Opinion',
     'Like',
+    'RequestMember',
     'RelationCsCategories',
     'RelationUserCsCategories',
     'RelationUCsDs',
@@ -26,6 +27,11 @@ __all__ = (
     'RelationOpinionLike',
     'RelationVrVo',
     'RelationCommunityUCs',
+    'RelationUserRequestMember',
+    'RelationUserCsRequestMember',
+    'RelationUserCsRequestMemberRemove',
+    'RelationCsRequestMember',
+    'RelationCsRequestMemberRemove',
 )
 
 from .base import Base
@@ -45,6 +51,7 @@ from entities.voting_result.model import VotingResult
 from entities.voting_option.model import VotingOption
 from entities.status.model import Status
 from entities.user.model import User
+from entities.request_member.model import RequestMember
 from .relation_community_settings_categories import RelationCsCategories
 from .relation_user_community_settings_categories import RelationUserCsCategories
 from .relation_user_community_settings_delegate_settings import RelationUCsDs
@@ -55,3 +62,8 @@ from .relation_initiative_like import RelationInitiativeLike
 from .relation_opinion_like import RelationOpinionLike
 from .relation_voting_result_voting_options import RelationVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
+from .relation_user_request_member import RelationUserRequestMember
+from .relation_user_cs_request_member import RelationUserCsRequestMember
+from .relation_user_cs_request_member_remove import RelationUserCsRequestMemberRemove
+from .relation_cs_request_member import RelationCsRequestMember
+from .relation_cs_request_member_remove import RelationCsRequestMemberRemove

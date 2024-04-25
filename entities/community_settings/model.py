@@ -8,7 +8,7 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        InitiativeCategory, CommunityName, CommunityDescription
+        InitiativeCategory, CommunityName, CommunityDescription, RequestMember
     )
 
 
@@ -36,3 +36,7 @@ class CommunitySettings(Base):
     #
     init_categories: Mapped[List['InitiativeCategory']] = relationship(
         secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
+    adding_members: Mapped[List['RequestMember']] = relationship(
+        secondary=TableName.RELATION_CS_REQUEST_MEMBER, lazy='noload')
+    removal_members: Mapped[List['RequestMember']] = relationship(
+        secondary=TableName.RELATION_CS_REQUEST_MEMBER_REMOVE, lazy='noload')

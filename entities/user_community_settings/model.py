@@ -8,7 +8,8 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        InitiativeCategory, User, DelegateSettings, CommunityName, CommunityDescription
+        InitiativeCategory, User, DelegateSettings, CommunityName, CommunityDescription,
+        RequestMember
     )
 
 
@@ -48,3 +49,7 @@ class UserCommunitySettings(Base):
     delegate_settings: Mapped[List['DelegateSettings']] = relationship(
         secondary=TableName.RELATION_UCS_DS, lazy='noload')
     is_not_delegate: Mapped[bool] = mapped_column(nullable=False, default=False)
+    adding_members: Mapped[List['RequestMember']] = relationship(
+        secondary=TableName.RELATION_UCS_REQUEST_MEMBER, lazy='noload')
+    removal_members: Mapped[List['RequestMember']] = relationship(
+        secondary=TableName.RELATION_UCS_REQUEST_MEMBER_REMOVE, lazy='noload')

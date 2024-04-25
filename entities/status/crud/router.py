@@ -9,5 +9,5 @@ router = get_crud_router(
     read_schema=StatusRead,
     create_schema=StatusCreate,
     update_schema=StatusUpdate,
-    methods=[Method.GET, Method.LIST, Method.CREATE, Method.UPDATE, Method.DELETE],
+    methods=[Method.ALL],
 )

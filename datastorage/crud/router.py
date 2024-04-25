@@ -35,8 +35,9 @@ def get_crud_router(
     """Вернёт роутер для CRUD-операций."""
 
     router = APIRouter()
+    is_all_methods = Method.ALL in methods
 
-    if Method.GET in methods:
+    if Method.GET in methods or is_all_methods:
         @router.get(
             '/{instance_id}',
             response_model=read_schema,
@@ -71,7 +72,7 @@ def get_crud_router(
                 detail=f'Объект модели {model.__name__} с id: {instance_id} не найден',
             )
 
-    if Method.LIST in methods:
+    if Method.LIST in methods or is_all_methods:
         @router.post(
             '/list',
             response_model=List[read_schema],
@@ -94,7 +95,7 @@ def get_crud_router(
             else:
                 return [instance.to_read_schema() for instance in instances]
 
-    if Method.CREATE in methods:
+    if Method.CREATE in methods or is_all_methods:
         @router.post(
             '/create',
             response_model=read_schema,
@@ -134,7 +135,7 @@ def get_crud_router(
                     detail=e.description,
                 )
 
-    if Method.UPDATE in methods:
+    if Method.UPDATE in methods or is_all_methods:
         @router.patch(
             '/{instance_id}',
             dependencies=[Depends(auth_service.get_current_user)],
@@ -165,7 +166,7 @@ def get_crud_router(
                     await ds.execute_post_processing(
                         instance=post_instance, post_processing_data=post_processing_data)
 
-    if Method.DELETE in methods:
+    if Method.DELETE in methods or is_all_methods:
         @router.delete(
             '/{instance_id}',
             dependencies=[Depends(auth_service.get_current_user)],
