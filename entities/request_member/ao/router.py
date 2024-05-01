@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
 from datastorage.database.base import get_async_session
-from entities.request_member.ao.data_storage import RequestMemberDS
+from entities.request_member.ao.datastorage import RequestMemberDS
 from entities.request_member.model import RequestMember
 
 router = APIRouter()

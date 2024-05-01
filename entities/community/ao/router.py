@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.auth import auth_service
 from datastorage.database.base import get_async_session
 from datastorage.interfaces import VotingParams, CsByPercent
-from entities.community.ao.data_storage import CommunityDS
+from entities.community.ao.datastorage import CommunityDS
 from entities.community.model import Community
 from entities.community_description.crud.schemas import CommunityDescRead
 from entities.community_name.crud.schemas import CommunityNameRead

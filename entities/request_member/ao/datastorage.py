@@ -2,7 +2,7 @@ import logging
 from copy import deepcopy
 from typing import Optional
 
-from sqlalchemy import select, insert
+from sqlalchemy import select, insert, func
 from sqlalchemy.orm import selectinload
 
 from datastorage.base import DataStorage
@@ -25,7 +25,10 @@ class RequestMemberDS(DataStorage[RequestMember]):
             return
         if request_member.is_removal:
             return
-        await self._add_request_member(request_member)
+        if request_member.parent_id:
+            await self._update_vote_for_requests_member(request_member)
+        else:
+            await self._add_request_member(request_member)
 
     async def _add_request_member(self, request_member: RequestMember) -> None:
         if request_member.is_removal:
@@ -64,11 +67,11 @@ class RequestMemberDS(DataStorage[RequestMember]):
         user_cs_list = list(user_cs_data)
 
         data_to_add = []
-        for user_cs in user_cs_list:
+        for id_, is_default_add_member in user_cs_list:
             child_request_member = deepcopy(request_member)
             child_request_member.id = build_uuid()
             child_request_member.parent_id = request_member.id
-            if user_cs.is_default_add_member:
+            if is_default_add_member:
                 child_request_member.vote = True
             try:
                 self._session.add(child_request_member)
@@ -81,7 +84,7 @@ class RequestMemberDS(DataStorage[RequestMember]):
             data_to_add.append(
                 {
                     'id': build_uuid(),
-                    'from_id': user_cs.id,
+                    'from_id': id_,
                     'to_id': child_request_member.id,
                 }
             )
@@ -89,3 +92,23 @@ class RequestMemberDS(DataStorage[RequestMember]):
         stmt = insert(RelationUserCsRequestMember).values(*data_to_add)
         stmt.compile()
 
+    async def _update_vote_for_requests_member(self, request_member: RequestMember) -> None:
+        query = (
+            select(func.count()).select_from(RequestMember)
+            .filter(RequestMember.vote.is_(True))
+        )
+        allowed_count = await self._session.scalar(query)
+        vote_count = await self._count_votes_by_settings(request_member.community_id)
+        parent_request_member = await self._get_request_member(request_member.community_id)
+        if vote_count and vote_count <= allowed_count:
+            parent_request_member.vote = True
+        else:
+            parent_request_member.vote = False
+
+        await self._session.commit()
+
+    async def _count_votes_by_settings(self, community_id: str) -> int:
+        query = select(func.avg(UserCommunitySettings.vote))
+        query.filter(UserCommunitySettings.community_id == community_id)
+        row = await self._session.scalar(query)
+        return int(row) if row else 0

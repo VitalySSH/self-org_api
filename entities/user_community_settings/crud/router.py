@@ -4,7 +4,7 @@ from datastorage.crud.router import get_crud_router
 from datastorage.database.models import UserCommunitySettings
 from .schemas import UserCsRead, UserCsCreate, UserCsUpdate
 from datastorage.database.models import Community
-from ...community.ao.data_storage import CommunityDS
+from ...community.ao.datastorage import CommunityDS
 
 
 post_processing = PostProcessingData(
