@@ -49,6 +49,7 @@ class UserCommunitySettings(Base):
     delegate_settings: Mapped[List['DelegateSettings']] = relationship(
         secondary=TableName.RELATION_UCS_DS, lazy='noload')
     is_not_delegate: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_default_add_member: Mapped[bool] = mapped_column(nullable=False, default=False)
     adding_members: Mapped[List['RequestMember']] = relationship(
         secondary=TableName.RELATION_UCS_REQUEST_MEMBER, lazy='noload')
     removal_members: Mapped[List['RequestMember']] = relationship(

@@ -50,6 +50,7 @@ class RequestMember(Base):
     status: Mapped['Status'] = relationship(lazy='noload')
     vote: Mapped[bool] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(nullable=True)
+    parent_id: Mapped[str] = mapped_column(nullable=True)
     is_removal: Mapped[bool] = mapped_column(default=False)
     created: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
     updated: Mapped[datetime] = mapped_column(nullable=True)

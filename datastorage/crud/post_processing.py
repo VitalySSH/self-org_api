@@ -28,7 +28,10 @@ class CRUDPostProcessing(Thread, PostProcessing):
         ds: DataStorage = self._init_data_storage()
         func_data: Optional[ThreadFuncData] = None
         func = getattr(ds, self._post_processing.func_name)
-        attr_value = getattr(instance, self._post_processing.instance_attr)
+        if self._post_processing.instance_attr:
+            attr_value = getattr(instance, self._post_processing.instance_attr)
+        else:
+            attr_value = instance
         if func and attr_value:
             attrs = list(func.__annotations__.keys())
             if attrs:

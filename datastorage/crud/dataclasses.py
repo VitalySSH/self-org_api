@@ -12,7 +12,7 @@ class PostProcessingData:
     model: Type[T]
     methods: List[Method]
     func_name: str
-    instance_attr: str
+    instance_attr: Optional[str] = None
     include: Optional[List[str]] = None
 
 

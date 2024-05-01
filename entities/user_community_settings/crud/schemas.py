@@ -10,6 +10,7 @@ class UserCsAttributes(TypedDict, total=False):
     is_secret_ballot: bool
     is_can_offer: bool
     is_not_delegate: bool
+    is_default_add_member: bool
 
 
 class UserCsRelations(TypedDict, total=False):
