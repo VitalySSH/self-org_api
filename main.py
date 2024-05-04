@@ -20,11 +20,14 @@ app = FastAPI(
     license_info={
         'name': 'MIT'
     },
+    root_path='/api/v1',
     debug=True,
 )
 
 origins = [
     f'http://{HOST}:{PORT}',
+    f'http://{HOST}:5173',
+    f'http://{HOST}:5174',
 ]
 
 app.add_middleware(
