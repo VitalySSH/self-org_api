@@ -49,6 +49,7 @@ async def get_current_user(
     current_user: User = Depends(auth_service.get_current_user),
 ):
     return CurrentUser(
+        id=current_user.id,
         firstname=current_user.firstname,
         surname=current_user.surname,
         foto_id=current_user.foto_id,

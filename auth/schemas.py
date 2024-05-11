@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class CurrentUser(BaseModel):
+    id: str
     firstname: str
     surname: str
     foto_id: Optional[str]
