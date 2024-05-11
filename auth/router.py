@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from auth.auth import auth_service
+from auth.schemas import CurrentUser
 from datastorage.crud.interfaces.list import Filter, Operation
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.base import get_async_session
@@ -35,5 +36,22 @@ async def login_for_access_token(
 
 
 @auth_router.post('/logout', status_code=204)
-async def login_for_access_token():
+async def clean_token():
     return await auth_service.clean_token()
+
+
+@auth_router.get(
+    '/user',
+    response_model=CurrentUser,
+    status_code=200,
+)
+async def get_current_user(
+    current_user: User = Depends(auth_service.get_current_user),
+):
+    return CurrentUser(
+        firstname=current_user.firstname,
+        surname=current_user.surname,
+        foto_id=current_user.foto_id,
+        email=current_user.email,
+        hashed_password=current_user.hashed_password,
+    )

@@ -1,4 +1,4 @@
-from auth.implementations import AuthService
+from auth.auth_service import AuthService
 from auth.token.delivery.cookie import CookieTokenDelivery
 from auth.token.jwt_token import JWTTokenService
 from datastorage.crud.datastorage import CRUDDataStorage

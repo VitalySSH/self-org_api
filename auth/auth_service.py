@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_401_UNAUTHORIZED
 
 from auth.interfaces import Auth, Token, TokenDelivery
-from auth.token.delivery.cookie import COOKIE_TOKEN_NAME
+from core.config import COOKIE_TOKEN_NAME
 from datastorage.database.base import get_async_session
 from datastorage.database.models import User
 

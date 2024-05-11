@@ -5,9 +5,7 @@ from starlette.status import HTTP_204_NO_CONTENT
 
 from auth.interfaces import TokenDelivery
 from core import config
-
-
-COOKIE_TOKEN_NAME = 'selforgauth'
+from core.config import COOKIE_TOKEN_NAME
 
 
 class CookieTokenDelivery(TokenDelivery):
