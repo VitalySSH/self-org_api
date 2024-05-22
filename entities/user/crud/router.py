@@ -1,6 +1,7 @@
 from fastapi import Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth.security import decrypt_password, hash_password
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.enum import Method
 from datastorage.crud.exceptions import CRUDConflict
@@ -28,6 +29,9 @@ async def create_instance(
 ) -> UserRead:
     ds = CRUDDataStorage[User](model=User, session=session)
     instance_to_add: User = await ds.schema_to_model(schema=body)
+    password = decrypt_password(instance_to_add.hashed_password)
+    hashed_password = hash_password(password)
+    instance_to_add.hashed_password = hashed_password
     try:
         new_instance = await ds.create(instance=instance_to_add)
         return new_instance.to_read_schema()

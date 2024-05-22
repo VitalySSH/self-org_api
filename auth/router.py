@@ -5,6 +5,7 @@ from starlette import status
 
 from auth.auth import auth_service
 from auth.schemas import CurrentUser
+from auth.security import decrypt_password, verify_password
 from datastorage.crud.interfaces.list import Filter, Operation
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.base import get_async_session
@@ -15,7 +16,7 @@ auth_router = APIRouter()
 
 @auth_router.post('/login', status_code=204)
 async def login_for_access_token(
-    email: EmailStr = Form(), hashed_password: str = Form(),
+    email: EmailStr = Form(), secret_password: str = Form(),
     session: AsyncSession = Depends(get_async_session),
 ):
     user_ds = CRUDDataStorage[User](model=User, session=session)
@@ -26,7 +27,9 @@ async def login_for_access_token(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f'Пользователь с email: {email} не найден',
         )
-    if hashed_password != user.hashed_password:
+
+    password = decrypt_password(secret_password)
+    if not verify_password(password=password, hashed_password=user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Введён некорректный email или пароль',
