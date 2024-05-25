@@ -20,7 +20,7 @@ router = get_crud_router(
 
 
 @router.post(
-    '/create',
+    '/',
     response_model=UserRead,
 )
 async def create_instance(

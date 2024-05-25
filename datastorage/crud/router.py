@@ -97,7 +97,7 @@ def get_crud_router(
 
     if Method.CREATE in methods or is_all_methods:
         @router.post(
-            '/create',
+            '/',
             response_model=read_schema,
             status_code=201,
         )
