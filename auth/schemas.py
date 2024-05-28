@@ -10,4 +10,3 @@ class CurrentUser(BaseModel):
     about_me: Optional[str]
     foto_id: Optional[str]
     email: str
-    hashed_password: str

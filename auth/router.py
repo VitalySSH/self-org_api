@@ -58,5 +58,4 @@ async def get_current_user(
         about_me=current_user.about_me,
         foto_id=current_user.foto_id,
         email=current_user.email,
-        hashed_password=current_user.hashed_password,
     )
