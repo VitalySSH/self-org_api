@@ -221,9 +221,13 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             elif operation == Operation.NOT_EQ:
                 params.append(field != value)
             elif operation == Operation.IN:
-                params.append(field.in_(json.loads(value)))
+                if isinstance(value, str):
+                    value = json.loads(value)
+                params.append(field.in_(value))
             elif operation == Operation.NOT_IN:
-                params.append(field.notin_(json.loads(value)))
+                if isinstance(value, str):
+                    value = json.loads(value)
+                params.append(field.notin_(value))
             elif operation == Operation.LIKE:
                 params.append(field.like(f'%{value}%'))
             elif operation == Operation.ILIKE:

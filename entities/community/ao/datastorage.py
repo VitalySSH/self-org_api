@@ -1,6 +1,6 @@
 from typing import List, Optional, Tuple, cast
 
-from sqlalchemy import select, func, desc, asc
+from sqlalchemy import select, func, desc, asc, distinct
 from sqlalchemy.orm import selectinload
 
 from datastorage.base import DataStorage
@@ -13,6 +13,7 @@ from datastorage.interfaces import VotingParams, PercentByName, CsByPercent
 from entities.community.ao.dataclasses import OtherCommunitySettings
 from entities.community_description.crud.schemas import CommunityDescRead
 from entities.community_name.crud.schemas import CommunityNameRead
+from entities.user.model import User
 
 
 class CommunityDS(DataStorage[Community]):
@@ -276,3 +277,13 @@ class CommunityDS(DataStorage[Community]):
             is_minority_not_participate=is_minority_not_participate,
             is_can_offer=is_can_offer,
         )
+
+    async def get_current_user_community_ids(self, user: User) -> List[str]:
+        query = (
+            select(distinct(UserCommunitySettings.community_id))
+            .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.user_id == user.id)
+        )
+        community_ids = await self._session.execute(query)
+
+        return [row[0] for row in community_ids.all()]
