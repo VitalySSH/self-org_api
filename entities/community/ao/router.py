@@ -4,7 +4,6 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
-from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.interfaces.base import Include
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination, Filter, Operation
 from datastorage.database.base import get_async_session
@@ -96,13 +95,12 @@ async def my_list(
     session: AsyncSession = Depends(get_async_session),
 ) -> List[Community]:
     ao_ds = CommunityDS(model=Community, session=session)
-    crud_ds = CRUDDataStorage[Community](model=Community, session=session)
     communities_ids = await ao_ds.get_current_user_community_ids(current_user)
     my_filters: Filters = [Filter(field='id', op=Operation.IN, val=communities_ids)]
     if filters:
         my_filters += filters
 
-    communities: List[Community] = await crud_ds.list(
+    communities: List[Community] = await ao_ds.list(
         filters=my_filters, orders=orders, pagination=pagination, include=include)
 
     return [community.to_read_schema() for community in communities]

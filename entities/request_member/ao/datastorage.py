@@ -5,7 +5,7 @@ from typing import Optional
 from sqlalchemy import select, insert, func
 from sqlalchemy.orm import selectinload
 
-from datastorage.base import DataStorage
+from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     RequestMember, CommunitySettings, Community, RelationUserCsRequestMember,
     UserCommunitySettings
@@ -16,7 +16,7 @@ from datastorage.utils import build_uuid
 logger = logging.getLogger(__name__)
 
 
-class RequestMemberDS(DataStorage[RequestMember]):
+class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
     @ds_async_with_new_session
     async def add_request_member(self, request_member_id: str) -> None:

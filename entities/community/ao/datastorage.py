@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple, cast
 from sqlalchemy import select, func, desc, asc, distinct
 from sqlalchemy.orm import selectinload
 
-from datastorage.base import DataStorage
+from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
     RelationUserCsCategories, InitiativeCategory, CommunityName, CommunityDescription
@@ -16,7 +16,7 @@ from entities.community_name.crud.schemas import CommunityNameRead
 from entities.user.model import User
 
 
-class CommunityDS(DataStorage[Community]):
+class CommunityDS(CRUDDataStorage[Community]):
 
     async def calculate_voting_params(self, community_id: str) -> VotingParams:
         query = select(func.avg(UserCommunitySettings.vote),
