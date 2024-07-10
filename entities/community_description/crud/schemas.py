@@ -5,6 +5,7 @@ class CommunityDescAttributes(TypedDict):
     value: str
     creator_id: str
     community_id: str
+    is_readonly: bool
 
 
 class CommunityDescRead(TypedDict):

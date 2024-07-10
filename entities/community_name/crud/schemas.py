@@ -5,6 +5,7 @@ class CommunityNameAttributes(TypedDict):
     name: str
     creator_id: str
     community_id: str
+    is_readonly: bool
 
 
 class CommunityNameRead(TypedDict):
