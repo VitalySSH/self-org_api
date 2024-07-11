@@ -4,7 +4,7 @@ from typing import TypedDict, List
 from datastorage.crud.interfaces.schema import SchemaInstance
 
 
-class CommunityAttributes(TypedDict):
+class CommunityAttributes(TypedDict, total=False):
     created: datetime
 
 

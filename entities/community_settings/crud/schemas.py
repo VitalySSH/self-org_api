@@ -1,18 +1,19 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
 
-class CSAttributes(TypedDict):
-    quorum: int
-    vote: int
-    is_secret_ballot: bool
-    is_can_offer: bool
+class CSAttributes(TypedDict, total=False):
+    quorum: Optional[int]
+    vote: Optional[int]
+    is_secret_ballot: Optional[bool]
+    is_can_offer: Optional[bool]
+    is_minority_not_participate: Optional[bool]
 
 
 class CSRelations(TypedDict, total=False):
-    name: SchemaInstance
-    description: SchemaInstance
+    name: Optional[SchemaInstance]
+    description: Optional[SchemaInstance]
     init_categories: List[SchemaInstance]
     adding_members: List[SchemaInstance]
     removal_members: List[SchemaInstance]
