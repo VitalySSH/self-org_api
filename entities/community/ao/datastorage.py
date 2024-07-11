@@ -207,6 +207,7 @@ class CommunityDS(CRUDDataStorage[Community]):
         community_settings.quorum = quorum
         community_settings.is_secret_ballot = other_settings.is_secret_ballot
         community_settings.is_can_offer = other_settings.is_can_offer
+        community_settings.is_minority_not_participate = other_settings.is_minority_not_participate
         if name:
             community_settings.name = name
         if description:
