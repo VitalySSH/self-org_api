@@ -19,9 +19,12 @@ from entities.user.model import User
 class CommunityDS(CRUDDataStorage[Community]):
 
     async def calculate_voting_params(self, community_id: str) -> VotingParams:
-        query = select(func.avg(UserCommunitySettings.vote),
-                       func.avg(UserCommunitySettings.quorum))
-        query.filter(UserCommunitySettings.community_id == community_id)
+        query = (
+            select(func.avg(UserCommunitySettings.vote),
+                   func.avg(UserCommunitySettings.quorum))
+            .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.community_id == community_id)
+        )
         rows = await self._session.execute(query)
         vote, quorum = rows.first()
 
@@ -220,7 +223,8 @@ class CommunityDS(CRUDDataStorage[Community]):
             self, community_id: str) -> Tuple[List[Tuple[str, int]], int]:
         query = (
             select(UserCommunitySettings.id)
-            .filter(UserCommunitySettings.community_id == community_id)
+            .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.community_id == community_id)
         )
         user_cs = await self._session.scalars(query)
         user_cs_ids = list(user_cs)
@@ -252,21 +256,30 @@ class CommunityDS(CRUDDataStorage[Community]):
 
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .filter(UserCommunitySettings.is_secret_ballot.is_(True))
+            .where(
+                UserCommunitySettings.is_secret_ballot.is_(True),
+                UserCommunitySettings.community_id == community_id,
+            )
         )
         is_secret_ballot_count = await self._session.scalar(query)
         is_secret_ballot = int(is_secret_ballot_count / user_count * 100) >= vote
 
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .filter(UserCommunitySettings.is_can_offer.is_(True))
+            .where(
+                UserCommunitySettings.is_can_offer.is_(True),
+                UserCommunitySettings.community_id == community_id,
+            )
         )
         is_can_offer_count = await self._session.scalar(query)
         is_can_offer = int(is_can_offer_count / user_count * 100) >= vote
 
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .filter(UserCommunitySettings.is_minority_not_participate.is_(True))
+            .where(
+                UserCommunitySettings.is_minority_not_participate.is_(True),
+                UserCommunitySettings.community_id == community_id,
+            )
         )
         is_minority_not_participate_count = await self._session.scalar(query)
         is_minority_not_participate = int(

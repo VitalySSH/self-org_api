@@ -1,4 +1,4 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
@@ -7,10 +7,11 @@ class UserCsAttributes(TypedDict, total=False):
     community_id: str
     quorum: int
     vote: int
-    is_secret_ballot: bool
-    is_can_offer: bool
-    is_not_delegate: bool
-    is_default_add_member: bool
+    is_secret_ballot: Optional[bool]
+    is_can_offer: Optional[bool]
+    is_minority_not_participate: Optional[bool]
+    is_not_delegate: Optional[bool]
+    is_default_add_member: Optional[bool]
 
 
 class UserCsRelations(TypedDict, total=False):

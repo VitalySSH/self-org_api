@@ -17,18 +17,18 @@ class CommunitySettings(Base):
 
     name_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_NAME}.id'),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     name: Mapped['CommunityName'] = relationship(lazy='noload')
     description_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_DESCRIPTION}.id'),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     description: Mapped['CommunityDescription'] = relationship(lazy='noload')
-    quorum: Mapped[int] = mapped_column(nullable=False)
-    vote: Mapped[int] = mapped_column(nullable=False)
+    quorum: Mapped[int] = mapped_column(nullable=True)
+    vote: Mapped[int] = mapped_column(nullable=True)
     #  TODO для данных полей, функционал будет реализован позже
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)

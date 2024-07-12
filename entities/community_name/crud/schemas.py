@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class CommunityNameAttributes(TypedDict):
+class CommunityNameAttributes(TypedDict, total=False):
     name: str
     creator_id: str
     community_id: str
