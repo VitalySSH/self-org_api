@@ -95,7 +95,10 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
     async def _update_vote_for_requests_member(self, request_member: RequestMember) -> None:
         query = (
             select(func.count()).select_from(RequestMember)
-            .filter(RequestMember.vote.is_(True))
+            .where(
+                RequestMember.vote.is_(True),
+                RequestMember.community_id == request_member.community_id,
+            )
         )
         allowed_count = await self._session.scalar(query)
         vote_count = await self._count_votes_by_settings(request_member.community_id)
@@ -108,7 +111,11 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         await self._session.commit()
 
     async def _count_votes_by_settings(self, community_id: str) -> int:
-        query = select(func.avg(UserCommunitySettings.vote))
-        query.filter(UserCommunitySettings.community_id == community_id)
+        query = (
+            select(func.avg(UserCommunitySettings.vote))
+            .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.community_id == community_id)
+        )
         row = await self._session.scalar(query)
+
         return int(row) if row else 0
