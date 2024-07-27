@@ -141,7 +141,10 @@ class CommunityDS(CRUDDataStorage[Community]):
                       for category in categories_list]
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .filter(UserCommunitySettings.is_secret_ballot.is_(True))
+            .where(
+                UserCommunitySettings.is_secret_ballot.is_(True),
+                UserCommunitySettings.community_id == community_id,
+            )
         )
         is_secret_ballot_count = await self._session.scalar(query)
         secret_ballot_true = int(is_secret_ballot_count / user_count * 100)
@@ -151,7 +154,10 @@ class CommunityDS(CRUDDataStorage[Community]):
         ]
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .filter(UserCommunitySettings.is_minority_not_participate.is_(True))
+            .where(
+                UserCommunitySettings.is_minority_not_participate.is_(True),
+                UserCommunitySettings.community_id == community_id,
+            )
         )
         is_minority_not_participate_count = await self._session.scalar(query)
         minority_not_participate_true = int(is_minority_not_participate_count / user_count * 100)
@@ -161,7 +167,10 @@ class CommunityDS(CRUDDataStorage[Community]):
         ]
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .filter(UserCommunitySettings.is_can_offer.is_(True))
+            .where(
+                UserCommunitySettings.is_can_offer.is_(True),
+                UserCommunitySettings.community_id == community_id,
+            )
         )
         is_can_offer_count = await self._session.scalar(query)
         can_offer_true = int(is_can_offer_count / user_count * 100)
