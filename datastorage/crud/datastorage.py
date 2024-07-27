@@ -111,8 +111,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                     field_ = getattr(field_model, current_field_name, None)
                     if field_:
                         field_model = field_.comparator.entity.class_
+                        current_field_name = field_name
                     else:
-                        raise CRUDException(f'Модель {field_model.__class__} не имеет атрибута'
+                        raise CRUDException(f'Модель {field_model.__name__} не имеет атрибута'
                                             f' {field_name} указанный в include {incl}')
 
                 field = getattr(field_model, field_name, None)
