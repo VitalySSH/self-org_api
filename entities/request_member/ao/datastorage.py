@@ -6,8 +6,7 @@ from sqlalchemy.orm import selectinload
 
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
-    RequestMember, CommunitySettings, Community, RelationUserCsRequestMember,
-    UserCommunitySettings
+    RequestMember, CommunitySettings, RelationUserCsRequestMember, UserCommunitySettings
 )
 from datastorage.decorators import ds_async_with_new_session
 from datastorage.utils import build_uuid
@@ -90,9 +89,9 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                     'to_id': child_request_member.id,
                 }
             )
-
         stmt = insert(RelationUserCsRequestMember).values(*data_to_add)
         stmt.compile()
+        await self._session.execute(stmt)
 
     @staticmethod
     def _create_copy_request_member(request_member: RequestMember) -> RequestMember:

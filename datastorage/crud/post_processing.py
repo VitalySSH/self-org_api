@@ -26,7 +26,8 @@ class CRUDPostProcessing(Thread, PostProcessing):
 
         while len(background_tasks) > 0:
             task_ = background_tasks[0]
-            background_tasks.remove(task_)
+            if task_.done:
+                background_tasks.remove(task_)
 
     def execute(
             self, instance: T,
