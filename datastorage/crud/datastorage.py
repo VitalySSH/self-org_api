@@ -58,11 +58,14 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return instance
 
-    async def execute_post_processing(
+    def execute_post_processing(
             self, instance: T, post_processing_data: PostProcessingData) -> None:
-        await self.invalidate_session()
         post_processing = self._post_processing_type()
-        post_processing.execute(instance=instance, post_processing_data=post_processing_data)
+        post_processing.execute(
+            instance=instance,
+            post_processing_data=post_processing_data,
+            invalidate_session_func=self.invalidate_session,
+        )
 
     @staticmethod
     def get_relation_fields(schema: S) -> List[str]:

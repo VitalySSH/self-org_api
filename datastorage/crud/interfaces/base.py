@@ -1,5 +1,5 @@
 import abc
-from typing import Optional, Type, List
+from typing import Optional, Type, List, Callable
 
 from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination
@@ -18,7 +18,7 @@ class CRUD(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def execute_post_processing(
+    def execute_post_processing(
             self, instance: T, post_processing_data: PostProcessingData) -> None:
         raise NotImplementedError
 
@@ -68,6 +68,10 @@ class CRUD(abc.ABC):
 class PostProcessing(abc.ABC):
 
     @abc.abstractmethod
-    def execute(self, instance: T, post_processing_data: PostProcessingData) -> None:
+    def execute(
+            self, instance: T,
+            post_processing_data: PostProcessingData,
+            invalidate_session_func: Callable,
+    ) -> None:
         raise NotImplementedError
 

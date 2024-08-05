@@ -1,6 +1,6 @@
 import asyncio
 from threading import Thread
-from typing import Optional
+from typing import Optional, Callable
 
 from datastorage.base import DataStorage
 from datastorage.crud.dataclasses import ThreadFuncData, PostProcessingData
@@ -13,14 +13,28 @@ class CRUDPostProcessing(Thread, PostProcessing):
 
     _post_processing: PostProcessingData
     _instance: Optional[T]
+    _invalidate_session_func: Callable
 
     def run(self) -> None:
+        background_tasks = []
+        invalidate_session_task = asyncio.create_task(self._invalidate_session_func())
+        background_tasks.append(invalidate_session_task)
         func_data = self._build_func_data(self._instance)
         if func_data:
-            asyncio.create_task(func_data.func(**func_data.kwargs))
+            task = asyncio.create_task(func_data.func(**func_data.kwargs))
+            background_tasks.append(task)
 
-    def execute(self, instance: T, post_processing_data: PostProcessingData) -> None:
+        while len(background_tasks) > 0:
+            task_ = background_tasks[0]
+            background_tasks.remove(task_)
+
+    def execute(
+            self, instance: T,
+            post_processing_data: PostProcessingData,
+            invalidate_session_func: Callable,
+    ) -> None:
         self._instance = instance
+        self._invalidate_session_func = invalidate_session_func
         self._post_processing = post_processing_data
         self.run()
 

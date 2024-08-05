@@ -1,5 +1,4 @@
 import logging
-from copy import deepcopy
 from typing import Optional
 
 from sqlalchemy import select, insert, func
@@ -33,20 +32,19 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
     async def _add_request_member(self, request_member: RequestMember) -> None:
         if request_member.is_removal:
             return None
-        community_query = (
-            select(Community)
-            .options(selectinload(Community.main_settings)
-                     .options(selectinload(CommunitySettings.adding_members)))
-            .where(Community.id == request_member.community_id)
-        )
-        community = await self._session.scalar(community_query)
-        if not community:
-            logger.error(f'ERROR POSTPROCESSING REQUEST MEMBER: '
-                         f'не найдено сообщество с id {request_member.community_id}')
-            return
 
-        community_settings = community.main_settings
-        (community_settings.adding_members or []).append(request_member)
+        main_settings_id = (request_member.community.main_settings_id if
+                            request_member.community else None)
+        if main_settings_id:
+            query = (
+                select(CommunitySettings)
+                .options(selectinload(CommunitySettings.adding_members))
+                .where(CommunitySettings.id == main_settings_id)
+            )
+            main_settings = await self._session.scalar(query)
+
+            if main_settings and isinstance(main_settings.adding_members, list):
+                main_settings.adding_members.append(request_member)
 
         await self._add_rm_to_user_community_settings(request_member)
         await self._session.commit()
@@ -54,6 +52,12 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
     async def _get_request_member(self, request_member_id: str) -> Optional[RequestMember]:
         query = (
             select(RequestMember)
+            .options(
+                selectinload(RequestMember.member),
+                selectinload(RequestMember.creator),
+                selectinload(RequestMember.community),
+                selectinload(RequestMember.status),
+            )
             .where(RequestMember.id == request_member_id)
         )
         return await self._session.scalar(query)
@@ -63,19 +67,17 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             select(UserCommunitySettings.id, UserCommunitySettings.is_default_add_member)
             .where(UserCommunitySettings.community_id == request_member.community_id)
         )
-        user_cs_data = await self._session.scalars(user_cs_query)
-        user_cs_list = list(user_cs_data)
+        user_cs_data = await self._session.execute(user_cs_query)
+        user_cs_list = user_cs_data.all()
 
         data_to_add = []
         for id_, is_default_add_member in user_cs_list:
-            child_request_member = deepcopy(request_member)
-            child_request_member.id = build_uuid()
+            child_request_member = self._create_copy_request_member(request_member)
             child_request_member.parent_id = request_member.id
             if is_default_add_member:
                 child_request_member.vote = True
             try:
                 self._session.add(child_request_member)
-                await self._session.flush()
             except Exception as e:
                 logger.error(f'Дочерний запрос на добавление члена сообщества '
                              f'(родителя с id {request_member.id}) не может быть создан: {e}')
@@ -91,6 +93,16 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
         stmt = insert(RelationUserCsRequestMember).values(*data_to_add)
         stmt.compile()
+
+    @staticmethod
+    def _create_copy_request_member(request_member: RequestMember) -> RequestMember:
+        new_request_member = RequestMember()
+        new_request_member.id = build_uuid()
+        for key, value in request_member.__dict__.items():
+            if RequestMember.__annotations__.get(key):
+                setattr(new_request_member, key, value)
+
+        return new_request_member
 
     async def _update_vote_for_requests_member(self, request_member: RequestMember) -> None:
         query = (

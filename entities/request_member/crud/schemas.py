@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TypedDict, Optional
 
 from datastorage.crud.interfaces.schema import SchemaInstance
@@ -7,9 +8,9 @@ class RequestMemberAttributes(TypedDict, total=False):
     vote: Optional[bool]
     reason: Optional[str]
     parent_id: Optional[str]
-    is_removal: bool
-    created: bool
-    updated: Optional[bool]
+    is_removal: Optional[bool]
+    created: Optional[datetime]
+    updated: Optional[datetime]
 
 
 class RequestMemberRelations(TypedDict, total=False):

@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, UniqueConstraint
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from datastorage.database.classes import TableName
@@ -13,10 +13,6 @@ if TYPE_CHECKING:
 
 class RequestMember(Base):
     __tablename__ = TableName.REQUEST_MEMBER
-    __table_args__ = (
-        UniqueConstraint(
-            'member_id', 'community_id', name='idx_unique_request_member_community'),
-    )
 
     member_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),

@@ -59,7 +59,7 @@ def get_crud_router(
                                 instance_id=instance_id, include=post_processing_data.include)
                         else:
                             post_instance = deepcopy(instance)
-                        await ds.execute_post_processing(
+                        ds.execute_post_processing(
                             instance=post_instance, post_processing_data=post_processing_data)
 
                 if is_likes:
@@ -120,7 +120,7 @@ def get_crud_router(
                                 instance_id=new_instance.id, include=post_processing_data.include)
                         else:
                             post_instance = deepcopy(new_instance)
-                        await ds.execute_post_processing(
+                        ds.execute_post_processing(
                             instance=post_instance, post_processing_data=post_processing_data)
 
                 if is_likes:
@@ -163,7 +163,7 @@ def get_crud_router(
                 if Method.UPDATE in post_processing_data.methods:
                     post_instance: model = await ds.get(
                         instance_id=instance_id, include=post_processing_data.include)
-                    await ds.execute_post_processing(
+                    ds.execute_post_processing(
                         instance=post_instance, post_processing_data=post_processing_data)
 
     if Method.DELETE in methods or is_all_methods:
@@ -188,7 +188,7 @@ def get_crud_router(
                 if Method.DELETE in post_processing_data.methods:
                     post_instance: model = await ds.get(
                         instance_id=instance_id, include=post_processing_data.include)
-                    await ds.execute_post_processing(
+                    ds.execute_post_processing(
                         instance=post_instance, post_processing_data=post_processing_data)
 
     return router
