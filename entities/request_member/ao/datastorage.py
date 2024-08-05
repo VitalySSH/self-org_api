@@ -1,7 +1,7 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
-from sqlalchemy import select, insert, func
+from sqlalchemy import select, insert, func, Insert
 from sqlalchemy.orm import selectinload
 
 from datastorage.crud.datastorage import CRUDDataStorage
@@ -9,6 +9,7 @@ from datastorage.database.models import (
     RequestMember, CommunitySettings, RelationUserCsRequestMember, UserCommunitySettings
 )
 from datastorage.decorators import ds_async_with_new_session
+from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         user_cs_data = await self._session.execute(user_cs_query)
         user_cs_list = user_cs_data.all()
 
-        data_to_add = []
+        data_to_add: List[RelationRow] = []
         for id_, is_default_add_member in user_cs_list:
             child_request_member = self._create_copy_request_member(request_member)
             child_request_member.parent_id = request_member.id
@@ -83,13 +84,13 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 continue
 
             data_to_add.append(
-                {
-                    'id': build_uuid(),
-                    'from_id': id_,
-                    'to_id': child_request_member.id,
-                }
+                RelationRow(
+                    id=build_uuid(),
+                    from_id=id_,
+                    to_id=child_request_member.id,
+                )
             )
-        stmt = insert(RelationUserCsRequestMember).values(*data_to_add)
+        stmt: Insert = insert(RelationUserCsRequestMember).values(*data_to_add)
         stmt.compile()
         await self._session.execute(stmt)
 
