@@ -11,6 +11,7 @@ from datastorage.database.models import (
 from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
+from entities.status.model import Status
 
 logger = logging.getLogger(__name__)
 
@@ -22,17 +23,12 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         request_member = await self._get_request_member(request_member_id)
         if not request_member:
             return
-        if request_member.is_removal:
-            return
         if request_member.parent_id:
             await self._update_vote_for_requests_member(request_member)
         else:
             await self._add_request_member(request_member)
 
     async def _add_request_member(self, request_member: RequestMember) -> None:
-        if request_member.is_removal:
-            return None
-
         main_settings_id = (request_member.community.main_settings_id if
                             request_member.community else None)
         if main_settings_id:
@@ -44,7 +40,10 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             main_settings = await self._session.scalar(query)
 
             if main_settings and isinstance(main_settings.adding_members, list):
-                main_settings.adding_members.append(request_member)
+                filtered = list(filter(lambda it: it.id == request_member.id,
+                                       main_settings.adding_members))
+                if not filtered:
+                    main_settings.adding_members.append(request_member)
 
         await self._add_rm_to_user_community_settings(request_member)
         await self._session.commit()
@@ -54,7 +53,6 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             select(RequestMember)
             .options(
                 selectinload(RequestMember.member),
-                selectinload(RequestMember.creator),
                 selectinload(RequestMember.community),
                 selectinload(RequestMember.status),
             )
@@ -64,18 +62,27 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
     async def _add_rm_to_user_community_settings(self, request_member: RequestMember) -> None:
         user_cs_query = (
-            select(UserCommunitySettings.id, UserCommunitySettings.is_default_add_member)
-            .where(UserCommunitySettings.community_id == request_member.community_id)
+            select(
+                UserCommunitySettings.id,
+                UserCommunitySettings.is_default_add_member,
+                UserCommunitySettings.user_id,
+            ).where(UserCommunitySettings.community_id == request_member.community_id)
         )
         user_cs_data = await self._session.execute(user_cs_query)
         user_cs_list = user_cs_data.all()
 
         data_to_add: List[RelationRow] = []
-        for id_, is_default_add_member in user_cs_list:
+        for id_, is_default_add_member, user_id in user_cs_list:
             child_request_member = self._create_copy_request_member(request_member)
             child_request_member.parent_id = request_member.id
-            if is_default_add_member:
+            if is_default_add_member or request_member.member.id == user_id:
+                status_query = (
+                    select(Status)
+                    .where(Status.code == 'voted')
+                )
+                status = await self._session.scalar(status_query)
                 child_request_member.vote = True
+                child_request_member.status = status
             try:
                 self._session.add(child_request_member)
             except Exception as e:

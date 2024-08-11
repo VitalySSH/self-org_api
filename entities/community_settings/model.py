@@ -38,5 +38,3 @@ class CommunitySettings(Base):
         secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
     adding_members: Mapped[List['RequestMember']] = relationship(
         secondary=TableName.RELATION_CS_REQUEST_MEMBER, lazy='noload')
-    removal_members: Mapped[List['RequestMember']] = relationship(
-        secondary=TableName.RELATION_CS_REQUEST_MEMBER_REMOVE, lazy='noload')

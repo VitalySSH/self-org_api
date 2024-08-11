@@ -16,7 +16,6 @@ class CSRelations(TypedDict, total=False):
     description: Optional[SchemaInstance]
     init_categories: List[SchemaInstance]
     adding_members: List[SchemaInstance]
-    removal_members: List[SchemaInstance]
 
 
 class ReadComSettings(TypedDict):

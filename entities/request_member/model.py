@@ -23,15 +23,6 @@ class RequestMember(Base):
         lazy='noload',
         foreign_keys=f'{TableName.REQUEST_MEMBER}.c.member_id',
     )
-    creator_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id'),
-        nullable=True,
-        index=True,
-    )
-    creator: Mapped['User'] = relationship(
-        lazy='noload',
-        foreign_keys=f'{TableName.REQUEST_MEMBER}.c.creator_id',
-    )
     community_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY}.id'),
         nullable=True,
@@ -47,6 +38,5 @@ class RequestMember(Base):
     vote: Mapped[bool] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(nullable=True)
     parent_id: Mapped[str] = mapped_column(nullable=True)
-    is_removal: Mapped[bool] = mapped_column(default=False)
     created: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
     updated: Mapped[datetime] = mapped_column(nullable=True)

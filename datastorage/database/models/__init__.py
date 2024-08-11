@@ -31,7 +31,6 @@ __all__ = (
     'RelationUserCsRequestMember',
     'RelationUserCsRequestMemberRemove',
     'RelationCsRequestMember',
-    'RelationCsRequestMemberRemove',
 )
 
 from .base import Base
@@ -66,4 +65,3 @@ from .relation_user_request_member import RelationUserRequestMember
 from .relation_user_cs_request_member import RelationUserCsRequestMember
 from .relation_user_cs_request_member_remove import RelationUserCsRequestMemberRemove
 from .relation_cs_request_member import RelationCsRequestMember
-from .relation_cs_request_member_remove import RelationCsRequestMemberRemove

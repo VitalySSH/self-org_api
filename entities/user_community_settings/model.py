@@ -52,5 +52,3 @@ class UserCommunitySettings(Base):
     is_default_add_member: Mapped[bool] = mapped_column(nullable=False, default=False)
     adding_members: Mapped[List['RequestMember']] = relationship(
         secondary=TableName.RELATION_UCS_REQUEST_MEMBER, lazy='noload')
-    removal_members: Mapped[List['RequestMember']] = relationship(
-        secondary=TableName.RELATION_UCS_REQUEST_MEMBER_REMOVE, lazy='noload')

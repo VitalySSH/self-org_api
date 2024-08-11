@@ -21,7 +21,6 @@ class UserCsRelations(TypedDict, total=False):
     init_categories: List[SchemaInstance]
     delegate_settings: List[SchemaInstance]
     adding_members: List[SchemaInstance]
-    removal_members: List[SchemaInstance]
 
 
 class UserCsRead(TypedDict):
