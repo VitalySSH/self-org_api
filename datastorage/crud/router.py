@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Type, List, Optional, TypeVar
+from typing import Type, List, Optional, TypeVar, Tuple
 
 from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +23,22 @@ CS = TypeVar('CS')
 US = TypeVar('US')
 
 
+def build_post_processing_data(
+        current_method: Method,
+        post_processing_data: List[PostProcessingData]
+) -> Tuple[List[PostProcessingData], List[str]]:
+    current_post_processing_data: List[PostProcessingData] = []
+    include: List[str] = []
+    for post_processing in post_processing_data:
+        if current_method in post_processing.methods:
+            for incl in post_processing.include or []:
+                if incl not in include:
+                    include.append(incl)
+            current_post_processing_data.append(post_processing)
+
+    return current_post_processing_data, include
+
+
 def get_crud_router(
         model: Type[T],
         read_schema: RS,
@@ -30,7 +46,7 @@ def get_crud_router(
         update_schema: US,
         methods: List[Method],
         is_likes: bool = False,
-        post_processing_data: Optional[PostProcessingData] = None,
+        post_processing_data: Optional[List[PostProcessingData]] = None,
 ) -> APIRouter:
     """Вернёт роутер для CRUD-операций."""
 
@@ -53,14 +69,18 @@ def get_crud_router(
             instance: model = await ds.get(instance_id=instance_id, include=include)
             if instance:
                 if post_processing_data:
-                    if Method.GET in post_processing_data.methods:
-                        if post_processing_data.include:
+                    pp_data, include = build_post_processing_data(
+                        current_method=Method.GET, post_processing_data=post_processing_data)
+                    if pp_data:
+                        if include:
                             post_instance: model = await ds.get(
-                                instance_id=instance_id, include=post_processing_data.include)
+                                instance_id=instance_id, include=include)
+                            await ds.invalidate_session()
                         else:
                             post_instance = deepcopy(instance)
+
                         ds.execute_post_processing(
-                            instance=post_instance, post_processing_data=post_processing_data)
+                            instance=post_instance, post_processing_data=pp_data)
 
                 if is_likes:
                     return update_instance_by_likes(instance=instance, current_user=current_user)
@@ -114,14 +134,18 @@ def get_crud_router(
                     instance=instance_to_add, relation_fields=relation_fields)
 
                 if post_processing_data:
-                    if Method.CREATE in post_processing_data.methods:
-                        if post_processing_data.include:
+                    pp_data, include = build_post_processing_data(
+                        current_method=Method.CREATE, post_processing_data=post_processing_data)
+                    if pp_data:
+                        if include:
                             post_instance: model = await ds.get(
-                                instance_id=new_instance.id, include=post_processing_data.include)
+                                instance_id=new_instance, include=include)
+                            await ds.invalidate_session()
                         else:
                             post_instance = deepcopy(new_instance)
+
                         ds.execute_post_processing(
-                            instance=post_instance, post_processing_data=post_processing_data)
+                            instance=post_instance, post_processing_data=pp_data)
 
                 if is_likes:
                     return update_instance_by_likes(
@@ -160,11 +184,14 @@ def get_crud_router(
                     detail=e.description,
                 )
             if post_processing_data:
-                if Method.UPDATE in post_processing_data.methods:
+                pp_data, include = build_post_processing_data(
+                    current_method=Method.UPDATE, post_processing_data=post_processing_data)
+                if pp_data:
                     post_instance: model = await ds.get(
-                        instance_id=instance_id, include=post_processing_data.include)
+                        instance_id=instance_id, include=include)
+                    await ds.invalidate_session()
                     ds.execute_post_processing(
-                        instance=post_instance, post_processing_data=post_processing_data)
+                        instance=post_instance, post_processing_data=pp_data)
 
     if Method.DELETE in methods or is_all_methods:
         @router.delete(
@@ -185,10 +212,13 @@ def get_crud_router(
                     detail=e.description,
                 )
             if post_processing_data:
-                if Method.DELETE in post_processing_data.methods:
+                pp_data, include = build_post_processing_data(
+                    current_method=Method.DELETE, post_processing_data=post_processing_data)
+                if pp_data:
                     post_instance: model = await ds.get(
-                        instance_id=instance_id, include=post_processing_data.include)
+                        instance_id=instance_id, include=include)
+                    await ds.invalidate_session()
                     ds.execute_post_processing(
-                        instance=post_instance, post_processing_data=post_processing_data)
+                        instance=post_instance, post_processing_data=pp_data)
 
     return router

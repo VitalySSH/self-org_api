@@ -1,6 +1,7 @@
 import asyncio
+from asyncio import Task
 from threading import Thread
-from typing import Optional, Callable
+from typing import Optional, List, Set
 
 from datastorage.base import DataStorage
 from datastorage.crud.dataclasses import ThreadFuncData, PostProcessingData
@@ -11,52 +12,51 @@ from datastorage.interfaces import T
 class CRUDPostProcessing(Thread, PostProcessing):
     """Постобработка запросов со стороны клиента."""
 
-    _post_processing: PostProcessingData
+    post_processing_data: List[PostProcessingData]
     _instance: Optional[T]
-    _invalidate_session_func: Callable
+    _background_tasks: Set[Task]
+
+    def __init__(self):
+        super().__init__()
+        self._background_tasks = set()
 
     def run(self) -> None:
-        background_tasks = []
-        invalidate_session_task = asyncio.create_task(self._invalidate_session_func())
-        background_tasks.append(invalidate_session_task)
-        func_data = self._build_func_data(self._instance)
-        if func_data:
-            task = asyncio.create_task(func_data.func(**func_data.kwargs))
-            background_tasks.append(task)
+        funcs_data = self._build_func_data(self._instance)
+        task = asyncio.create_task(self._execute_functions(funcs_data))
+        self._background_tasks.add(task)
+        task.add_done_callback(lambda _task: self._background_tasks.remove(_task))
 
-        while len(background_tasks) > 0:
-            task_ = background_tasks[0]
-            if task_.done:
-                background_tasks.remove(task_)
-
-    def execute(
-            self, instance: T,
-            post_processing_data: PostProcessingData,
-            invalidate_session_func: Callable,
-    ) -> None:
+    def execute(self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
         self._instance = instance
-        self._invalidate_session_func = invalidate_session_func
-        self._post_processing = post_processing_data
+        self.post_processing_data = post_processing_data
         self.run()
 
-    def _build_func_data(self, instance: T) -> Optional[ThreadFuncData]:
-        ds: DataStorage = self._init_data_storage()
-        func_data: Optional[ThreadFuncData] = None
-        func = getattr(ds, self._post_processing.func_name)
-        if self._post_processing.instance_attr:
-            attr_value = getattr(instance, self._post_processing.instance_attr)
-        else:
-            attr_value = instance
-        if func and attr_value:
-            attrs = list(func.__annotations__.keys())
-            if attrs:
-                kwargs = {attrs[0]: attr_value}
-                func_data = ThreadFuncData(func=func, kwargs=kwargs)
+    @staticmethod
+    async def _execute_functions(funcs_data: List[ThreadFuncData]):
+        for func_data in funcs_data:
+            await func_data.func(**func_data.kwargs)
+
+    def _build_func_data(self, instance: T) -> List[ThreadFuncData]:
+        funcs_data: List[ThreadFuncData] = []
+        for post_processing in self.post_processing_data:
+            ds: DataStorage = self._init_data_storage(post_processing)
+            func = getattr(ds, post_processing.func_name)
+            if post_processing.instance_attr:
+                attr_value = getattr(instance, post_processing.instance_attr)
             else:
-                func_data = ThreadFuncData(func=func, kwargs={})
+                attr_value = instance
+            if func and attr_value:
+                attrs = list(func.__annotations__.keys())
+                if attrs:
+                    kwargs = {attrs[0]: attr_value}
+                    funcs_data.append(ThreadFuncData(func=func, kwargs=kwargs))
+                else:
+                    funcs_data.append(ThreadFuncData(func=func, kwargs={}))
 
-        return func_data
+        return funcs_data
 
-    def _init_data_storage(self) -> DataStorage:
-        ds_class = self._post_processing.data_storage
-        return ds_class(model=self._post_processing.model)
+    @staticmethod
+    def _init_data_storage(post_processing: PostProcessingData) -> DataStorage:
+        ds_class = post_processing.data_storage
+
+        return ds_class(model=post_processing.model)

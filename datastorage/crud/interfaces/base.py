@@ -68,10 +68,6 @@ class CRUD(abc.ABC):
 class PostProcessing(abc.ABC):
 
     @abc.abstractmethod
-    def execute(
-            self, instance: T,
-            post_processing_data: PostProcessingData,
-            invalidate_session_func: Callable,
-    ) -> None:
+    def execute(self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
         raise NotImplementedError
 

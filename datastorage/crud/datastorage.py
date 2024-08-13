@@ -14,7 +14,6 @@ from datastorage.crud.interfaces.list import (
 )
 from datastorage.crud.interfaces.schema import SchemaInstance, S
 from datastorage.crud.post_processing import CRUDPostProcessing
-from datastorage.decorators import ds_async_with_session
 from datastorage.interfaces import T
 from datastorage.utils import build_uuid
 
@@ -59,12 +58,11 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return instance
 
     def execute_post_processing(
-            self, instance: T, post_processing_data: PostProcessingData) -> None:
+            self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
         post_processing = self._post_processing_type()
         post_processing.execute(
             instance=instance,
-            post_processing_data=post_processing_data,
-            invalidate_session_func=self.invalidate_session,
+            post_processing_data=post_processing_data
         )
 
     @staticmethod
@@ -130,7 +128,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return options
 
-    @ds_async_with_session
     async def create(self, instance: T, relation_fields: Optional[List[str]] = None) -> T:
         if not instance.id:
             instance.id = build_uuid()
@@ -148,7 +145,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return instance
 
-    @ds_async_with_session
     async def update(self, instance_id: str, schema: SchemaInstance) -> None:
         include = self.get_relation_fields(schema)
         instance = await self.get(instance_id=instance_id, include=include)
@@ -163,7 +159,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise CRUDConflict(
                 f'Ошибка обновления объекта с id {instance_id} модели {self._model.__name__}: {e}')
 
-    @ds_async_with_session
     async def delete(self, instance_id: str) -> None:
         instance = await self.get(instance_id=instance_id)
         if not instance:
