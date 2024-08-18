@@ -6,13 +6,15 @@ from .schemas import RequestMemberRead, RequestMemberCreate, RequestMemberUpdate
 from ..ao.datastorage import RequestMemberDS
 
 
-post_processing = PostProcessingData(
-    data_storage=RequestMemberDS,
-    model=RequestMember,
-    methods=[Method.CREATE],
-    instance_attr='id',
-    func_name='add_request_member',
-)
+post_processing = [
+    PostProcessingData(
+        data_storage=RequestMemberDS,
+        model=RequestMember,
+        methods=[Method.CREATE],
+        instance_attr='id',
+        func_name='add_request_member',
+    )
+]
 
 
 router = get_crud_router(

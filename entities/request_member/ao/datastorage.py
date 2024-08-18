@@ -45,8 +45,8 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 if not filtered:
                     main_settings.adding_members.append(request_member)
 
-        await self._add_rm_to_user_community_settings(request_member)
-        await self._session.commit()
+            await self._add_rm_to_user_community_settings(request_member)
+            await self._session.commit()
 
     async def _get_request_member(self, request_member_id: str) -> Optional[RequestMember]:
         query = (
@@ -97,9 +97,10 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                     to_id=child_request_member.id,
                 )
             )
-        stmt: Insert = insert(RelationUserCsRequestMember).values(*data_to_add)
-        stmt.compile()
-        await self._session.execute(stmt)
+        if data_to_add:
+            stmt: Insert = insert(RelationUserCsRequestMember).values(*data_to_add)
+            stmt.compile()
+            await self._session.execute(stmt)
 
     @staticmethod
     def _create_copy_request_member(request_member: RequestMember) -> RequestMember:

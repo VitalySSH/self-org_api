@@ -7,13 +7,15 @@ from datastorage.database.models import Community
 from ...community.ao.datastorage import CommunityDS
 
 
-post_processing = PostProcessingData(
-    data_storage=CommunityDS,
-    model=Community,
-    methods=[Method.CREATE, Method.UPDATE, Method.DELETE],
-    func_name='change_community_settings',
-    instance_attr='community_id',
-)
+post_processing = [
+    PostProcessingData(
+        data_storage=CommunityDS,
+        model=Community,
+        methods=[Method.CREATE, Method.UPDATE, Method.DELETE],
+        func_name='change_community_settings',
+        instance_attr='community_id',
+    )
+]
 
 router = get_crud_router(
     model=UserCommunitySettings,
