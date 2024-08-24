@@ -13,7 +13,14 @@ post_processing = [
         methods=[Method.CREATE],
         instance_attr='id',
         func_name='add_request_member',
-    )
+    ),
+    PostProcessingData(
+        data_storage=RequestMemberDS,
+        model=RequestMember,
+        methods=[Method.UPDATE],
+        instance_attr='id',
+        func_name='update_parent_request_member',
+    ),
 ]
 
 

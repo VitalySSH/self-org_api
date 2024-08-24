@@ -45,21 +45,24 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 many_to_many_objs: List[T] = []
                 for sub_rel_value in rel_value:
                     rel_obj_id = sub_rel_value.get('id')
-                    rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
-                    rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
-                    many_to_many_objs.append(rel_obj)
-                setattr(instance, rel_name, many_to_many_objs)
+                    if rel_obj_id:
+                        rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
+                        rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
+                        many_to_many_objs.append(rel_obj)
+                if many_to_many_objs:
+                    setattr(instance, rel_name, many_to_many_objs)
             else:
                 rel_obj_id = rel_value.get('id')
-                rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
-                rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
-                setattr(instance, rel_name, rel_obj)
+                if rel_obj_id:
+                    rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
+                    rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
+                    setattr(instance, rel_name, rel_obj)
 
         return instance
 
     def execute_post_processing(
             self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
-        post_processing = self._post_processing_type()
+        post_processing = self._post_processing_type(self._background_tasks)
         post_processing.execute(
             instance=instance,
             post_processing_data=post_processing_data
@@ -67,7 +70,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
     @staticmethod
     def get_relation_fields(schema: S) -> List[str]:
-        return list(schema.get('relations', {}).keys())
+        return [key for key, value in schema.get('relations', {}).items() if value]
 
     @staticmethod
     def _get_relation_model(model: Type[T], field_name: str) -> Type[T]:

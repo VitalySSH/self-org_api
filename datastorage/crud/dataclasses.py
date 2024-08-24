@@ -17,6 +17,6 @@ class PostProcessingData:
 
 
 @dataclass
-class ThreadFuncData:
+class TaskFuncData:
     func: Callable
     kwargs: Dict[str, Any]

@@ -1,7 +1,7 @@
 from copy import deepcopy
 from typing import Type, List, Optional, TypeVar, Tuple
 
-from fastapi import APIRouter, Depends, Query, HTTPException
+from fastapi import APIRouter, Depends, Query, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
@@ -61,11 +61,13 @@ def get_crud_router(
         )
         async def get_instance(
                 instance_id: str,
+                background_tasks: BackgroundTasks,
                 include: List[str] = Query(None),
                 current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
-            ds = CRUDDataStorage[model](model=model, session=session)
+            ds = CRUDDataStorage[model](
+                model=model, session=session, background_tasks=background_tasks)
             instance: model = await ds.get(instance_id=instance_id, include=include)
             if instance:
                 if post_processing_data:
@@ -99,6 +101,7 @@ def get_crud_router(
             status_code=200,
         )
         async def list_instances(
+                background_tasks: BackgroundTasks,
                 filters: Filters = None,
                 orders: Orders = None,
                 pagination: Pagination = None,
@@ -106,7 +109,8 @@ def get_crud_router(
                 current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> List[read_schema]:
-            ds = CRUDDataStorage[model](model=model, session=session)
+            ds = CRUDDataStorage[model](
+                model=model, session=session, background_tasks=background_tasks)
             instances: List[model] = await ds.list(
                 filters=filters, orders=orders, pagination=pagination, include=include)
             if is_likes:
@@ -123,10 +127,12 @@ def get_crud_router(
         )
         async def create_instance(
                 body: create_schema,
+                background_tasks: BackgroundTasks,
                 current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
-            ds = CRUDDataStorage[model](model=model, session=session)
+            ds = CRUDDataStorage[model](
+                model=model, session=session, background_tasks=background_tasks)
             instance_to_add: model = await ds.schema_to_model(schema=body)
             relation_fields: List[str] = ds.get_relation_fields(body)
             try:
@@ -168,9 +174,11 @@ def get_crud_router(
         async def update_instance(
                 instance_id: str,
                 body: update_schema,
+                background_tasks: BackgroundTasks,
                 session: AsyncSession = Depends(get_async_session),
         ) -> None:
-            ds = CRUDDataStorage[model](model=model, session=session)
+            ds = CRUDDataStorage[model](
+                model=model, session=session, background_tasks=background_tasks)
             try:
                 await ds.update(instance_id=instance_id, schema=body)
             except CRUDNotFound as e:
@@ -201,9 +209,11 @@ def get_crud_router(
         )
         async def delete_instance(
                 instance_id: str,
+                background_tasks: BackgroundTasks,
                 session: AsyncSession = Depends(get_async_session),
         ) -> None:
-            ds = CRUDDataStorage[model](model=model, session=session)
+            ds = CRUDDataStorage[model](
+                model=model, session=session, background_tasks=background_tasks)
             try:
                 await ds.delete(instance_id)
             except CRUDConflict as e:

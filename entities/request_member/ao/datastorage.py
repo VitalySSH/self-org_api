@@ -24,9 +24,15 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         if not request_member:
             return
         if request_member.parent_id:
-            await self._update_vote_for_requests_member(request_member)
+            await self._update_vote_for_parent_requests_member(request_member)
         else:
             await self._add_request_member(request_member)
+
+    @ds_async_with_new_session
+    async def update_parent_request_member(self, request_member_id: str) -> None:
+        request_member = await self._get_request_member(request_member_id)
+        if request_member and request_member.parent_id:
+            await self._update_vote_for_parent_requests_member(request_member)
 
     async def _add_request_member(self, request_member: RequestMember) -> None:
         main_settings_id = (request_member.community.main_settings_id if
@@ -112,28 +118,36 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
         return new_request_member
 
-    async def _update_vote_for_requests_member(self, request_member: RequestMember) -> None:
+    async def _update_vote_for_parent_requests_member(self, request_member: RequestMember) -> None:
         query = (
             select(func.count()).select_from(RequestMember)
             .where(
                 RequestMember.vote.is_(True),
                 RequestMember.community_id == request_member.community_id,
+                RequestMember.member_id == request_member.member_id,
             )
         )
         allowed_count = await self._session.scalar(query)
-        vote_count = await self._count_votes_by_settings(request_member.community_id)
-        parent_request_member = await self._get_request_member(request_member.community_id)
-        if vote_count and vote_count <= allowed_count:
-            parent_request_member.vote = True
-        else:
-            parent_request_member.vote = False
-
+        users_count = await self._get_count_users_in_community(request_member.community_id)
+        percentage_yes = int(users_count / allowed_count * 100) if allowed_count > 0 else 0
+        vote_count = await self._get_count_votes_by_settings(request_member.community_id)
+        parent_request_member = await self._get_request_member(request_member.parent_id)
+        parent_request_member.vote = True if vote_count and vote_count <= percentage_yes else False
         await self._session.commit()
 
-    async def _count_votes_by_settings(self, community_id: str) -> int:
+    async def _get_count_votes_by_settings(self, community_id: str) -> int:
         query = (
             select(func.avg(UserCommunitySettings.vote))
             .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.community_id == community_id)
+        )
+        row = await self._session.scalar(query)
+
+        return int(row) if row else 0
+
+    async def _get_count_users_in_community(self, community_id: str) -> int:
+        query = (
+            select(func.count()).select_from(UserCommunitySettings)
             .where(UserCommunitySettings.community_id == community_id)
         )
         row = await self._session.scalar(query)

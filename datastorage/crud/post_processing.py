@@ -1,43 +1,36 @@
-import asyncio
-from asyncio import Task
-from threading import Thread
-from typing import Optional, List, Set
+from fastapi import BackgroundTasks
+from typing import Optional, List
 
 from datastorage.base import DataStorage
-from datastorage.crud.dataclasses import ThreadFuncData, PostProcessingData
+from datastorage.crud.dataclasses import TaskFuncData, PostProcessingData
 from datastorage.crud.interfaces.base import PostProcessing
 from datastorage.interfaces import T
 
 
-class CRUDPostProcessing(Thread, PostProcessing):
+class CRUDPostProcessing(PostProcessing):
     """Постобработка запросов со стороны клиента."""
 
     post_processing_data: List[PostProcessingData]
     _instance: Optional[T]
-    _background_tasks: Set[Task]
+    _background_tasks: BackgroundTasks
 
-    def __init__(self):
-        super().__init__()
-        self._background_tasks = set()
-
-    def run(self) -> None:
-        funcs_data = self._build_func_data(self._instance)
-        task = asyncio.create_task(self._execute_functions(funcs_data))
-        self._background_tasks.add(task)
-        task.add_done_callback(lambda _task: self._background_tasks.remove(_task))
+    def __init__(self, background_tasks: BackgroundTasks):
+        self._background_tasks = background_tasks
 
     def execute(self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
-        self._instance = instance
-        self.post_processing_data = post_processing_data
-        self.run()
+        if self._background_tasks:
+            self._instance = instance
+            self.post_processing_data = post_processing_data
+            funcs_data = self._build_func_data(self._instance)
+            self._background_tasks.add_task(self._execute_functions, *funcs_data)
 
     @staticmethod
-    async def _execute_functions(funcs_data: List[ThreadFuncData]):
+    async def _execute_functions(*funcs_data):
         for func_data in funcs_data:
             await func_data.func(**func_data.kwargs)
 
-    def _build_func_data(self, instance: T) -> List[ThreadFuncData]:
-        funcs_data: List[ThreadFuncData] = []
+    def _build_func_data(self, instance: T) -> List[TaskFuncData]:
+        funcs_data: List[TaskFuncData] = []
         for post_processing in self.post_processing_data:
             ds: DataStorage = self._init_data_storage(post_processing)
             func = getattr(ds, post_processing.func_name)
@@ -49,9 +42,9 @@ class CRUDPostProcessing(Thread, PostProcessing):
                 attrs = list(func.__annotations__.keys())
                 if attrs:
                     kwargs = {attrs[0]: attr_value}
-                    funcs_data.append(ThreadFuncData(func=func, kwargs=kwargs))
+                    funcs_data.append(TaskFuncData(func=func, kwargs=kwargs))
                 else:
-                    funcs_data.append(ThreadFuncData(func=func, kwargs={}))
+                    funcs_data.append(TaskFuncData(func=func, kwargs={}))
 
         return funcs_data
 
