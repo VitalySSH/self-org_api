@@ -26,7 +26,5 @@ class TableName:
     RELATION_INITIATIVE_OPINION = 'relation_initiative_opinion'
     RELATION_INITIATIVE_LIKE = 'relation_initiative_likes'
     RELATION_OPINION_LIKE = 'relation_opinion_like'
-    RELATION_USER_REQUEST_MEMBER = 'relation_user_request_member'
     RELATION_UCS_REQUEST_MEMBER = 'relation_user_cs_request_member'
-    RELATION_UCS_REQUEST_MEMBER_REMOVE = 'relation_user_cs_request_member_remove'
     RELATION_CS_REQUEST_MEMBER = 'relation_cs_request_member'

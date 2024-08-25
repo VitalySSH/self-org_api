@@ -13,6 +13,8 @@ class RelationCsRequestMember(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id'), nullable=False, index=True)
+        ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id', ondelete="CASCADE"),
+        nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.REQUEST_MEMBER}.id'), nullable=False, index=True)
+        ForeignKey(f'{TableName.REQUEST_MEMBER}.id', ondelete="CASCADE"),
+        nullable=False, index=True)

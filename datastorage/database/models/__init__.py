@@ -27,9 +27,7 @@ __all__ = (
     'RelationOpinionLike',
     'RelationVrVo',
     'RelationCommunityUCs',
-    'RelationUserRequestMember',
     'RelationUserCsRequestMember',
-    'RelationUserCsRequestMemberRemove',
     'RelationCsRequestMember',
 )
 
@@ -61,7 +59,5 @@ from .relation_initiative_like import RelationInitiativeLike
 from .relation_opinion_like import RelationOpinionLike
 from .relation_voting_result_voting_options import RelationVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
-from .relation_user_request_member import RelationUserRequestMember
 from .relation_user_cs_request_member import RelationUserCsRequestMember
-from .relation_user_cs_request_member_remove import RelationUserCsRequestMemberRemove
 from .relation_cs_request_member import RelationCsRequestMember

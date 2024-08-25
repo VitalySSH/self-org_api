@@ -1,11 +1,9 @@
 import re
 from datetime import datetime
-from typing import TypedDict, Optional, List
+from typing import TypedDict, Optional
 
 from fastapi import HTTPException
 from pydantic import field_validator
-
-from datastorage.crud.interfaces.schema import SchemaInstance
 
 LETTER_MATCH_PATTERN = re.compile(r'^[а-яА-Яa-zA-Z\-]+$')
 
@@ -42,14 +40,9 @@ class UserReadAttributes(TypedDict):
     created: datetime
 
 
-class UserRelations(TypedDict, total=False):
-    adding_communities: List[SchemaInstance]
-
-
 class UserRead(TypedDict):
     id: str
     attributes: UserReadAttributes
-    relations: UserRelations
 
 
 class UserCreateAttributes(TypedDict, total=False):
@@ -68,4 +61,4 @@ class UserCreate(TypedDict, total=False):
 
 
 class UserUpdate(UserCreate):
-    relations: UserRelations
+    pass

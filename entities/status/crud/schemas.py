@@ -1,7 +1,7 @@
 from typing import TypedDict
 
 
-class StatusAttributes(TypedDict):
+class StatusAttributes(TypedDict, total=False):
     code: str
     name: str
 
