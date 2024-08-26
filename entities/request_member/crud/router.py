@@ -21,6 +21,12 @@ post_processing = [
         instance_attr='id',
         func_name='update_parent_request_member',
     ),
+    PostProcessingData(
+        data_storage=RequestMemberDS,
+        model=RequestMember,
+        methods=[Method.DELETE],
+        func_name='delete_child_request_members',
+    ),
 ]
 
 

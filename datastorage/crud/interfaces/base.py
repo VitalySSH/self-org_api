@@ -19,7 +19,10 @@ class CRUD(abc.ABC):
 
     @abc.abstractmethod
     def execute_post_processing(
-            self, instance: T, post_processing_data: PostProcessingData) -> None:
+            self, instance: Optional[T],
+            post_processing_data: List[PostProcessingData],
+            instance_id: Optional[str] = None,
+    ) -> None:
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -68,6 +71,10 @@ class CRUD(abc.ABC):
 class PostProcessing(abc.ABC):
 
     @abc.abstractmethod
-    def execute(self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
+    def execute(
+            self, instance: Optional[T],
+            post_processing_data: List[PostProcessingData],
+            instance_id: Optional[str] = None,
+    ) -> None:
         raise NotImplementedError
 

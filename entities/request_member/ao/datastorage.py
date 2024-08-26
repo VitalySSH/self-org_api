@@ -34,6 +34,21 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         if request_member and request_member.parent_id:
             await self._update_vote_for_parent_requests_member(request_member)
 
+    @ds_async_with_new_session
+    async def delete_child_request_members(self, request_member_id: str) -> None:
+        is_deleted = False
+        child_request_members = await self._get_child_request_members(request_member_id)
+        for child_request_member in child_request_members:
+            try:
+                await self._session.delete(child_request_member)
+                if not is_deleted:
+                    is_deleted = True
+            except Exception as e:
+                logger.error(f'Не удалось удались запрос на членство '
+                             f'с id: {child_request_member.id}: {e}')
+        if is_deleted:
+            await self._session.commit()
+
     async def _add_request_member(self, request_member: RequestMember) -> None:
         main_settings_id = (request_member.community.main_settings_id if
                             request_member.community else None)
@@ -65,6 +80,20 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             .where(RequestMember.id == request_member_id)
         )
         return await self._session.scalar(query)
+
+    async def _get_child_request_members(self, request_member_id: str) -> List[RequestMember]:
+        query = (
+            select(RequestMember)
+            .options(
+                selectinload(RequestMember.member),
+                selectinload(RequestMember.community),
+                selectinload(RequestMember.status),
+            )
+            .where(RequestMember.parent_id == request_member_id)
+        )
+        child_request_members = await self._session.scalars(query)
+
+        return list(child_request_members)
 
     async def _add_rm_to_user_community_settings(self, request_member: RequestMember) -> None:
         user_cs_query = (

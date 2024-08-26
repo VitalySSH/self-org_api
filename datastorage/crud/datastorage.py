@@ -61,11 +61,15 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return instance
 
     def execute_post_processing(
-            self, instance: T, post_processing_data: List[PostProcessingData]) -> None:
+            self, instance: Optional[T],
+            post_processing_data: List[PostProcessingData],
+            instance_id: Optional[str] = None,
+    ) -> None:
         post_processing = self._post_processing_type(self._background_tasks)
         post_processing.execute(
             instance=instance,
-            post_processing_data=post_processing_data
+            post_processing_data=post_processing_data,
+            instance_id=instance_id,
         )
 
     @staticmethod
