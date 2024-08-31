@@ -40,3 +40,4 @@ class RequestMember(Base):
     parent_id: Mapped[str] = mapped_column(nullable=True)
     created: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
     updated: Mapped[datetime] = mapped_column(nullable=True)
+    is_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)

@@ -126,6 +126,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 UserCommunitySettings.id,
                 UserCommunitySettings.is_default_add_member,
                 UserCommunitySettings.user_id,
+                UserCommunitySettings.is_blocked,
             ).where(
                 UserCommunitySettings.community_id == request_member.community_id,
                 UserCommunitySettings.is_blocked.is_not(True),
@@ -135,7 +136,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         user_cs_list = user_cs_data.all()
 
         data_to_add: List[RelationRow] = []
-        for id_, is_default_add_member, user_id in user_cs_list:
+        for id_, is_default_add_member, user_id, is_blocked in user_cs_list:
             child_request_member = self._create_copy_request_member(request_member)
             child_request_member.parent_id = request_member.id
             if is_default_add_member or request_member.member.id == user_id:
@@ -146,6 +147,8 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 status = await self._session.scalar(status_query)
                 child_request_member.vote = True
                 child_request_member.status = status
+            if is_blocked:
+                child_request_member.is_blocked = True
             try:
                 self._session.add(child_request_member)
             except Exception as e:
@@ -180,6 +183,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             select(func.count()).select_from(RequestMember)
             .where(
                 RequestMember.vote.is_(True),
+                RequestMember.is_blocked.is_not(True),
                 RequestMember.community_id == request_member.community_id,
                 RequestMember.member_id == request_member.member_id,
             )
