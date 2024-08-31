@@ -64,6 +64,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.user_id == user_id,
+                UserCommunitySettings.is_blocked.is_not(True),
             )
         )
         user_settings = await self._session.scalar(query)
@@ -125,7 +126,10 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 UserCommunitySettings.id,
                 UserCommunitySettings.is_default_add_member,
                 UserCommunitySettings.user_id,
-            ).where(UserCommunitySettings.community_id == request_member.community_id)
+            ).where(
+                UserCommunitySettings.community_id == request_member.community_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
         )
         user_cs_data = await self._session.execute(user_cs_query)
         user_cs_list = user_cs_data.all()
@@ -192,7 +196,10 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         query = (
             select(func.avg(UserCommunitySettings.vote))
             .select_from(UserCommunitySettings)
-            .where(UserCommunitySettings.community_id == community_id)
+            .where(
+                UserCommunitySettings.community_id == community_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
         )
         row = await self._session.scalar(query)
 
@@ -201,7 +208,10 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (
             select(func.count()).select_from(UserCommunitySettings)
-            .where(UserCommunitySettings.community_id == community_id)
+            .where(
+                UserCommunitySettings.community_id == community_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
         )
         row = await self._session.scalar(query)
 
