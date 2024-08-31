@@ -36,18 +36,47 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
     @ds_async_with_new_session
     async def delete_child_request_members(self, request_member_id: str) -> None:
-        is_deleted = False
+        community_id, user_id = None, None
+        is_deleted_request_members = False
         child_request_members = await self._get_child_request_members(request_member_id)
         for child_request_member in child_request_members:
+            if not community_id or user_id:
+                community_id = child_request_member.community_id
+                user_id = child_request_member.member_id
             try:
                 await self._session.delete(child_request_member)
-                if not is_deleted:
-                    is_deleted = True
+                if not is_deleted_request_members:
+                    is_deleted_request_members = True
             except Exception as e:
                 logger.error(f'Не удалось удались запрос на членство '
                              f'с id: {child_request_member.id}: {e}')
-        if is_deleted:
+
+        is_deleted_user_settings = await self._check_and_delete_user_settings(
+            community_id=community_id, user_id=user_id)
+
+        if is_deleted_request_members or is_deleted_user_settings:
             await self._session.commit()
+
+    async def _check_and_delete_user_settings(self, community_id: str, user_id: str) -> bool:
+        is_deleted = False
+        query = (
+            select(UserCommunitySettings)
+            .where(
+                UserCommunitySettings.community_id == community_id,
+                UserCommunitySettings.user_id == user_id,
+            )
+        )
+        user_settings = await self._session.scalar(query)
+        if user_settings:
+            try:
+                await self._session.delete(user_settings)
+                if not is_deleted:
+                    is_deleted = True
+            except Exception as e:
+                logger.error(f'Не удалось удались пользовательские настройки сообщества '
+                             f'с id: {user_settings.id}: {e}')
+
+        return is_deleted
 
     async def _add_request_member(self, request_member: RequestMember) -> None:
         main_settings_id = (request_member.community.main_settings_id if
@@ -84,11 +113,6 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
     async def _get_child_request_members(self, request_member_id: str) -> List[RequestMember]:
         query = (
             select(RequestMember)
-            .options(
-                selectinload(RequestMember.member),
-                selectinload(RequestMember.community),
-                selectinload(RequestMember.status),
-            )
             .where(RequestMember.parent_id == request_member_id)
         )
         child_request_members = await self._session.scalars(query)

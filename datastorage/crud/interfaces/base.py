@@ -1,5 +1,5 @@
 import abc
-from typing import Optional, Type, List, Callable
+from typing import Optional, Type, List
 
 from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination
