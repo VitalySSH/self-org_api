@@ -44,7 +44,8 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         data_to_create.community_obj = community
         request_member = await self._create_request_member(data_to_create)
         main_settings.adding_members = [request_member]
-        child_request_member = await self._create_child_request_member(request_member)
+        child_request_member = await self._create_child_request_member(
+            data_to_create=data_to_create, request_member=request_member)
         user_settings.adding_members = [child_request_member]
         await self._session.commit()
 
@@ -158,10 +159,14 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
 
         return request_member
 
-    async def _create_child_request_member(self, request_member: RequestMember) -> RequestMember:
+    async def _create_child_request_member(
+            self, data_to_create: CreatingCommunity,
+            request_member: RequestMember) -> RequestMember:
         child_request_member = self._create_copy_request_member(request_member)
         child_request_member.parent_id = request_member.id
         status = await self._get_status_by_code('voted')
+        child_request_member.community = data_to_create.community_obj
+        child_request_member.member = data_to_create.user
         child_request_member.status = status
         self._session.add(child_request_member)
         await self._session.flush([child_request_member])
