@@ -5,6 +5,7 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 
 class InitCategoryAttributes(TypedDict):
     name: str
+    community_id: str
 
 
 class InitCategoryRelations(TypedDict):
