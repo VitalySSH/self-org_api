@@ -49,7 +49,6 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         user_settings.adding_members = [child_request_member]
         await self._session.commit()
 
-    @ds_async_with_new_session
     async def update_data_after_join(
             self, user_settings_id: str,
             community_id: str, request_member_id: str) -> None:

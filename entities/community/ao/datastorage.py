@@ -13,6 +13,7 @@ from datastorage.interfaces import VotingParams, PercentByName, CsByPercent
 from entities.community.ao.dataclasses import OtherCommunitySettings
 from entities.community_description.crud.schemas import CommunityDescRead
 from entities.community_name.crud.schemas import CommunityNameRead
+from entities.status.model import Status
 from entities.user.model import User
 
 
@@ -47,6 +48,98 @@ class CommunityDS(CRUDDataStorage[Community]):
         descriptions = await self._session.scalars(query)
 
         return [description.to_read_schema() for description in descriptions]
+
+    async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
+        categories_data, user_count = await self._get_user_init_categories(community_id)
+        category_data = {category_id: count for category_id, count in categories_data}
+        query = (select(InitiativeCategory)
+                 .filter(InitiativeCategory.id.in_(list(category_data.keys()))))
+        categories_result = await self._session.scalars(query)
+        categories_list = list(categories_result)
+        categories = [PercentByName(name=category.name,
+                                    percent=int(category_data.get(category.id) / user_count * 100))
+                      for category in categories_list]
+
+        is_secret_ballot_count = await self._get_is_secret_ballot_count(community_id)
+        secret_ballot_true = int(is_secret_ballot_count / user_count * 100)
+        secret_ballot = [
+            PercentByName(name='Да', percent=secret_ballot_true),
+            PercentByName(name='Нет', percent=100 - secret_ballot_true)
+        ]
+
+        is_minority_not_participate_count = await self._get_minority_not_participate_count(
+            community_id)
+        minority_not_participate_true = int(is_minority_not_participate_count / user_count * 100)
+        minority_not_participate = [
+            PercentByName(name='Да', percent=minority_not_participate_true),
+            PercentByName(name='Нет', percent=100 - minority_not_participate_true)
+        ]
+
+        is_can_offer_count = await self._get_is_can_offer_count(community_id)
+        can_offer_true = int(is_can_offer_count / user_count * 100)
+        can_offer = [
+            PercentByName(name='Да', percent=can_offer_true),
+            PercentByName(name='Нет', percent=100 - can_offer_true)
+        ]
+
+        return CsByPercent(
+            names=await self._get_voting_data_by_names(community_id),
+            descriptions=await self._get_voting_data_by_desc(community_id),
+            categories=categories,
+            secret_ballot=secret_ballot,
+            minority_not_participate=minority_not_participate,
+            can_offer=can_offer,
+        )
+
+    @ds_async_with_new_session
+    async def change_community_settings(self, community_id: str) -> None:
+        voting_params = await self.calculate_voting_params(community_id)
+        vote: int = voting_params.get('vote')
+        quorum: int = voting_params.get('quorum')
+        name: Optional[CommunityName] = None
+        description: Optional[CommunityDescription] = None
+        names_data = await self._get_first_community_name(community_id)
+        if names_data:
+            name_vote = names_data[1]
+            if name_vote >= vote:
+                name = names_data[0]
+        desc_data = await self._get_first_community_desc(community_id)
+        if desc_data:
+            desc_vote = desc_data[1]
+            if desc_vote >= vote:
+                description = desc_data[0]
+
+        query = (
+            select(self._model).where(self._model.id == community_id)
+            .options(selectinload(self._model.main_settings)
+                     .selectinload(CommunitySettings.init_categories))
+        )
+        community = await self._session.scalar(query)
+        other_settings = await self._get_other_community_settings(
+            community_id=community_id, vote=vote)
+        community_settings: CommunitySettings = community.main_settings
+        community_settings.vote = vote
+        community_settings.quorum = quorum
+        community_settings.is_secret_ballot = other_settings.is_secret_ballot
+        community_settings.is_can_offer = other_settings.is_can_offer
+        community_settings.is_minority_not_participate = other_settings.is_minority_not_participate
+        if name:
+            community_settings.name = name
+        if description:
+            community_settings.description = description
+        if other_settings.categories:
+            community_settings.init_categories = other_settings.categories
+        await self._session.commit()
+
+    async def get_current_user_community_ids(self, user: User) -> List[str]:
+        query = (
+            select(distinct(UserCommunitySettings.community_id))
+            .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.user_id == user.id)
+        )
+        community_ids = await self._session.execute(query)
+
+        return [row[0] for row in community_ids.all()]
 
     async def _get_first_community_name(
             self, community_id: str) -> Optional[Tuple[CommunityName, int]]:
@@ -128,88 +221,6 @@ class CommunityDS(CRUDDataStorage[Community]):
         return [PercentByName(name=desc_, percent=int((count / total_count) * 100))
                 for desc_, count in desc_data.all()]
 
-    async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
-        categories_data, user_count = await self._get_user_init_categories(community_id)
-        category_data = {category_id: count for category_id, count in categories_data}
-        query = (select(InitiativeCategory)
-                 .filter(InitiativeCategory.id.in_(list(category_data.keys()))))
-        categories_result = await self._session.scalars(query)
-        categories_list = list(categories_result)
-        categories = [PercentByName(name=category.name, 
-                                    percent=int(category_data.get(category.id) / user_count * 100)) 
-                      for category in categories_list]
-
-        is_secret_ballot_count = await self._get_is_secret_ballot_count(community_id)
-        secret_ballot_true = int(is_secret_ballot_count / user_count * 100)
-        secret_ballot = [
-            PercentByName(name='Да', percent=secret_ballot_true),
-            PercentByName(name='Нет', percent=100 - secret_ballot_true)
-        ]
-
-        is_minority_not_participate_count = await self._get_minority_not_participate_count(
-            community_id)
-        minority_not_participate_true = int(is_minority_not_participate_count / user_count * 100)
-        minority_not_participate = [
-            PercentByName(name='Да', percent=minority_not_participate_true),
-            PercentByName(name='Нет', percent=100 - minority_not_participate_true)
-        ]
-
-        is_can_offer_count = await self._get_is_can_offer_count(community_id)
-        can_offer_true = int(is_can_offer_count / user_count * 100)
-        can_offer = [
-            PercentByName(name='Да', percent=can_offer_true),
-            PercentByName(name='Нет', percent=100 - can_offer_true)
-        ]
-
-        return CsByPercent(
-            names=await self._get_voting_data_by_names(community_id),
-            descriptions=await self._get_voting_data_by_desc(community_id),
-            categories=categories,
-            secret_ballot=secret_ballot,
-            minority_not_participate=minority_not_participate,
-            can_offer=can_offer,
-        )
-
-    @ds_async_with_new_session
-    async def change_community_settings(self, community_id: str) -> None:
-        voting_params = await self.calculate_voting_params(community_id)
-        vote: int = voting_params.get('vote')
-        quorum: int = voting_params.get('quorum')
-        name: Optional[CommunityName] = None
-        description: Optional[CommunityDescription] = None
-        names_data = await self._get_first_community_name(community_id)
-        if names_data:
-            name_vote = names_data[1]
-            if name_vote >= vote:
-                name = names_data[0]
-        desc_data = await self._get_first_community_desc(community_id)
-        if desc_data:
-            desc_vote = desc_data[1]
-            if desc_vote >= vote:
-                description = desc_data[0]
-
-        query = (
-            select(self._model).where(self._model.id == community_id)
-            .options(selectinload(self._model.main_settings)
-                     .selectinload(CommunitySettings.init_categories))
-        )
-        community = await self._session.scalar(query)
-        other_settings = await self._get_other_community_settings(
-            community_id=community_id, vote=vote)
-        community_settings: CommunitySettings = community.main_settings
-        community_settings.vote = vote
-        community_settings.quorum = quorum
-        community_settings.is_secret_ballot = other_settings.is_secret_ballot
-        community_settings.is_can_offer = other_settings.is_can_offer
-        community_settings.is_minority_not_participate = other_settings.is_minority_not_participate
-        if name:
-            community_settings.name = name
-        if description:
-            community_settings.description = description
-        if other_settings.categories:
-            community_settings.init_categories = other_settings.categories
-        await self._session.commit()
-
     async def _get_user_init_categories(
             self, community_id: str) -> Tuple[List[Tuple[str, int]], int]:
         user_cs_query = (
@@ -247,6 +258,9 @@ class CommunityDS(CRUDDataStorage[Community]):
             query = select(InitiativeCategory).filter(InitiativeCategory.id.in_(category_ids))
             categories_data = await self._session.scalars(query)
             categories = list(categories_data)
+            status = await self._get_status_by_code('category_selected')
+            for category in categories:
+                category.status = status
 
         is_secret_ballot_count = await self._get_is_secret_ballot_count(community_id)
         is_secret_ballot = int(is_secret_ballot_count / user_count * 100) >= vote
@@ -266,15 +280,10 @@ class CommunityDS(CRUDDataStorage[Community]):
             is_can_offer=is_can_offer,
         )
 
-    async def get_current_user_community_ids(self, user: User) -> List[str]:
-        query = (
-            select(distinct(UserCommunitySettings.community_id))
-            .select_from(UserCommunitySettings)
-            .where(UserCommunitySettings.user_id == user.id)
-        )
-        community_ids = await self._session.execute(query)
+    async def _get_status_by_code(self, code: str) -> Optional[Status]:
+        status_query = select(Status).where(Status.code == code)
 
-        return [row[0] for row in community_ids.all()]
+        return await self._session.scalar(status_query)
 
     async def _get_total_count_users(self, community_id: str) -> int:
         count_query = (
