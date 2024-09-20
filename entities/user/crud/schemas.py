@@ -48,8 +48,8 @@ class UserRead(TypedDict):
 class UserCreateAttributes(TypedDict, total=False):
     firstname: str
     surname: str
-    about_me: str
-    foto_id: str
+    about_me: Optional[str]
+    foto_id: Optional[str]
     email: str
     is_active: bool
     hashed_password: str

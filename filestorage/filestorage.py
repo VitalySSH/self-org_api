@@ -59,6 +59,8 @@ class FileStorageApp(DataStorage[T], FileStorage):
 
     async def update_file(self, file_id: str, file: UploadFile) -> None:
         file_metadata = await self.get_file_metadata(file_id)
+        if not file_metadata:
+            raise Exception(f'Метаданные файла с id {file_id} не найдены')
         full_path = os.path.abspath(
             os.path.join(UPLOADED_FILES_PATH, file_metadata.path, file_metadata.name))
         self._delete_file_by_path(full_path)
