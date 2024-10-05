@@ -25,6 +25,7 @@ class FileStorageApp(DataStorage[T], FileStorage):
     async def get_file_metadata(self, file_id: str) -> T:
         query = select(FileMetaData).where(FileMetaData.id == file_id)
         rows = await self._session.scalars(query)
+
         return rows.first()
 
     @staticmethod
@@ -116,4 +117,5 @@ class FileStorageApp(DataStorage[T], FileStorage):
                     raise
         if not os.path.isdir(directory):
             raise IOError(f'{directory} не существует.')
+
         return directory

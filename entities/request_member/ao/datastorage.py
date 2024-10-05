@@ -4,6 +4,7 @@ from typing import Optional, List
 from sqlalchemy import select, insert, func, Insert
 from sqlalchemy.orm import selectinload
 
+from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     RequestMember, CommunitySettings, RelationUserCsRequestMember, UserCommunitySettings
@@ -142,7 +143,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             if is_default_add_member or request_member.member.id == user_id:
                 status_query = (
                     select(Status)
-                    .where(Status.code == 'voted')
+                    .where(Status.code == Code.VOTED)
                 )
                 status = await self._session.scalar(status_query)
                 child_request_member.vote = True

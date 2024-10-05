@@ -3,6 +3,7 @@ from typing import List, Optional, Tuple, cast
 from sqlalchemy import select, func, desc, asc, distinct
 from sqlalchemy.orm import selectinload
 
+from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
@@ -52,13 +53,16 @@ class CommunityDS(CRUDDataStorage[Community]):
     async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
         categories_data, user_count = await self._get_user_init_categories(community_id)
         category_data = {category_id: count for category_id, count in categories_data}
-        query = (select(InitiativeCategory)
-                 .filter(InitiativeCategory.id.in_(list(category_data.keys()))))
+        query = (
+            select(InitiativeCategory).options(selectinload(InitiativeCategory.status))
+            .filter(InitiativeCategory.id.in_(list(category_data.keys())))
+        )
         categories_result = await self._session.scalars(query)
         categories_list = list(categories_result)
         categories = [PercentByName(name=category.name,
                                     percent=int(category_data.get(category.id) / user_count * 100))
-                      for category in categories_list]
+                      for category in categories_list
+                      if category.status.code != Code.SYSTEM_CATEGORY]
 
         is_secret_ballot_count = await self._get_is_secret_ballot_count(community_id)
         secret_ballot_true = int(is_secret_ballot_count / user_count * 100)
@@ -258,7 +262,7 @@ class CommunityDS(CRUDDataStorage[Community]):
             query = select(InitiativeCategory).filter(InitiativeCategory.id.in_(category_ids))
             categories_data = await self._session.scalars(query)
             categories = list(categories_data)
-            status = await self._get_status_by_code('category_selected')
+            status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
             for category in categories:
                 category.status = status
 

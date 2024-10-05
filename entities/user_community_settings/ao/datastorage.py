@@ -5,11 +5,11 @@ from typing import Optional, List
 from sqlalchemy import select, insert, Insert
 from sqlalchemy.orm import selectinload
 
+from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     RequestMember, RelationUserCsRequestMember, RelationCommunityUCs
 )
-from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 from entities.community.model import Community
@@ -88,11 +88,11 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         category_status: Optional[Status] = None
         for idx, category_name in enumerate(init_category_names):
             if idx == 0:
-                status = await self._get_status_by_code('system_category')
+                status = await self._get_status_by_code(Code.SYSTEM_CATEGORY)
             else:
                 status = category_status
             if not status:
-                status = await self._get_status_by_code('category_selected')
+                status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
                 category_status = status
             init_category = InitiativeCategory()
             init_category.name = category_name
@@ -149,7 +149,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         request_member = RequestMember()
         request_member.member = data_to_create.user
         request_member.community = data_to_create.community_obj
-        request_member.status = await self._get_status_by_code('community_member')
+        request_member.status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
         request_member.vote = True
         request_member.reason = 'Создатель сообщества'
         self._session.add(request_member)
@@ -163,7 +163,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
             request_member: RequestMember) -> RequestMember:
         child_request_member = self._create_copy_request_member(request_member)
         child_request_member.parent_id = request_member.id
-        status = await self._get_status_by_code('voted')
+        status = await self._get_status_by_code(Code.VOTED)
         child_request_member.community = data_to_create.community_obj
         child_request_member.member = data_to_create.user
         child_request_member.status = status
@@ -185,7 +185,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
 
     async def _update_parent_request_member(self, request_member_id: str) -> None:
         parent_request_member = await self._get_request_member(request_member_id)
-        parent_status = await self._get_status_by_code('community_member')
+        parent_status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
         parent_request_member.status = parent_status
         parent_request_member.updated = datetime.now()
         await self._session.flush([parent_request_member])
@@ -222,7 +222,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         for request_member in list(request_members):
             child_request_member = self._create_copy_request_member(request_member)
             child_request_member.parent_id = request_member.id
-            status = await self._get_status_by_code('voted_by_default')
+            status = await self._get_status_by_code(Code.VOTED_BY_DEFAULT)
             child_request_member.status = status
             try:
                 self._session.add(child_request_member)

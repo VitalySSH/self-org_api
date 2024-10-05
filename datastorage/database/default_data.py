@@ -1,34 +1,36 @@
+from datastorage.consts import Code
+
 STATUSES = [
     {
         'name': 'Системная категория',
-        'code': 'system_category',
+        'code': Code.SYSTEM_CATEGORY,
     },
     {
         'name': 'Категория выбрана',
-        'code': 'category_selected',
+        'code': Code.CATEGORY_SELECTED,
     },
     {
         'name': 'На рассмотрении',
-        'code': 'on_consideration',
+        'code': Code.ON_CONSIDERATION,
     },
     {
         'name': 'Голос отдан',
-        'code': 'voted',
+        'code': Code.VOTED,
     },
     {
         'name': 'Заявка одобрена',
-        'code': 'request_successful',
+        'code': Code.REQUEST_SUCCESSFUL,
     },
     {
         'name': 'Участник сообщества',
-        'code': 'community_member',
+        'code': Code.COMMUNITY_MEMBER,
     },
     {
         'name': 'Голос по умолчанию',
-        'code': 'voted_by_default',
+        'code': Code.VOTED_BY_DEFAULT,
     },
     {
         'name': 'Заявка отозвана',
-        'code': 'excluded',
+        'code': Code.REQUEST_EXCLUDED,
     },
 ]
