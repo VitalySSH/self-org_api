@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple, cast
+from typing import List, Optional, Tuple, cast, Dict
 
 from sqlalchemy import select, func, desc, asc, distinct
 from sqlalchemy.orm import selectinload
@@ -120,7 +120,7 @@ class CommunityDS(CRUDDataStorage[Community]):
                      .selectinload(InitiativeCategory.status))
         )
         community = await self._session.scalar(query)
-        other_settings = await self._get_other_community_settings(
+        other_settings: OtherCommunitySettings = await self._get_other_community_settings(
             community_id=community_id, vote=vote)
         community_settings: CommunitySettings = community.main_settings
         community_settings.vote = vote
@@ -252,26 +252,33 @@ class CommunityDS(CRUDDataStorage[Community]):
 
     async def _get_other_community_settings(
             self, community_id: str, vote: int) -> OtherCommunitySettings:
-        category_ids = []
+        all_category_ids = []
+        category_ids: Dict[str, str] = {}
         init_categories, user_count = await self._get_user_init_categories(community_id)
         for category_id, count in init_categories:
+            all_category_ids.append(category_id)
             if int(count / user_count * 100) >= vote:
-                category_ids.append(category_id)
+                category_ids[category_id] = category_id
 
         categories: List[InitiativeCategory] = []
-        if category_ids:
+        if all_category_ids:
             query = (
                 select(InitiativeCategory)
                 .options(selectinload(InitiativeCategory.status))
-                .filter(InitiativeCategory.id.in_(category_ids)))
+                .filter(InitiativeCategory.id.in_(all_category_ids)))
             categories_data = await self._session.scalars(query)
-            categories = list(categories_data)
-            status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
-            for category in categories:
-                if category.status.code == Code.SYSTEM_CATEGORY:
-                    continue
-                elif category.status.code != Code.CATEGORY_SELECTED:
-                    category.status = status
+            all_categories = list(categories_data)
+            selected_status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
+            on_cons_status = await self._get_status_by_code(Code.ON_CONSIDERATION)
+            for category in all_categories:
+                if category_ids.get(category.id):
+                    if category.status.code == Code.SYSTEM_CATEGORY:
+                        continue
+                    elif category.status.code != Code.CATEGORY_SELECTED:
+                        category.status = selected_status
+                    categories.append(category)
+                else:
+                    category.status = on_cons_status
 
         is_secret_ballot_count = await self._get_is_secret_ballot_count(community_id)
         is_secret_ballot = int(is_secret_ballot_count / user_count * 100) >= vote
