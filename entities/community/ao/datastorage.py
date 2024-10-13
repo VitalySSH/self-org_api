@@ -116,7 +116,8 @@ class CommunityDS(CRUDDataStorage[Community]):
         query = (
             select(self._model).where(self._model.id == community_id)
             .options(selectinload(self._model.main_settings)
-                     .selectinload(CommunitySettings.init_categories))
+                     .selectinload(CommunitySettings.init_categories)
+                     .selectinload(InitiativeCategory.status))
         )
         community = await self._session.scalar(query)
         other_settings = await self._get_other_community_settings(
@@ -259,12 +260,18 @@ class CommunityDS(CRUDDataStorage[Community]):
 
         categories: List[InitiativeCategory] = []
         if category_ids:
-            query = select(InitiativeCategory).filter(InitiativeCategory.id.in_(category_ids))
+            query = (
+                select(InitiativeCategory)
+                .options(selectinload(InitiativeCategory.status))
+                .filter(InitiativeCategory.id.in_(category_ids)))
             categories_data = await self._session.scalars(query)
             categories = list(categories_data)
             status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
             for category in categories:
-                category.status = status
+                if category.status.code == Code.SYSTEM_CATEGORY:
+                    continue
+                elif category.status.code != Code.CATEGORY_SELECTED:
+                    category.status = status
 
         is_secret_ballot_count = await self._get_is_secret_ballot_count(community_id)
         is_secret_ballot = int(is_secret_ballot_count / user_count * 100) >= vote
