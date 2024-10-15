@@ -65,7 +65,6 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.user_id == user_id,
-                UserCommunitySettings.is_blocked.is_not(True),
             )
         )
         user_settings = await self._session.scalar(query)
@@ -180,6 +179,8 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         return new_request_member
 
     async def _update_vote_for_parent_requests_member(self, request_member: RequestMember) -> None:
+        parent_request_member = await self._get_request_member(request_member.parent_id)
+        last_vote = parent_request_member.vote
         query = (
             select(func.count()).select_from(RequestMember)
             .where(
@@ -193,8 +194,12 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         users_count = await self._get_count_users_in_community(request_member.community_id)
         percentage_yes = int(users_count / allowed_count * 100) if allowed_count > 0 else 0
         vote_count = await self._get_count_votes_by_settings(request_member.community_id)
-        parent_request_member = await self._get_request_member(request_member.parent_id)
         parent_request_member.vote = True if vote_count and vote_count <= percentage_yes else False
+        # TODO: реализовать логику по блокировке/разблокировке пользователей
+        if last_vote and not parent_request_member.vote:
+            pass
+        elif not last_vote and parent_request_member.vote:
+            pass
         await self._session.commit()
 
     async def _get_count_votes_by_settings(self, community_id: str) -> int:
