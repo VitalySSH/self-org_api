@@ -27,7 +27,6 @@ app = FastAPI(
 origins = [
     f'http://{HOST}:{PORT}',
     f'http://{HOST}:5173',
-    f'http://{HOST}:5174',
 ]
 
 app.add_middleware(

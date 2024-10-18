@@ -20,14 +20,14 @@ logger = logging.getLogger(__name__)
 class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
     @ds_async_with_new_session
-    async def add_request_member(self, request_member_id: str) -> None:
+    async def add_request_member_to_settings(self, request_member_id: str) -> None:
         request_member = await self._get_request_member(request_member_id)
         if not request_member:
             return
         if request_member.parent_id:
             await self._update_vote_for_parent_requests_member(request_member)
         else:
-            await self._add_request_member(request_member)
+            await self._add_request_member_to_settings(request_member)
 
     @ds_async_with_new_session
     async def update_parent_request_member(self, request_member_id: str) -> None:
@@ -41,9 +41,11 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         is_deleted_request_members = False
         child_request_members = await self._get_child_request_members(request_member_id)
         for child_request_member in child_request_members:
-            if not community_id or user_id:
+            if not community_id:
                 community_id = child_request_member.community_id
+            if not user_id:
                 user_id = child_request_member.member_id
+
             try:
                 await self._session.delete(child_request_member)
                 if not is_deleted_request_members:
@@ -79,7 +81,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
         return is_deleted
 
-    async def _add_request_member(self, request_member: RequestMember) -> None:
+    async def _add_request_member_to_settings(self, request_member: RequestMember) -> None:
         main_settings_id = (request_member.community.main_settings_id if
                             request_member.community else None)
         if main_settings_id:
@@ -195,12 +197,37 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         percentage_yes = int(users_count / allowed_count * 100) if allowed_count > 0 else 0
         vote_count = await self._get_count_votes_by_settings(request_member.community_id)
         parent_request_member.vote = True if vote_count and vote_count <= percentage_yes else False
-        # TODO: реализовать логику по блокировке/разблокировке пользователей
         if last_vote and not parent_request_member.vote:
-            pass
+            await self._block_user_settings(parent_request_member)
         elif not last_vote and parent_request_member.vote:
-            pass
+            await self._block_user_settings(parent_request_member)
         await self._session.commit()
+
+    async def _block_user_settings(self, request_member: RequestMember) -> None:
+        query = (
+            select(UserCommunitySettings)
+            .where(
+                UserCommunitySettings.community_id == request_member.community_id,
+                UserCommunitySettings.user_id == request_member.member_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
+        )
+        user_settings = await self._session.scalar(query)
+        if user_settings:
+            user_settings.is_blocked = True
+
+    async def _unblock_user_settings(self, request_member: RequestMember) -> None:
+        query = (
+            select(UserCommunitySettings)
+            .where(
+                UserCommunitySettings.community_id == request_member.community_id,
+                UserCommunitySettings.user_id == request_member.member_id,
+                UserCommunitySettings.is_blocked.is_(True),
+            )
+        )
+        user_settings = await self._session.scalar(query)
+        if user_settings:
+            user_settings.is_blocked = False
 
     async def _get_count_votes_by_settings(self, community_id: str) -> int:
         query = (

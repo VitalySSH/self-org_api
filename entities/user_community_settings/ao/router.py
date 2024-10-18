@@ -1,5 +1,3 @@
-from typing import List
-
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,7 +18,7 @@ router = APIRouter()
     dependencies=[Depends(auth_service.get_current_user)],
     status_code=201,
 )
-async def add_request_member(
+async def update_data_after_join(
         user_settings_id: str,
         community_id: str,
         request_member_id: str,

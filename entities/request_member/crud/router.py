@@ -12,7 +12,7 @@ post_processing = [
         model=RequestMember,
         methods=[Method.CREATE],
         instance_attr='id',
-        func_name='add_request_member',
+        func_name='add_request_member_to_settings',
     ),
     PostProcessingData(
         data_storage=RequestMemberDS,
