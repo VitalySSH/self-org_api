@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TypedDict, List, Optional
+from typing import TypedDict, List
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
@@ -7,15 +7,6 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 class InitiativeAttributes(TypedDict):
     content: str
     deadline: datetime
-    likes_count: Optional[int]
-    dislikes_count: Optional[int]
-    current_user_like: Optional[bool]
-
-
-class InitiativeReadOnly(TypedDict):
-    likes_count: Optional[int]
-    dislikes_count: Optional[int]
-    current_user_like: Optional[bool]
 
 
 class InitiativeRelations(TypedDict):
@@ -30,7 +21,6 @@ class InitiativeRelations(TypedDict):
 class InitiativeRead(TypedDict):
     id: str
     attributes: InitiativeAttributes
-    readonly: InitiativeReadOnly
     relations: InitiativeRelations
 
 

@@ -15,7 +15,6 @@ __all__ = (
     'VotingOption',
     'DelegateSettings',
     'Opinion',
-    'Like',
     'RequestMember',
     'RelationCsCategories',
     'RelationUserCsCategories',
@@ -23,8 +22,6 @@ __all__ = (
     'RelationDsUsers',
     'RelationInitiativeRV',
     'RelationInitiativeOpinion',
-    'RelationInitiativeLike',
-    'RelationOpinionLike',
     'RelationVrVo',
     'RelationCommunityUCs',
     'RelationUserCsRequestMember',
@@ -42,7 +39,6 @@ from entities.delegate_settings.model import DelegateSettings
 from entities.initiative.model import Initiative
 from entities.initiative_category.model import InitiativeCategory
 from entities.initiative_type.model import InitiativeType
-from entities.like.model import Like
 from entities.opinion.model import Opinion
 from entities.voting_result.model import VotingResult
 from entities.voting_option.model import VotingOption
@@ -55,8 +51,6 @@ from .relation_user_community_settings_delegate_settings import RelationUCsDs
 from .relation_delegate_settings_users import RelationDsUsers
 from .relation_initiative_voting_results import RelationInitiativeRV
 from .relation_initiative_opinion import RelationInitiativeOpinion
-from .relation_initiative_like import RelationInitiativeLike
-from .relation_opinion_like import RelationOpinionLike
 from .relation_voting_result_voting_options import RelationVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
 from .relation_user_cs_request_member import RelationUserCsRequestMember

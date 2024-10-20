@@ -9,5 +9,4 @@ router = get_crud_router(
     create_schema=InitiativeCreate,
     update_schema=InitiativeUpdate,
     methods=[Method.ALL],
-    is_likes=True,
 )

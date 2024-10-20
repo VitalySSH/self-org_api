@@ -10,7 +10,7 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Status, InitiativeCategory, User, InitiativeType, VotingResult, Opinion, Like
+        Status, InitiativeCategory, User, InitiativeType, VotingResult, Opinion
     )
 
 
@@ -49,5 +49,3 @@ class Initiative(Base):
         secondary=TableName.RELATION_INITIATIVE_VR, lazy='noload')
     opinions: Mapped[List['Opinion']] = relationship(
         secondary=TableName.RELATION_INITIATIVE_OPINION, lazy='noload')
-    likes: Mapped[List['Like']] = relationship(
-        secondary=TableName.RELATION_INITIATIVE_LIKE, lazy='noload')

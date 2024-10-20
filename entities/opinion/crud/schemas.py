@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional
+from typing import TypedDict
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
@@ -8,12 +8,6 @@ class OpinionAttributes(TypedDict):
     initiative_id: str
 
 
-class OpinionReadOnly(TypedDict):
-    likes_count: Optional[int]
-    dislikes_count: Optional[int]
-    current_user_like: Optional[bool]
-
-
 class OpinionRelations(TypedDict):
     creator: SchemaInstance
 
@@ -21,7 +15,6 @@ class OpinionRelations(TypedDict):
 class OpinionRead(TypedDict):
     id: str
     attributes: OpinionAttributes
-    readonly: OpinionReadOnly
     relations: OpinionRelations
 
 

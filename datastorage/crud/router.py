@@ -12,10 +12,8 @@ from datastorage.crud.enum import Method
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.crud.interfaces.base import Include
 from datastorage.crud.interfaces.list import Filters, Pagination, Orders
-from datastorage.crud.utils import update_instance_by_likes
 from datastorage.database.base import get_async_session
 from datastorage.interfaces import T
-from entities.user.model import User
 
 
 RS = TypeVar('RS')
@@ -45,7 +43,6 @@ def get_crud_router(
         create_schema: CS,
         update_schema: US,
         methods: List[Method],
-        is_likes: bool = False,
         post_processing_data: Optional[List[PostProcessingData]] = None,
 ) -> APIRouter:
     """Вернёт роутер для CRUD-операций."""
@@ -56,6 +53,7 @@ def get_crud_router(
     if Method.GET in methods or is_all_methods:
         @router.get(
             '/{instance_id}',
+            dependencies=[Depends(auth_service.get_current_user)],
             response_model=read_schema,
             status_code=200,
         )
@@ -63,7 +61,6 @@ def get_crud_router(
                 instance_id: str,
                 background_tasks: BackgroundTasks,
                 include: List[str] = Query(None),
-                current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
             ds = CRUDDataStorage[model](
@@ -84,10 +81,7 @@ def get_crud_router(
                         ds.execute_post_processing(
                             instance=post_instance, post_processing_data=pp_data)
 
-                if is_likes:
-                    return update_instance_by_likes(instance=instance, current_user=current_user)
-                else:
-                    return instance.to_read_schema()
+                return instance.to_read_schema()
 
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
@@ -97,6 +91,7 @@ def get_crud_router(
     if Method.LIST in methods or is_all_methods:
         @router.post(
             '/list',
+            dependencies=[Depends(auth_service.get_current_user)],
             response_model=List[read_schema],
             status_code=200,
         )
@@ -106,29 +101,25 @@ def get_crud_router(
                 orders: Orders = None,
                 pagination: Pagination = None,
                 include: Include = None,
-                current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> List[read_schema]:
             ds = CRUDDataStorage[model](
                 model=model, session=session, background_tasks=background_tasks)
             instances: List[model] = await ds.list(
                 filters=filters, orders=orders, pagination=pagination, include=include)
-            if is_likes:
-                return [update_instance_by_likes(instance=instance, current_user=current_user)
-                        for instance in instances]
-            else:
-                return [instance.to_read_schema() for instance in instances]
+
+            return [instance.to_read_schema() for instance in instances]
 
     if Method.CREATE in methods or is_all_methods:
         @router.post(
             '/',
+            dependencies=[Depends(auth_service.get_current_user)],
             response_model=read_schema,
             status_code=201,
         )
         async def create_instance(
                 body: create_schema,
                 background_tasks: BackgroundTasks,
-                current_user: User = Depends(auth_service.get_current_user),
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
             ds = CRUDDataStorage[model](
@@ -153,11 +144,7 @@ def get_crud_router(
                         ds.execute_post_processing(
                             instance=post_instance, post_processing_data=pp_data)
 
-                if is_likes:
-                    return update_instance_by_likes(
-                        instance=new_instance, current_user=current_user)
-                else:
-                    return new_instance.to_read_schema()
+                return new_instance.to_read_schema()
 
             except CRUDConflict as e:
                 raise HTTPException(
