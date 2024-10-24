@@ -9,7 +9,6 @@ S = TypeVar('S')
 
 
 class Base(DeclarativeBase):
-    EXCLUDE_READ_FIELDS: List[str] = []
 
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
 
@@ -34,9 +33,6 @@ class Base(DeclarativeBase):
         relations = {}
 
         for field_name, value in instance.__class__.__annotations__.items():
-            if field_name in instance.__class__.EXCLUDE_READ_FIELDS:
-                continue
-
             field = getattr(instance.__class__, field_name)
             class_attr = field.prop.class_attribute
             entity = getattr(field.prop, 'entity', None)

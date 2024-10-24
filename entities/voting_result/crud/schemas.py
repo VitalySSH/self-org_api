@@ -4,13 +4,13 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 
 
 class ResultVotingAttributes(TypedDict):
+    vote: Optional[bool]
     member_id: str
     initiative_id: Optional[str]
 
 
 class ResultVotingRelations(TypedDict):
-    only_option: SchemaInstance
-    multiple_options: List[SchemaInstance]
+    extra_options: List[SchemaInstance]
 
 
 class ResultVotingRead(TypedDict):

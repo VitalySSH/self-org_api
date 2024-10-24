@@ -1,6 +1,5 @@
 from typing import TYPE_CHECKING, List
 
-from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
@@ -13,14 +12,8 @@ if TYPE_CHECKING:
 class VotingResult(Base):
     __tablename__ = TableName.VOTING_RESULT
 
-    only_option_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.VOTING_OPTION}.id'),
-        nullable=True,
-        index=True,
-    )
-    only_option: Mapped['VotingOption'] = relationship(
-        foreign_keys=f'{TableName.VOTING_RESULT}.c.only_option_id', lazy='noload')
-    multiple_options: Mapped[List['VotingOption']] = relationship(
+    vote: Mapped[bool] = mapped_column(nullable=True)
+    extra_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_VR_VO, lazy='noload')
     member_id: Mapped[str] = mapped_column(nullable=False, index=True)
     initiative_id: Mapped[str] = mapped_column(nullable=True, index=True)

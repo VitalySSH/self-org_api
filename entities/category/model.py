@@ -8,20 +8,15 @@ from datastorage.database.models import Base
 
 
 if TYPE_CHECKING:
-    from datastorage.database.models import Status, User
+    from datastorage.database.models import Status
 
 
-class InitiativeCategory(Base):
-    __tablename__ = TableName.INITIATIVE_CATEGORY
+class Category(Base):
+    __tablename__ = TableName.CATEGORY
 
     name: Mapped[str] = mapped_column(nullable=False)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
-    creator_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER}.id'),
-        nullable=False,
-        index=True,
-    )
-    creator: Mapped['User'] = relationship(lazy='noload')
+    creator_id: Mapped[str] = mapped_column(nullable=False, index=True)
     status_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,

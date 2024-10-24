@@ -2,6 +2,7 @@ import abc
 from fastapi import Response, Request, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth.services.user_service import UserService
 from datastorage.database.base import get_async_session
 from datastorage.database.models import User
 
@@ -18,7 +19,7 @@ class TokenDelivery(abc.ABC):
         raise NotImplementedError
 
 
-class Token(abc.ABC):
+class TokenService(abc.ABC):
     """Логика для работы с токеном."""
 
     @abc.abstractmethod
@@ -30,8 +31,12 @@ class Token(abc.ABC):
         raise NotImplementedError
 
 
-class Auth(abc.ABC):
+class AuthService(abc.ABC):
     """Аутентификация."""
+
+    @abc.abstractmethod
+    def create_user_service(self, session: AsyncSession) -> UserService:
+        raise NotImplementedError
 
     @abc.abstractmethod
     async def access_token(self, user_id: str) -> Response:
@@ -42,14 +47,10 @@ class Auth(abc.ABC):
 
     @staticmethod
     @abc.abstractmethod
-    def verify_password(password: str, hashed_password: str) -> bool:
-        raise NotImplementedError
-
-    @staticmethod
     def get_password_hash(password: str) -> str:
         raise NotImplementedError
 
-    @staticmethod
+    @abc.abstractmethod
     async def get_current_user(
             self, request: Request,
             session: AsyncSession = Depends(get_async_session)) -> User:

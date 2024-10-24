@@ -1,12 +1,10 @@
-from auth.auth_service import AuthService
+from auth.services.auth_service import AuthUserService
 from auth.token.delivery.cookie import CookieTokenDelivery
 from auth.token.jwt_token import JWTTokenService
-from datastorage.crud.datastorage import CRUDDataStorage
 
 token_service = JWTTokenService()
 token_delivery = CookieTokenDelivery()
-auth_service = AuthService(
+auth_service = AuthUserService(
     token_service=token_service,
     token_delivery=token_delivery,
-    datastorage=CRUDDataStorage,
 )

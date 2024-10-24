@@ -18,7 +18,7 @@ class UserCsRelations(TypedDict, total=False):
     user: SchemaInstance
     name: SchemaInstance
     description: SchemaInstance
-    init_categories: List[SchemaInstance]
+    categories: List[SchemaInstance]
     delegate_settings: List[SchemaInstance]
     adding_members: List[SchemaInstance]
 

@@ -14,7 +14,7 @@ class CSAttributes(TypedDict, total=False):
 class CSRelations(TypedDict, total=False):
     name: Optional[SchemaInstance]
     description: Optional[SchemaInstance]
-    init_categories: List[SchemaInstance]
+    categories: List[SchemaInstance]
     adding_members: List[SchemaInstance]
 
 

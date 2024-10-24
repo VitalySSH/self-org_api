@@ -13,8 +13,8 @@ class RelationInitiativeOpinion(Base):
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE}.id'),
+        ForeignKey(f'{TableName.INITIATIVE}.id', ondelete="CASCADE"),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.OPINION}.id'),
+        ForeignKey(f'{TableName.OPINION}.id', ondelete="CASCADE"),
         nullable=False, index=True)

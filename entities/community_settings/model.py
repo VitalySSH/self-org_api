@@ -8,7 +8,7 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        InitiativeCategory, CommunityName, CommunityDescription, RequestMember
+        Category, CommunityName, CommunityDescription, RequestMember
     )
 
 
@@ -34,7 +34,7 @@ class CommunitySettings(Base):
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_minority_not_participate: Mapped[bool] = mapped_column(nullable=False, default=True)
     #
-    init_categories: Mapped[List['InitiativeCategory']] = relationship(
+    categories: Mapped[List['Category']] = relationship(
         secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
     adding_members: Mapped[List['RequestMember']] = relationship(
         secondary=TableName.RELATION_CS_REQUEST_MEMBER, lazy='noload')

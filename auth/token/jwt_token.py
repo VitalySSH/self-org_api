@@ -3,13 +3,13 @@ from datetime import timedelta, datetime
 from typing import Optional
 
 
-from auth.interfaces import Token
+from auth.interfaces import TokenService
 from core import config
 
 JWT_ALGORITHM = 'HS256'
 
 
-class JWTTokenService(Token):
+class JWTTokenService(TokenService):
     """Логика для работы с JWT токеном."""
 
     _secret_key: str

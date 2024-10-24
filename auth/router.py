@@ -1,35 +1,36 @@
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from auth.auth import auth_service
-from auth.schemas import CurrentUser
+from auth.schemas import CurrentUser, UserCreate, UserUpdate
 from auth.security import decrypt_password, verify_password
-from datastorage.crud.interfaces.list import Filter, Operation
-from datastorage.crud.datastorage import CRUDDataStorage
+from auth.services.user_service import UserService
 from datastorage.database.base import get_async_session
-from datastorage.database.models import User
+from datastorage.database.models import User, UserData
 
 auth_router = APIRouter()
 
 
 @auth_router.post('/login', status_code=204)
 async def login_for_access_token(
-    email: EmailStr = Form(), secret_password: str = Form(),
-    session: AsyncSession = Depends(get_async_session),
+        email: EmailStr = Form(), secret_password: str = Form(),
+        session: AsyncSession = Depends(get_async_session),
 ):
-    user_ds = CRUDDataStorage[User](model=User, session=session)
-    filters = [Filter(field='email', op=Operation.EQ, val=email)]
-    user = await user_ds.first(filters=filters)
+    user_service: UserService = auth_service.create_user_service(session)
+    user: Optional[User] = await user_service.get_user_by_email(email)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f'Пользователь с email: {email} не найден',
         )
 
+    user_data: UserData = await user_service.get_user_data_by_user_id(user.id)
     password = decrypt_password(secret_password)
-    if not verify_password(password=password, hashed_password=user.hashed_password):
+    if not verify_password(password=password, hashed_password=user_data.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Введён некорректный email или пароль',
@@ -44,12 +45,12 @@ async def clean_token():
 
 
 @auth_router.get(
-    '/user',
+    '/user/me',
     response_model=CurrentUser,
     status_code=200,
 )
 async def get_current_user(
-    current_user: User = Depends(auth_service.get_current_user),
+        current_user: User = Depends(auth_service.get_current_user),
 ):
     return CurrentUser(
         id=current_user.id,
@@ -59,3 +60,28 @@ async def get_current_user(
         foto_id=current_user.foto_id,
         email=current_user.email,
     )
+
+
+@auth_router.post(
+    '/user',
+    status_code=201,
+)
+async def create_user(
+        user_data: UserCreate,
+        session: AsyncSession = Depends(get_async_session),
+):
+    user_service: UserService = auth_service.create_user_service(session)
+    await user_service.create_user(user_data)
+
+
+@auth_router.patch(
+    '/user/{user_id}',
+    status_code=204,
+)
+async def update_user(
+        user_id: str,
+        user_data: UserUpdate,
+        session: AsyncSession = Depends(get_async_session),
+):
+    user_service: UserService = auth_service.create_user_service(session)
+    await user_service.update_user(user_id=user_id, user_data=user_data)

@@ -16,7 +16,7 @@ from entities.community.model import Community
 from entities.community_description.model import CommunityDescription
 from entities.community_name.model import CommunityName
 from entities.community_settings.model import CommunitySettings
-from entities.initiative_category.model import InitiativeCategory
+from entities.category.model import Category
 from entities.status.model import Status
 from entities.user_community_settings.ao.dataclasses import CreatingCommunity
 from entities.user_community_settings.model import UserCommunitySettings
@@ -30,7 +30,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         data_to_create.community_id = build_uuid()
         await self._create_community_name(data_to_create)
         await self._create_community_description(data_to_create)
-        await self._create_init_categories(data_to_create)
+        await self._create_categories(data_to_create)
         user_settings = await self._create_user_settings(data_to_create)
         main_settings = await self._create_main_settings(data_to_create)
         community = Community()
@@ -81,12 +81,12 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         await self._session.refresh(description)
         data_to_create.description_obj = description
 
-    async def _create_init_categories(self, data_to_create: CreatingCommunity) -> None:
-        init_categories: List[InitiativeCategory] = []
-        init_category_names = data_to_create.init_categories
-        init_category_names.insert(0, 'Общие вопросы')
+    async def _create_categories(self, data_to_create: CreatingCommunity) -> None:
+        categories: List[Category] = []
+        category_names = data_to_create.category_names
+        category_names.insert(0, 'Общие вопросы')
         category_status: Optional[Status] = None
-        for idx, category_name in enumerate(init_category_names):
+        for idx, category_name in enumerate(category_names):
             if idx == 0:
                 status = await self._get_status_by_code(Code.SYSTEM_CATEGORY)
             else:
@@ -94,17 +94,17 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
             if not status:
                 status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
                 category_status = status
-            init_category = InitiativeCategory()
-            init_category.name = category_name
-            init_category.community_id = data_to_create.community_id
-            init_category.creator = data_to_create.user
-            init_category.status = status
-            self._session.add(init_category)
-            await self._session.flush([init_category])
-            await self._session.refresh(init_category)
-            init_categories.append(init_category)
+            category = Category()
+            category.name = category_name
+            category.community_id = data_to_create.community_id
+            category.creator_id = data_to_create.user.id
+            category.status = status
+            self._session.add(category)
+            await self._session.flush([category])
+            await self._session.refresh(category)
+            categories.append(category)
 
-        data_to_create.init_categories_objs = init_categories
+        data_to_create.categories_objs = categories
 
     async def _create_main_settings(self, data_to_create: CreatingCommunity) -> CommunitySettings:
         settings = CommunitySettings()
@@ -116,7 +116,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         settings.is_can_offer = data_to_create.settings.get('is_can_offer')
         settings.is_minority_not_participate = data_to_create.settings.get(
             'is_minority_not_participate')
-        settings.init_categories = data_to_create.init_categories_objs
+        settings.categories = data_to_create.categories_objs
         self._session.add(settings)
         await self._session.flush([settings])
         await self._session.refresh(settings)
@@ -138,7 +138,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
             'is_minority_not_participate')
         settings.is_not_delegate = data_to_create.settings.get('is_not_delegate')
         settings.is_default_add_member = data_to_create.settings.get('is_default_add_member')
-        settings.init_categories = data_to_create.init_categories_objs
+        settings.categories = data_to_create.categories_objs
         self._session.add(settings)
         await self._session.flush([settings])
         await self._session.refresh(settings)

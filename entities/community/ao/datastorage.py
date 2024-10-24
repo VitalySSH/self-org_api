@@ -7,7 +7,7 @@ from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
-    RelationUserCsCategories, InitiativeCategory, CommunityName, CommunityDescription
+    RelationUserCsCategories, Category, CommunityName, CommunityDescription
 )
 from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import VotingParams, PercentByName, CsByPercent
@@ -15,7 +15,7 @@ from entities.community.ao.dataclasses import OtherCommunitySettings
 from entities.community_description.crud.schemas import CommunityDescRead
 from entities.community_name.crud.schemas import CommunityNameRead
 from entities.status.model import Status
-from entities.user.model import User
+from auth.models.user import User
 
 
 class CommunityDS(CRUDDataStorage[Community]):
@@ -51,11 +51,11 @@ class CommunityDS(CRUDDataStorage[Community]):
         return [description.to_read_schema() for description in descriptions]
 
     async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
-        categories_data, user_count = await self._get_user_init_categories(community_id)
+        categories_data, user_count = await self._get_user_categories(community_id)
         category_data = {category_id: count for category_id, count in categories_data}
         query = (
-            select(InitiativeCategory).options(selectinload(InitiativeCategory.status))
-            .filter(InitiativeCategory.id.in_(list(category_data.keys())))
+            select(Category).options(selectinload(Category.status))
+            .filter(Category.id.in_(list(category_data.keys())))
         )
         categories_result = await self._session.scalars(query)
         categories_list = list(categories_result)
@@ -116,8 +116,8 @@ class CommunityDS(CRUDDataStorage[Community]):
         query = (
             select(self._model).where(self._model.id == community_id)
             .options(selectinload(self._model.main_settings)
-                     .selectinload(CommunitySettings.init_categories)
-                     .selectinload(InitiativeCategory.status))
+                     .selectinload(CommunitySettings.categories)
+                     .selectinload(Category.status))
         )
         community = await self._session.scalar(query)
         other_settings: OtherCommunitySettings = await self._get_other_community_settings(
@@ -133,7 +133,7 @@ class CommunityDS(CRUDDataStorage[Community]):
         if description:
             community_settings.description = description
         if other_settings.categories:
-            community_settings.init_categories = other_settings.categories
+            community_settings.categories = other_settings.categories
         await self._session.commit()
 
     async def get_current_user_community_ids(self, user: User) -> List[str]:
@@ -226,8 +226,7 @@ class CommunityDS(CRUDDataStorage[Community]):
         return [PercentByName(name=desc_, percent=int((count / total_count) * 100))
                 for desc_, count in desc_data.all()]
 
-    async def _get_user_init_categories(
-            self, community_id: str) -> Tuple[List[Tuple[str, int]], int]:
+    async def _get_user_categories(self, community_id: str) -> Tuple[List[Tuple[str, int]], int]:
         user_cs_query = (
             select(UserCommunitySettings.id)
             .select_from(UserCommunitySettings)
@@ -239,33 +238,33 @@ class CommunityDS(CRUDDataStorage[Community]):
         user_cs = await self._session.scalars(user_cs_query)
         user_cs_ids = list(user_cs)
         user_count = len(user_cs_ids)
-        init_categories_query = (
+        categories_query = (
             select(RelationUserCsCategories.to_id,
                    func.count(RelationUserCsCategories.to_id).label('count'))
             .where(RelationUserCsCategories.from_id.in_(user_cs_ids))
             .group_by(RelationUserCsCategories.to_id)
             .order_by(desc('count'))
         )
-        init_categories = await self._session.execute(init_categories_query)
+        categories = await self._session.execute(categories_query)
 
-        return cast(List[Tuple[str, int]], init_categories.all()), user_count
+        return cast(List[Tuple[str, int]], categories.all()), user_count
 
     async def _get_other_community_settings(
             self, community_id: str, vote: int) -> OtherCommunitySettings:
         all_category_ids = []
         category_ids: Dict[str, str] = {}
-        init_categories, user_count = await self._get_user_init_categories(community_id)
-        for category_id, count in init_categories:
+        category_data, user_count = await self._get_user_categories(community_id)
+        for category_id, count in category_data:
             all_category_ids.append(category_id)
             if int(count / user_count * 100) >= vote:
                 category_ids[category_id] = category_id
 
-        categories: List[InitiativeCategory] = []
+        categories: List[Category] = []
         if all_category_ids:
             query = (
-                select(InitiativeCategory)
-                .options(selectinload(InitiativeCategory.status))
-                .filter(InitiativeCategory.id.in_(all_category_ids)))
+                select(Category)
+                .options(selectinload(Category.status))
+                .filter(Category.id.in_(all_category_ids)))
             categories_data = await self._session.scalars(query)
             all_categories = list(categories_data)
             selected_status = await self._get_status_by_code(Code.CATEGORY_SELECTED)

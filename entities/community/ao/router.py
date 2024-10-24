@@ -13,7 +13,7 @@ from entities.community.crud.schemas import CommunityRead
 from entities.community.model import Community
 from entities.community_description.crud.schemas import CommunityDescRead
 from entities.community_name.crud.schemas import CommunityNameRead
-from entities.user.model import User
+from auth.models.user import User
 
 router = APIRouter()
 

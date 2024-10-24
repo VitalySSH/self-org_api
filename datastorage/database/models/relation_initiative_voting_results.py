@@ -5,10 +5,10 @@ from datastorage.database.classes import TableName
 from datastorage.database.models import Base
 
 
-class RelationInitiativeRV(Base):
+class RelationInitiativeVR(Base):
     __tablename__ = TableName.RELATION_INITIATIVE_VR
     __table_args__ = (
-        UniqueConstraint('from_id', 'to_id', name='idx_unique_initiative_result_voting'),
+        UniqueConstraint('from_id', 'to_id', name='idx_unique_initiative_voting_results'),
     )
 
     from_id: Mapped[str] = mapped_column(

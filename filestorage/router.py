@@ -7,7 +7,7 @@ from auth.auth import auth_service
 
 from datastorage.database.base import get_async_session
 from datastorage.database.models import FileMetaData
-from entities.user.model import User
+from auth.models.user import User
 from filestorage.filestorage import FileStorageApp
 from filestorage.schemas import FileMetaRead
 

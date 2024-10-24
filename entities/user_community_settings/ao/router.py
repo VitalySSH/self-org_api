@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
 from datastorage.database.base import get_async_session
-from entities.user.model import User
+from auth.models.user import User
 from entities.user_community_settings.ao.dataclasses import CreatingCommunity
 from entities.user_community_settings.ao.datastorage import UserCommunitySettingsDS
 from entities.user_community_settings.ao.schemas import SettingDataToCreate
@@ -46,13 +46,13 @@ async def create_new_community(
         name = settings.pop('name')
         description = settings.pop('description')
         categories = settings.pop('categories')
-        init_categories = list(map(lambda it: it.get('name'), categories))
+        category_names = list(map(lambda it: it.get('name'), categories))
         data_to_create = CreatingCommunity(
             name=name,
             description=description,
-            init_categories=init_categories,
+            category_names=category_names,
             settings=UserCsAttributes(**settings),
-            user=user
+            user=user,
         )
         await ds.create_community(data_to_create)
     except KeyError as key:

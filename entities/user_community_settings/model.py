@@ -8,7 +8,7 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        InitiativeCategory, User, DelegateSettings, CommunityName, CommunityDescription,
+        Category, User, DelegateSettings, CommunityName, CommunityDescription,
         RequestMember
     )
 
@@ -44,7 +44,7 @@ class UserCommunitySettings(Base):
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_minority_not_participate: Mapped[bool] = mapped_column(nullable=False, default=False)
-    init_categories: Mapped[List['InitiativeCategory']] = relationship(
+    categories: Mapped[List['Category']] = relationship(
         secondary=TableName.RELATION_UCS_CATEGORIES, lazy='noload')
     delegate_settings: Mapped[List['DelegateSettings']] = relationship(
         secondary=TableName.RELATION_UCS_DS, lazy='noload')

@@ -10,28 +10,28 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Status, InitiativeCategory, User, InitiativeType, VotingResult, Opinion
+        Status, Category, User, VotingResult, Opinion, VotingOption
     )
 
 
 class Initiative(Base):
     __tablename__ = TableName.INITIATIVE
 
-    EXCLUDE_READ_FIELDS = ['likes']
-
+    title: Mapped[str] = mapped_column(nullable=False)
+    question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
-    type_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_TYPE}.id'),
-        nullable=False,
-        index=True,
-    )
-    type: Mapped['InitiativeType'] = relationship(lazy='noload')
+    is_extra_options: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_multi_select: Mapped[bool] = mapped_column(nullable=False, default=False)
+    community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
         index=True,
     )
-    creator: Mapped['User'] = relationship(lazy='noload')
+    creator: Mapped['User'] = relationship(
+        foreign_keys=f'{TableName.INITIATIVE}.c.creator_id',
+        lazy='noload'
+    )
     status_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,
@@ -39,13 +39,24 @@ class Initiative(Base):
     )
     status: Mapped['Status'] = relationship(lazy='noload')
     category_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id'),
+        ForeignKey(f'{TableName.CATEGORY}.id'),
         nullable=False,
         index=True,
     )
-    category: Mapped['InitiativeCategory'] = relationship(lazy='noload')
+    category: Mapped['Category'] = relationship(lazy='noload')
     deadline: Mapped[datetime] = mapped_column(default=datetime.now)
+    extra_options: Mapped[List['VotingOption']] = relationship(
+        secondary=TableName.RELATION_INITIATIVE_OPTIONS, lazy='noload')
     voting_results: Mapped[List['VotingResult']] = relationship(
         secondary=TableName.RELATION_INITIATIVE_VR, lazy='noload')
     opinions: Mapped[List['Opinion']] = relationship(
         secondary=TableName.RELATION_INITIATIVE_OPINION, lazy='noload')
+    responsible_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.USER}.id'),
+        nullable=True,
+        index=True,
+    )
+    responsible: Mapped['User'] = relationship(
+        foreign_keys=f'{TableName.INITIATIVE}.c.responsible_id',
+        lazy='noload'
+    )

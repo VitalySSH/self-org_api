@@ -9,12 +9,12 @@ class RelationUserCsCategories(Base):
     __tablename__ = TableName.RELATION_UCS_CATEGORIES
     __table_args__ = (
         UniqueConstraint(
-            'from_id', 'to_id', name='idx_unique_user_community_settings_init_categories'),
+            'from_id', 'to_id', name='idx_unique_user_community_settings_categories'),
     )
 
     from_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE_CATEGORY}.id'),
+        ForeignKey(f'{TableName.CATEGORY}.id'),
         nullable=False, index=True)
