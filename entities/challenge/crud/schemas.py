@@ -12,7 +12,7 @@ class RuleAttributes(TypedDict):
     community_id: str
 
 
-class RuleRelations(TypedDict):
+class RuleRelations(TypedDict, total=False):
     creator: SchemaInstance
     status: SchemaInstance
     category: SchemaInstance

@@ -9,7 +9,7 @@ class ResultVotingAttributes(TypedDict):
     initiative_id: Optional[str]
 
 
-class ResultVotingRelations(TypedDict):
+class ResultVotingRelations(TypedDict, total=False):
     extra_options: List[SchemaInstance]
 
 

@@ -22,6 +22,10 @@ STATUSES = [
         'code': Code.REQUEST_SUCCESSFUL,
     },
     {
+        'name': 'Заявка отклонена',
+        'code': Code.REQUEST_DENIED,
+    },
+    {
         'name': 'Участник сообщества',
         'code': Code.COMMUNITY_MEMBER,
     },
@@ -30,7 +34,7 @@ STATUSES = [
         'code': Code.VOTED_BY_DEFAULT,
     },
     {
-        'name': 'Заявка отозвана',
-        'code': Code.REQUEST_EXCLUDED,
+        'name': 'Участник исключён',
+        'code': Code.MEMBER_EXCLUDED,
     },
 ]

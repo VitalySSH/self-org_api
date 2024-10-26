@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
 
     async def create_community(self, data_to_create: CreatingCommunity) -> None:
+        """Создание нового сообщества
+        на основе пользовательских настроек.
+        """
         data_to_create.community_id = build_uuid()
         await self._create_community_name(data_to_create)
         await self._create_community_description(data_to_create)
@@ -52,11 +55,20 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
     async def update_data_after_join(
             self, user_settings_id: str,
             community_id: str, request_member_id: str) -> None:
-        await self._add_to_main_settings(
+        """Включение нового участника в сообщество.
+
+        Добавление пользовательских настроек в сообщество.
+        Обновление статуса основного запроса на добавление в сообщество.
+        Создание пользовательских запросов
+        на членство остальных участников сообщества.
+        """
+        await self._add_user_settings_to_community(
             user_settings_id=user_settings_id, community_id=community_id)
-        await self._update_parent_request_member(request_member_id)
+        request_member: Optional[RequestMember] = await self._get_request_member(request_member_id)
+        if request_member:
+            await self._update_parent_request_member(request_member)
         await self._create_child_request_members(
-            community_id=community_id, user_settings_id=user_settings_id)
+            parent_request_member=request_member, user_settings_id=user_settings_id)
         await self._session.commit()
 
     async def _create_community_name(self, data_to_create: CreatingCommunity) -> None:
@@ -173,7 +185,8 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
 
         return child_request_member
 
-    async def _add_to_main_settings(self, user_settings_id: str, community_id: str, ) -> None:
+    async def _add_user_settings_to_community(
+            self, user_settings_id: str, community_id: str, ) -> None:
         value = RelationRow(
             id=build_uuid(),
             from_id=community_id,
@@ -183,12 +196,10 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         stmt.compile()
         await self._session.execute(stmt)
 
-    async def _update_parent_request_member(self, request_member_id: str) -> None:
-        parent_request_member = await self._get_request_member(request_member_id)
-        parent_status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
-        parent_request_member.status = parent_status
-        parent_request_member.updated = datetime.now()
-        await self._session.flush([parent_request_member])
+    async def _update_parent_request_member(self, request_member: RequestMember) -> None:
+        request_member.status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
+        request_member.updated = datetime.now()
+        await self._session.flush([request_member])
 
     async def _get_request_member(self, request_member_id: str) -> Optional[RequestMember]:
         query = (
@@ -203,7 +214,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         return await self._session.scalar(query)
 
     async def _create_child_request_members(
-            self, community_id: str, user_settings_id: str) -> None:
+            self, parent_request_member: RequestMember, user_settings_id: str) -> None:
         query = (
             select(RequestMember)
             .options(
@@ -212,17 +223,20 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
                 selectinload(RequestMember.status),
             )
             .where(
-                RequestMember.community_id == community_id,
-                RequestMember.parent_id is None,
+                RequestMember.community_id == parent_request_member.community_id,
+                RequestMember.parent_id.is_(None),
             )
         )
         request_members = await self._session.scalars(query)
 
         data_to_add: List[RelationRow] = []
         for request_member in list(request_members):
-            child_request_member = self._create_copy_request_member(request_member)
+            child_request_member: RequestMember = self._create_copy_request_member(request_member)
             child_request_member.parent_id = request_member.id
-            status = await self._get_status_by_code(Code.VOTED_BY_DEFAULT)
+            if request_member.id == parent_request_member.id:
+                status: Status = await self._get_status_by_code(Code.VOTED)
+            else:
+                status: Status = await self._get_status_by_code(Code.VOTED_BY_DEFAULT)
             child_request_member.status = status
             try:
                 self._session.add(child_request_member)

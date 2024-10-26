@@ -5,6 +5,12 @@ class InitCategoryData(TypedDict):
     name: str
 
 
+class UpdatingDataAfterJoin(TypedDict):
+    user_settings_id: str
+    community_id: str
+    request_member_id: str
+
+
 class SettingDataToCreate(TypedDict, total=False):
     name: str
     description: str

@@ -6,10 +6,10 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 class CategoryAttributes(TypedDict):
     name: str
     community_id: str
+    creator_id: str
 
 
-class CategoryRelations(TypedDict):
-    creator: SchemaInstance
+class CategoryRelations(TypedDict, total=False):
     status: SchemaInstance
 
 

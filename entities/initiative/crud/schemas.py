@@ -14,7 +14,7 @@ class InitiativeAttributes(TypedDict):
     deadline: datetime
 
 
-class InitiativeRelations(TypedDict):
+class InitiativeRelations(TypedDict, total=False):
     creator: SchemaInstance
     status: SchemaInstance
     category: SchemaInstance

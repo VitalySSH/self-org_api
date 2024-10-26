@@ -6,7 +6,7 @@ from datastorage.database.base import get_async_session
 from auth.models.user import User
 from entities.user_community_settings.ao.dataclasses import CreatingCommunity
 from entities.user_community_settings.ao.datastorage import UserCommunitySettingsDS
-from entities.user_community_settings.ao.schemas import SettingDataToCreate
+from entities.user_community_settings.ao.schemas import SettingDataToCreate, UpdatingDataAfterJoin
 from entities.user_community_settings.crud.schemas import UserCsAttributes
 from entities.user_community_settings.model import UserCommunitySettings
 
@@ -19,16 +19,14 @@ router = APIRouter()
     status_code=201,
 )
 async def update_data_after_join(
-        user_settings_id: str,
-        community_id: str,
-        request_member_id: str,
+        payload: UpdatingDataAfterJoin,
         session: AsyncSession = Depends(get_async_session),
 ) -> None:
     ds = UserCommunitySettingsDS(model=UserCommunitySettings, session=session)
     await ds.update_data_after_join(
-        user_settings_id=user_settings_id,
-        community_id=community_id,
-        request_member_id=request_member_id,
+        user_settings_id=payload.get('user_settings_id'),
+        community_id=payload.get('community_id'),
+        request_member_id=payload.get('request_member_id'),
     )
 
 
