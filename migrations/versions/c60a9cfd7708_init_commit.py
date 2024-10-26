@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: 05e5000a4b64
+Revision ID: c60a9cfd7708
 Revises: 
-Create Date: 2024-10-24 23:20:18.160755
+Create Date: 2024-10-26 13:24:45.850008
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '05e5000a4b64'
+revision: str = 'c60a9cfd7708'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -250,8 +250,8 @@ def upgrade() -> None:
     sa.Column('from_id', sa.String(), nullable=False),
     sa.Column('to_id', sa.String(), nullable=False),
     sa.Column('id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ),
-    sa.ForeignKeyConstraint(['to_id'], ['category.id'], ),
+    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['to_id'], ['category.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_user_community_settings_categories')
     )

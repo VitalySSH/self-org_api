@@ -192,7 +192,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
             from_id=community_id,
             to_id=user_settings_id,
         )
-        stmt: Insert = insert(RelationCommunityUCs).values(**value)
+        stmt: Insert = insert(RelationCommunityUCs).values(value)
         stmt.compile()
         await self._session.execute(stmt)
 
@@ -253,7 +253,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
                 )
             )
         if data_to_add:
-            stmt: Insert = insert(RelationUserCsRequestMember).values(*data_to_add)
+            stmt: Insert = insert(RelationUserCsRequestMember).values(data_to_add)
             stmt.compile()
             await self._session.execute(stmt)
 

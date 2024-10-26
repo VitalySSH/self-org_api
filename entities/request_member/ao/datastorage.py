@@ -185,7 +185,7 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 )
             )
         if data_to_add:
-            stmt: Insert = insert(RelationUserCsRequestMember).values(*data_to_add)
+            stmt: Insert = insert(RelationUserCsRequestMember).values(data_to_add)
             stmt.compile()
             await self._session.execute(stmt)
 
