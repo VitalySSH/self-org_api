@@ -1,12 +1,12 @@
 from datastorage.crud.enum import Method
 from datastorage.crud.router import get_crud_router
 from datastorage.database.models import UserVotingResult
-from .schemas import VResultRead, VResultCreate, VResultUpdate
+from .schemas import UserVRRead, UserVRCreate, UserVRUpdate
 
 router = get_crud_router(
     model=UserVotingResult,
-    read_schema=VResultRead,
-    create_schema=VResultCreate,
-    update_schema=VResultUpdate,
+    read_schema=UserVRRead,
+    create_schema=UserVRCreate,
+    update_schema=UserVRUpdate,
     methods=[Method.ALL],
 )

@@ -1,9 +1,10 @@
 import logging
-from typing import Optional, List, cast
+from typing import Optional, List, cast, Sequence
 
-from sqlalchemy import select, insert, func, Insert
+from sqlalchemy import select, insert, func, Insert, Row
 from sqlalchemy.orm import selectinload
 
+from core.dataclasses import BaseVotingParams
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
@@ -205,22 +206,19 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         """
         last_vote: bool = request_member.vote
         last_status: Status = request_member.status
-        query = (
-            select(func.count()).select_from(RequestMember)
-            .where(
-                RequestMember.vote.is_(True),
-                RequestMember.is_blocked.is_not(True),
-                RequestMember.community_id == request_member.community_id,
-                RequestMember.member_id == request_member.member_id,
-                RequestMember.parent_id.is_not(None),
-            )
-        )
-        allowed_count = await self._session.scalar(query)
-        users_count = await self._get_count_users_in_community(request_member.community_id)
-        percentage_yes = int(users_count / allowed_count * 100) if allowed_count > 0 else 0
-        vote_count = await self._get_count_votes_by_settings(request_member.community_id)
-        vote: bool = vote_count and vote_count <= percentage_yes
-        request_member.vote = vote
+        voting_params: BaseVotingParams = await self._calculate_voting_params(
+            request_member.community_id)
+        voted: Sequence[Row] = await self._get_voted_by_requests_member(request_member)
+        users_count: int = await self._get_count_users_in_community(request_member.community_id)
+        len_voted = len(voted)
+        voted_count = int(len_voted / users_count * 100) if len_voted > 0 else 0
+        if voted_count >= voting_params.quorum:
+            allowed_count: int = len(list(filter(lambda it: it[0] is True, voted)))
+            percentage_yes = int(allowed_count / len_voted * 100)
+            request_member.vote = voting_params.vote <= percentage_yes
+        else:
+            request_member.vote = False
+
         if last_vote and not request_member.vote:
             if last_status.code == Code.COMMUNITY_MEMBER:
                 request_member.status = await self._get_status_by_code(Code.MEMBER_EXCLUDED)
@@ -235,6 +233,21 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
                 await self._unblock_user_settings(request_member)
             elif last_status.code == Code.REQUEST_DENIED:
                 request_member.status = await self._get_status_by_code(Code.REQUEST_SUCCESSFUL)
+
+    async def _get_voted_by_requests_member(self, request_member: RequestMember) -> Sequence[Row]:
+        query = (
+            select(RequestMember.vote)
+            .where(
+                RequestMember.vote.is_not(None),
+                RequestMember.is_blocked.is_not(True),
+                RequestMember.community_id == request_member.community_id,
+                RequestMember.member_id == request_member.member_id,
+                RequestMember.parent_id.is_not(None),
+            )
+        )
+        voted_data = await self._session.execute(query)
+
+        return voted_data.all()
 
     async def _block_user_settings(self, request_member: RequestMember) -> None:
         query = (
@@ -262,18 +275,20 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         if user_settings:
             user_settings.is_blocked = False
 
-    async def _get_count_votes_by_settings(self, community_id: str) -> int:
+    async def _calculate_voting_params(self, community_id: str) -> BaseVotingParams:
         query = (
-            select(func.avg(UserCommunitySettings.vote))
+            select(func.avg(UserCommunitySettings.vote),
+                   func.avg(UserCommunitySettings.quorum))
             .select_from(UserCommunitySettings)
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.is_blocked.is_not(True),
             )
         )
-        row = await self._session.scalar(query)
+        rows = await self._session.execute(query)
+        vote, quorum = rows.first()
 
-        return int(row) if row else 0
+        return BaseVotingParams(vote=int(vote), quorum=int(quorum))
 
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (

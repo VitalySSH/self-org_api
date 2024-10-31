@@ -43,11 +43,10 @@ async def create_new_community(
     try:
         name = settings.pop('name')
         description = settings.pop('description')
+        category_names = []
         if settings.get('categories'):
             categories = settings.pop('categories')
             category_names = list(map(lambda it: it.get('name'), categories))
-        else:
-            category_names = []
         data_to_create = CreatingCommunity(
             name=name,
             description=description,

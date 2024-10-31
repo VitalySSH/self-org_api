@@ -6,6 +6,7 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 class CSAttributes(TypedDict, total=False):
     quorum: Optional[int]
     vote: Optional[int]
+    significant_minority: int
     is_secret_ballot: Optional[bool]
     is_can_offer: Optional[bool]
     is_minority_not_participate: Optional[bool]

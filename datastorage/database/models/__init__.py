@@ -14,6 +14,7 @@ __all__ = (
     'Rule',
     'Challenge',
     'VotingResult',
+    'UserVotingResult',
     'VotingOption',
     'DelegateSettings',
     'Opinion',
@@ -24,12 +25,13 @@ __all__ = (
     'RelationUCsDs',
     'RelationDsUsers',
     'RelationInitiativeOptions',
-    'RelationInitiativeVR',
+    'RelationInitiativeUserVR',
     'RelationInitiativeOpinion',
     'RelationRuleOptions',
-    'RelationRuleVotingResult',
+    'RelationRuleUserVR',
     'RelationRuleOpinion',
     'RelationVrVo',
+    'RelationUserVrVo',
     'RelationCommunityUCs',
     'RelationUserCsRequestMember',
     'RelationCsRequestMember',
@@ -52,6 +54,7 @@ from entities.category.model import Category
 from entities.opinion.model import Opinion
 from entities.solution.model import Solution
 from entities.voting_result.model import VotingResult
+from entities.user_voting_result.model import UserVotingResult
 from entities.voting_option.model import VotingOption
 from entities.status.model import Status
 from entities.request_member.model import RequestMember
@@ -61,12 +64,13 @@ from .relation_user_community_settings_categories import RelationUserCsCategorie
 from .relation_user_community_settings_delegate_settings import RelationUCsDs
 from .relation_delegate_settings_users import RelationDsUsers
 from .relation_initiative_options import RelationInitiativeOptions
-from .relation_initiative_voting_results import RelationInitiativeVR
+from .relation_initiative_voting_results import RelationInitiativeUserVR
 from .relation_initiative_opinion import RelationInitiativeOpinion
 from .relation_rule_options import RelationRuleOptions
-from .relation_rule_voting_results import RelationRuleVotingResult
+from .relation_rule_voting_results import RelationRuleUserVR
 from .relation_rule_opinion import RelationRuleOpinion
 from .relation_voting_result_voting_options import RelationVrVo
+from .relation_user_voting_result_options import RelationUserVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
 from .relation_user_cs_request_member import RelationUserCsRequestMember
 from .relation_cs_request_member import RelationCsRequestMember

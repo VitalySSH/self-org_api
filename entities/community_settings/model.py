@@ -30,6 +30,7 @@ class CommunitySettings(Base):
     quorum: Mapped[int] = mapped_column(nullable=True)
     vote: Mapped[int] = mapped_column(nullable=True)
     #  TODO для данных полей, функционал будет реализован позже
+    significant_minority: Mapped[int] = mapped_column(nullable=True)
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_minority_not_participate: Mapped[bool] = mapped_column(nullable=False, default=True)

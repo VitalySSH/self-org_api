@@ -17,7 +17,7 @@ class RuleRelations(TypedDict, total=False):
     status: SchemaInstance
     category: SchemaInstance
     extra_options: List[SchemaInstance]
-    voting_results: List[SchemaInstance]
+    user_results: List[SchemaInstance]
     opinions: List[SchemaInstance]
 
 

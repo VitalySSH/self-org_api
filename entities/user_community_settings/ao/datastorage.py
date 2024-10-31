@@ -124,6 +124,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         settings.description = data_to_create.description_obj
         settings.quorum = data_to_create.settings.get('quorum')
         settings.vote = data_to_create.settings.get('vote')
+        settings.significant_minority = data_to_create.settings.get('significant_minority')
         settings.is_secret_ballot = data_to_create.settings.get('is_secret_ballot')
         settings.is_can_offer = data_to_create.settings.get('is_can_offer')
         settings.is_minority_not_participate = data_to_create.settings.get(
@@ -144,6 +145,7 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         settings.description = data_to_create.description_obj
         settings.quorum = data_to_create.settings.get('quorum')
         settings.vote = data_to_create.settings.get('vote')
+        settings.significant_minority = data_to_create.settings.get('significant_minority')
         settings.is_secret_ballot = data_to_create.settings.get('is_secret_ballot')
         settings.is_can_offer = data_to_create.settings.get('is_can_offer')
         settings.is_minority_not_participate = data_to_create.settings.get(

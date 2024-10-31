@@ -3,27 +3,26 @@ from typing import TypedDict, Optional, List
 from datastorage.crud.interfaces.schema import SchemaInstance
 
 
-class ResultVotingAttributes(TypedDict):
+class VResultAttributes(TypedDict):
     vote: Optional[bool]
-    member_id: str
-    initiative_id: Optional[str]
+    is_significant_minority: Optional[bool]
 
 
-class ResultVotingRelations(TypedDict, total=False):
-    extra_options: List[SchemaInstance]
+class VResultRelations(TypedDict, total=False):
+    selected_options: List[SchemaInstance]
 
 
-class ResultVotingRead(TypedDict):
+class VResultRead(TypedDict):
     id: str
-    attributes: ResultVotingAttributes
-    relations: ResultVotingRelations
+    attributes: VResultAttributes
+    relations: VResultRelations
 
 
-class ResultVotingCreate(TypedDict, total=False):
+class VResultCreate(TypedDict, total=False):
     id: str
-    attributes: ResultVotingAttributes
-    relations: ResultVotingRelations
+    attributes: VResultAttributes
+    relations: VResultRelations
 
 
-class ResultVotingUpdate(ResultVotingCreate):
+class VResultUpdate(VResultCreate):
     pass

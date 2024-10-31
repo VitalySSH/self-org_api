@@ -5,15 +5,15 @@ from datastorage.database.classes import TableName
 from datastorage.database.models import Base
 
 
-class RelationInitiativeUserVR(Base):
-    __tablename__ = TableName.RELATION_INITIATIVE_USER_VR
+class RelationUserVrVo(Base):
+    __tablename__ = TableName.RELATION_USER_VR_VO
     __table_args__ = (
-        UniqueConstraint('from_id', 'to_id', name='idx_unique_initiative_user_voting_results'),
+        UniqueConstraint('from_id', 'to_id', name='idx_unique_user_voting_result_voting_option'),
     )
 
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.INITIATIVE}.id'),
+        ForeignKey(f'{TableName.USER_VOTING_RESULT}.id', ondelete="CASCADE"),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_VOTING_RESULT}.id'),
+        ForeignKey(f'{TableName.VOTING_OPTION}.id', ondelete="CASCADE"),
         nullable=False, index=True)

@@ -9,7 +9,7 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Status, Category, User, VotingResult, Opinion, VotingOption
+        Status, Category, User, UserVotingResult, Opinion, VotingOption, VotingResult
     )
 
 
@@ -40,9 +40,15 @@ class Rule(Base):
         index=True,
     )
     category: Mapped['Category'] = relationship(lazy='noload')
+    voting_result_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.VOTING_RESULT}.id'),
+        nullable=False,
+        index=True,
+    )
+    voting_result: Mapped['VotingResult'] = relationship(uselist=False, lazy='noload')
     extra_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_RULE_OPTIONS, lazy='noload')
-    voting_results: Mapped[List['VotingResult']] = relationship(
-        secondary=TableName.RELATION_RULE_VR, lazy='noload')
+    user_results: Mapped[List['UserVotingResult']] = relationship(
+        secondary=TableName.RELATION_RULE_USER_VR, lazy='noload')
     opinions: Mapped[List['Opinion']] = relationship(
         secondary=TableName.RELATION_RULE_OPINION, lazy='noload')
