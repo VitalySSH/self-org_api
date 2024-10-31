@@ -215,24 +215,26 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         if voted_count >= voting_params.quorum:
             allowed_count: int = len(list(filter(lambda it: it[0] is True, voted)))
             percentage_yes = int(allowed_count / len_voted * 100)
-            request_member.vote = voting_params.vote <= percentage_yes
-        else:
-            request_member.vote = False
+            percentage_no: int = 100 - percentage_yes
+            if voting_params.vote <= percentage_yes:
+                request_member.vote = True
+            elif voting_params.vote <= percentage_no:
+                request_member.vote = False
 
-        if last_vote and not request_member.vote:
-            if last_status.code == Code.COMMUNITY_MEMBER:
-                request_member.status = await self._get_status_by_code(Code.MEMBER_EXCLUDED)
-                await self._block_user_settings(request_member)
-            elif last_status.code == Code.REQUEST_SUCCESSFUL:
-                request_member.status = await self._get_status_by_code(Code.REQUEST_DENIED)
-        elif not last_vote and request_member.vote:
-            if last_status.code == Code.ON_CONSIDERATION:
-                request_member.status = await self._get_status_by_code(Code.REQUEST_SUCCESSFUL)
-            elif last_status.code == Code.MEMBER_EXCLUDED:
-                request_member.status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
-                await self._unblock_user_settings(request_member)
-            elif last_status.code == Code.REQUEST_DENIED:
-                request_member.status = await self._get_status_by_code(Code.REQUEST_SUCCESSFUL)
+            if last_vote and not request_member.vote:
+                if last_status.code == Code.COMMUNITY_MEMBER:
+                    request_member.status = await self._get_status_by_code(Code.MEMBER_EXCLUDED)
+                    await self._block_user_settings(request_member)
+                elif last_status.code == Code.REQUEST_SUCCESSFUL:
+                    request_member.status = await self._get_status_by_code(Code.REQUEST_DENIED)
+            elif not last_vote and request_member.vote:
+                if last_status.code == Code.ON_CONSIDERATION:
+                    request_member.status = await self._get_status_by_code(Code.REQUEST_SUCCESSFUL)
+                elif last_status.code == Code.MEMBER_EXCLUDED:
+                    request_member.status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
+                    await self._unblock_user_settings(request_member)
+                elif last_status.code == Code.REQUEST_DENIED:
+                    request_member.status = await self._get_status_by_code(Code.REQUEST_SUCCESSFUL)
 
     async def _get_voted_by_requests_member(self, request_member: RequestMember) -> Sequence[Row]:
         query = (
@@ -278,7 +280,8 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
     async def _calculate_voting_params(self, community_id: str) -> BaseVotingParams:
         query = (
             select(func.avg(UserCommunitySettings.vote),
-                   func.avg(UserCommunitySettings.quorum))
+                   func.avg(UserCommunitySettings.quorum),
+                   func.avg(UserCommunitySettings.significant_minority))
             .select_from(UserCommunitySettings)
             .where(
                 UserCommunitySettings.community_id == community_id,
@@ -286,9 +289,11 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
             )
         )
         rows = await self._session.execute(query)
-        vote, quorum = rows.first()
+        vote, quorum, significant_minority = rows.first()
 
-        return BaseVotingParams(vote=int(vote), quorum=int(quorum))
+        return BaseVotingParams(
+            vote=int(vote), quorum=int(quorum),
+            significant_minority=int(significant_minority))
 
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (
