@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple, cast, Dict
 from sqlalchemy import select, func, desc, distinct
 from sqlalchemy.orm import selectinload
 
-from core.dataclasses import BaseVotingParams
+from core.dataclasses import BaseVotingParams, PercentByName
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
@@ -11,9 +11,7 @@ from datastorage.database.models import (
     CommunityName, CommunityDescription
 )
 from datastorage.decorators import ds_async_with_new_session
-from entities.community.ao.dataclasses import (
-    OtherCommunitySettings, PercentByName, CsByPercent
-)
+from entities.community.ao.dataclasses import OtherCommunitySettings, CsByPercent
 from entities.status.model import Status
 from auth.models.user import User
 

@@ -4,7 +4,7 @@ from typing import Optional, List, cast, Sequence
 from sqlalchemy import select, insert, func, Insert, Row
 from sqlalchemy.orm import selectinload
 
-from core.dataclasses import BaseVotingParams
+from core.dataclasses import BaseVotingParams, PercentByName
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
@@ -19,6 +19,21 @@ logger = logging.getLogger(__name__)
 
 
 class RequestMemberDS(CRUDDataStorage[RequestMember]):
+
+    async def get_request_member_in_percent(self, request_member_id: str) -> List[PercentByName]:
+        """Вернёт статистику по голосам запроса на членство в сообществе."""
+        child_request_members = await self._get_child_request_members(
+            request_member_id=request_member_id)
+        total_count: int = len(child_request_members)
+        allowed_count: int = len(list(filter(lambda it: it.vote is True, child_request_members)))
+        banned_count: int = len(list(filter(lambda it: it.vote is False, child_request_members)))
+        abstain: int = total_count - (allowed_count + banned_count)
+
+        return [
+            PercentByName(name='За', percent=int(allowed_count / total_count * 100)),
+            PercentByName(name='Против', percent=int(banned_count / total_count * 100)),
+            PercentByName(name='Воздержалось', percent=int(abstain / total_count * 100)),
+        ]
 
     @ds_async_with_new_session
     async def add_request_member_to_settings(self, request_member_id: str) -> None:
@@ -63,7 +78,8 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
          """
         community_id, user_id = None, None
         is_deleted_request_members = False
-        child_request_members = await self._get_child_request_members(request_member_id)
+        child_request_members = await self._get_child_request_members(
+            request_member_id=request_member_id, is_active=False)
         for child_request_member in child_request_members:
             if not community_id:
                 community_id = child_request_member.community_id
@@ -136,11 +152,12 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
         )
         return await self._session.scalar(query)
 
-    async def _get_child_request_members(self, request_member_id: str) -> List[RequestMember]:
-        query = (
-            select(RequestMember)
-            .where(RequestMember.parent_id == request_member_id)
-        )
+    async def _get_child_request_members(
+            self, request_member_id: str, is_active: bool = True) -> List[RequestMember]:
+        filters = [RequestMember.parent_id == request_member_id]
+        if is_active:
+            filters.append(RequestMember.is_blocked.is_not(True))
+        query = select(RequestMember).where(*filters)
         child_request_members = await self._session.scalars(query)
 
         return list(child_request_members)

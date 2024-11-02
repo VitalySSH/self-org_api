@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from typing import List, TypedDict
 
+from core.dataclasses import PercentByName
 from entities.category.model import Category
 
 
@@ -10,11 +11,6 @@ class OtherCommunitySettings:
     is_secret_ballot: bool
     is_minority_not_participate: bool
     is_can_offer: bool
-
-
-class PercentByName(TypedDict):
-    percent: int
-    name: str
 
 
 class CsByPercent(TypedDict):
