@@ -258,9 +258,7 @@ class CommunityDS(CRUDDataStorage[Community]):
             on_cons_status = await self._get_status_by_code(Code.ON_CONSIDERATION)
             for category in all_categories:
                 if category_ids.get(category.id):
-                    if category.status.code == Code.SYSTEM_CATEGORY:
-                        continue
-                    elif category.status.code != Code.CATEGORY_SELECTED:
+                    if category.status.code != Code.CATEGORY_SELECTED:
                         category.status = selected_status
                     categories.append(category)
                 else:
