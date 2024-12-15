@@ -8,6 +8,7 @@ from entities.rule.ao.dataclasses import CreatingNewRule
 from entities.rule.model import Rule
 from entities.status.model import Status
 from auth.models.user import User
+from entities.voting_result.model import VotingResult
 
 
 class RuleDS(CRUDDataStorage[Rule]):
@@ -22,10 +23,11 @@ class RuleDS(CRUDDataStorage[Rule]):
         rule.is_multi_select = data.get('is_multi_select') or False
         rule.community_id = data.get('community_id')
         rule.creator = creator
+        rule.voting_result = await self._create_voting_result()
         rule.status = await self._get_status_by_code(Code.ON_CONSIDERATION)
         rule.category = await self.get(instance_id=data.get('category_id'), model=Category)
         rule.opinions = await self._create_options(
-            option_values=data.get('opinions') or [], creator_id=creator.id)
+            option_values=data.get('extra_options') or [], creator_id=creator.id)
         try:
             self._session.add(rule)
             await self._session.commit()
@@ -52,3 +54,14 @@ class RuleDS(CRUDDataStorage[Rule]):
             options.append(option)
 
         return options
+
+    async def _create_voting_result(self) -> VotingResult:
+        voting_result = VotingResult()
+        try:
+            self._session.add(voting_result)
+            await self._session.flush([voting_result])
+            await self._session.refresh(voting_result)
+        except Exception as e:
+            raise Exception(f'Не удалось создать результат голосования для правила: {e}')
+
+        return voting_result

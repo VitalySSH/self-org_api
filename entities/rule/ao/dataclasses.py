@@ -5,9 +5,9 @@ class CreatingNewRule(TypedDict):
     title: str
     question: str
     content: str
-    is_extra_options: str
-    is_multi_select: str
+    is_extra_options: bool
+    is_multi_select: bool
     community_id: str
     category_id: str
-    opinions: List[str]
+    extra_options: List[str]
 
