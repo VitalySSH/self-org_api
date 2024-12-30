@@ -4,12 +4,10 @@ from typing import Optional, List
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
+from datastorage.ao.base import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.database.models import (
-    RequestMember, RelationUserCsRequestMember, RelationCommunityUCs
-)
-from datastorage.interfaces import RelationRow
+from datastorage.database.models import RequestMember
 from datastorage.utils import build_uuid
 from entities.community.model import Community
 from entities.community_description.model import CommunityDescription
@@ -23,7 +21,9 @@ from entities.user_community_settings.model import UserCommunitySettings
 logger = logging.getLogger(__name__)
 
 
-class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
+class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStorage):
+
+    _model = UserCommunitySettings
 
     async def create_community(self, data_to_create: CreatingCommunity) -> None:
         """Создание нового сообщества

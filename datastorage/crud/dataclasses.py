@@ -1,15 +1,13 @@
 from dataclasses import dataclass
 from typing import List, Callable, Dict, Any, Type, Optional
 
-from datastorage.base import DataStorage
+from datastorage.ao.base import AODataStorage
 from datastorage.crud.enum import Method
-from datastorage.interfaces import T
 
 
 @dataclass
 class PostProcessingData:
-    data_storage: Type[DataStorage]
-    model: Type[T]
+    data_storage: Type[AODataStorage]
     methods: List[Method]
     func_name: str
     instance_attr: Optional[str] = None

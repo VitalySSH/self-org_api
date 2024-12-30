@@ -6,7 +6,6 @@ from auth.models.user import User
 from datastorage.database.base import get_async_session
 from entities.rule.ao.dataclasses import CreatingNewRule
 from entities.rule.ao.datastorage import RuleDS
-from entities.rule.model import Rule
 
 router = APIRouter()
 
@@ -20,5 +19,5 @@ async def create_rule(
     current_user: User = Depends(auth_service.get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> None:
-    ds = RuleDS(model=Rule, session=session)
+    ds = RuleDS(session)
     await ds.create_rule(data=payload, creator=current_user)

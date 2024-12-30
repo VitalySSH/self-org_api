@@ -8,7 +8,6 @@ from entities.user_community_settings.ao.dataclasses import CreatingCommunity
 from entities.user_community_settings.ao.datastorage import UserCommunitySettingsDS
 from entities.user_community_settings.ao.schemas import SettingDataToCreate
 from entities.user_community_settings.crud.schemas import UserCsAttributes
-from entities.user_community_settings.model import UserCommunitySettings
 
 router = APIRouter()
 
@@ -22,7 +21,7 @@ async def create_new_community(
         session: AsyncSession = Depends(get_async_session),
         user: User = Depends(auth_service.get_current_user),
 ) -> None:
-    ds = UserCommunitySettingsDS(model=UserCommunitySettings, session=session)
+    ds = UserCommunitySettingsDS(session)
     try:
         name = settings.pop('name')
         description = settings.pop('description')

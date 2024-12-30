@@ -9,21 +9,18 @@ from ..ao.datastorage import RequestMemberDS
 post_processing = [
     PostProcessingData(
         data_storage=RequestMemberDS,
-        model=RequestMember,
         methods=[Method.CREATE],
         instance_attr='id',
         func_name='add_request_member_to_settings',
     ),
     PostProcessingData(
         data_storage=RequestMemberDS,
-        model=RequestMember,
         methods=[Method.UPDATE],
         instance_attr='id',
         func_name='update_parent_request_member',
     ),
     PostProcessingData(
         data_storage=RequestMemberDS,
-        model=RequestMember,
         methods=[Method.DELETE],
         func_name='delete_child_request_members',
     ),

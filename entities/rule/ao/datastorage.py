@@ -1,6 +1,9 @@
 from typing import List, Optional
+
+from datastorage.ao.base import AODataStorage
 from datastorage.consts import Code
 from sqlalchemy import select
+
 from datastorage.crud.datastorage import CRUDDataStorage
 from entities.category.model import Category
 from entities.opinion.model import Opinion
@@ -11,11 +14,13 @@ from auth.models.user import User
 from entities.voting_result.model import VotingResult
 
 
-class RuleDS(CRUDDataStorage[Rule]):
+class RuleDS(AODataStorage[Rule], CRUDDataStorage):
+
+    _model = Rule
 
     async def create_rule(self, data: CreatingNewRule, creator: User) -> None:
         """Создаст новое правило."""
-        rule = Rule()
+        rule = self.__class__._model()
         rule.title = data.get('title')
         rule.question = data.get('question')
         rule.content = data.get('content')

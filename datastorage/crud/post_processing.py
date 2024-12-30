@@ -3,7 +3,7 @@ import logging
 from fastapi import BackgroundTasks
 from typing import Optional, List
 
-from datastorage.base import DataStorage
+from datastorage.ao.base import AODataStorage
 from datastorage.crud.dataclasses import TaskFuncData, PostProcessingData
 from datastorage.crud.interfaces.base import PostProcessing
 from datastorage.interfaces import T
@@ -47,7 +47,7 @@ class CRUDPostProcessing(PostProcessing):
     def _build_func_data_from_instance(self) -> List[TaskFuncData]:
         funcs_data: List[TaskFuncData] = []
         for post_processing in self.post_processing_data:
-            ds: DataStorage = self._init_data_storage(post_processing)
+            ds: AODataStorage = post_processing.data_storage()
             func = getattr(ds, post_processing.func_name)
             if self._instance:
                 if post_processing.instance_attr:
@@ -65,9 +65,3 @@ class CRUDPostProcessing(PostProcessing):
                     funcs_data.append(TaskFuncData(func=func, kwargs={}))
 
         return funcs_data
-
-    @staticmethod
-    def _init_data_storage(post_processing: PostProcessingData) -> DataStorage:
-        ds_class = post_processing.data_storage
-
-        return ds_class(model=post_processing.model)

@@ -19,7 +19,7 @@ from datastorage.utils import build_uuid
 
 
 class CRUDDataStorage(DataStorage[T], CRUD):
-    """Выполняет CRUD-операция для модели."""
+    """Выполняет CRUD-операции для модели."""
 
     _post_processing_type = CRUDPostProcessing
 

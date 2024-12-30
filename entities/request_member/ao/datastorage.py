@@ -7,14 +7,14 @@ from sqlalchemy.orm import selectinload
 
 from auth.models.user import User
 from core.dataclasses import BaseVotingParams, PercentByName
-from datastorage.ao.ao_datastorage import AODataStorage
+from datastorage.ao.base import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     RequestMember, CommunitySettings, RelationUserCsRequestMember, UserCommunitySettings
 )
-from datastorage.dataclasses import RelationRow
 from datastorage.decorators import ds_async_with_new_session
+from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 from entities.community.model import Community
 from entities.status.model import Status
@@ -22,7 +22,9 @@ from entities.status.model import Status
 logger = logging.getLogger(__name__)
 
 
-class RequestMemberDS(CRUDDataStorage[RequestMember]):
+class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
+
+    _model = RequestMember
 
     async def get_request_member_in_percent(self, request_member_id: str) -> List[PercentByName]:
         """Вернёт статистику по голосам запроса на членство в сообществе."""

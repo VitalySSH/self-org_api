@@ -4,6 +4,7 @@ from sqlalchemy import select, func, desc, distinct
 from sqlalchemy.orm import selectinload
 
 from core.dataclasses import BaseVotingParams, PercentByName
+from datastorage.ao.base import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
@@ -16,7 +17,9 @@ from entities.status.model import Status
 from auth.models.user import User
 
 
-class CommunityDS(CRUDDataStorage[Community]):
+class CommunityDS(AODataStorage[Community], CRUDDataStorage):
+
+    _model = Community
 
     async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
         categories_data, user_count = await self._get_user_categories(community_id)

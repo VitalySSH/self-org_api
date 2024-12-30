@@ -24,7 +24,7 @@ async def community_settings_by_percen(
     community_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> CsByPercent:
-    ds = CommunityDS(model=Community, session=session)
+    ds = CommunityDS(session)
 
     return await ds.get_community_settings_in_percent(community_id)
 
@@ -42,7 +42,7 @@ async def my_list(
     current_user: User = Depends(auth_service.get_current_user),
     session: AsyncSession = Depends(get_async_session),
 ) -> List[Community]:
-    ao_ds = CommunityDS(model=Community, session=session)
+    ao_ds = CommunityDS(session)
     communities_ids = await ao_ds.get_current_user_community_ids(current_user)
     my_filters: Filters = [Filter(field='id', op=Operation.IN, val=communities_ids)]
     if filters:
