@@ -1,8 +1,7 @@
 import logging
-from datetime import datetime
 from typing import Optional, List
 
-from sqlalchemy import select, insert, Insert
+from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from datastorage.consts import Code
@@ -50,25 +49,6 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
         child_request_member = await self._create_child_request_member(
             data_to_create=data_to_create, request_member=request_member)
         user_settings.adding_members = [child_request_member]
-        await self._session.commit()
-
-    async def update_data_after_join(
-            self, user_settings_id: str,
-            community_id: str, request_member_id: str) -> None:
-        """Включение нового участника в сообщество.
-
-        Добавление пользовательских настроек в сообщество.
-        Обновление статуса основного запроса на добавление в сообщество.
-        Создание пользовательских запросов
-        на членство остальных участников сообщества.
-        """
-        await self._add_user_settings_to_community(
-            user_settings_id=user_settings_id, community_id=community_id)
-        request_member: Optional[RequestMember] = await self._get_request_member(request_member_id)
-        if request_member:
-            await self._update_parent_request_member(request_member)
-        await self._create_child_request_members(
-            parent_request_member=request_member, user_settings_id=user_settings_id)
         await self._session.commit()
 
     async def _create_community_name(self, data_to_create: CreatingCommunity) -> None:
@@ -187,22 +167,6 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
 
         return child_request_member
 
-    async def _add_user_settings_to_community(
-            self, user_settings_id: str, community_id: str, ) -> None:
-        value = RelationRow(
-            id=build_uuid(),
-            from_id=community_id,
-            to_id=user_settings_id,
-        )
-        stmt: Insert = insert(RelationCommunityUCs).values(value)
-        stmt.compile()
-        await self._session.execute(stmt)
-
-    async def _update_parent_request_member(self, request_member: RequestMember) -> None:
-        request_member.status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
-        request_member.updated = datetime.now()
-        await self._session.flush([request_member])
-
     async def _get_request_member(self, request_member_id: str) -> Optional[RequestMember]:
         query = (
             select(RequestMember)
@@ -214,50 +178,6 @@ class UserCommunitySettingsDS(CRUDDataStorage[RequestMember]):
             .where(RequestMember.id == request_member_id)
         )
         return await self._session.scalar(query)
-
-    async def _create_child_request_members(
-            self, parent_request_member: RequestMember, user_settings_id: str) -> None:
-        query = (
-            select(RequestMember)
-            .options(
-                selectinload(RequestMember.member),
-                selectinload(RequestMember.community),
-                selectinload(RequestMember.status),
-            )
-            .where(
-                RequestMember.community_id == parent_request_member.community_id,
-                RequestMember.parent_id.is_(None),
-            )
-        )
-        request_members = await self._session.scalars(query)
-
-        data_to_add: List[RelationRow] = []
-        for request_member in list(request_members):
-            child_request_member: RequestMember = self._create_copy_request_member(request_member)
-            child_request_member.parent_id = request_member.id
-            if request_member.id == parent_request_member.id:
-                status: Status = await self._get_status_by_code(Code.VOTED)
-            else:
-                status: Status = await self._get_status_by_code(Code.VOTED_BY_DEFAULT)
-            child_request_member.status = status
-            try:
-                self._session.add(child_request_member)
-            except Exception as e:
-                logger.error(f'Дочерний запрос на добавление члена сообщества '
-                             f'(родителя с id {request_member.id}) не может быть создан: {e}')
-                continue
-
-            data_to_add.append(
-                RelationRow(
-                    id=build_uuid(),
-                    from_id=user_settings_id,
-                    to_id=child_request_member.id,
-                )
-            )
-        if data_to_add:
-            stmt: Insert = insert(RelationUserCsRequestMember).values(data_to_add)
-            stmt.compile()
-            await self._session.execute(stmt)
 
     async def _get_status_by_code(self, code: str) -> Optional[Status]:
         status_query = select(Status).where(Status.code == code)

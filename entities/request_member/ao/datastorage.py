@@ -1,18 +1,22 @@
 import logging
+from datetime import datetime
 from typing import Optional, List, cast, Sequence
 
 from sqlalchemy import select, insert, func, Insert, Row
 from sqlalchemy.orm import selectinload
 
+from auth.models.user import User
 from core.dataclasses import BaseVotingParams, PercentByName
+from datastorage.ao.ao_datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
     RequestMember, CommunitySettings, RelationUserCsRequestMember, UserCommunitySettings
 )
+from datastorage.dataclasses import RelationRow
 from datastorage.decorators import ds_async_with_new_session
-from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
+from entities.community.model import Community
 from entities.status.model import Status
 
 logger = logging.getLogger(__name__)
@@ -99,6 +103,109 @@ class RequestMemberDS(CRUDDataStorage[RequestMember]):
 
         if is_deleted_request_members or is_deleted_user_settings:
             await self._session.commit()
+
+    async def add_new_member(self, request_member_id: str, current_user: User) -> None:
+        """Добавление нового члена сообщества по утверждённой заявке.
+
+        Добавление пользовательских настроек в сообщество.
+        Обновление статуса основного запроса на добавление в сообщество.
+        Создание пользовательских запросов
+        на членство остальных участников сообщества.
+        """
+        request_member: RequestMember = await self.get(
+            instance_id=request_member_id,
+            include=[
+                'member',
+                'community.user_settings',
+                'community.main_settings.name',
+                'community.main_settings.description',
+                'community.main_settings.categories',
+            ]
+        )
+        community: Community = request_member.community
+        user_settings = await self._create_user_settings(
+            community=community, current_user=current_user)
+        community.user_settings.append(user_settings)
+        await self._update_parent_request_member(request_member)
+        await self._create_child_request_members(
+            parent_request_member=request_member, user_settings_id=user_settings.id)
+        await self._session.commit()
+
+    async def _create_user_settings(
+            self, community: Community, current_user: User) -> UserCommunitySettings:
+        user_settings = UserCommunitySettings()
+        user_settings.user = current_user
+        user_settings.community_id = community.id
+        user_settings.name = community.main_settings.name
+        user_settings.description = community.main_settings.description
+        user_settings.quorum = community.main_settings.quorum
+        user_settings.vote = community.main_settings.vote
+        user_settings.significant_minority = community.main_settings.significant_minority
+        user_settings.is_secret_ballot = community.main_settings.is_secret_ballot
+        user_settings.is_can_offer = community.main_settings.is_can_offer
+        user_settings.is_minority_not_participate = (
+            community.main_settings.is_minority_not_participate
+        )
+        user_settings.categories = community.main_settings.categories
+        user_settings.is_not_delegate = False
+        user_settings.is_default_add_member = False
+        try:
+            self._session.add(user_settings)
+            await self._session.flush([user_settings])
+            await self._session.refresh(user_settings)
+        except Exception as e:
+            raise Exception(f'Не удалось создать пользовательские настройки: {e}')
+
+        return user_settings
+
+    async def _update_parent_request_member(self, request_member: RequestMember) -> None:
+        request_member.status = await self._get_status_by_code(Code.COMMUNITY_MEMBER)
+        request_member.updated = datetime.now()
+        await self._session.flush([request_member])
+
+    async def _create_child_request_members(
+            self, parent_request_member: RequestMember, user_settings_id: str) -> None:
+        query = (
+            select(RequestMember)
+            .options(
+                selectinload(RequestMember.member),
+                selectinload(RequestMember.community),
+                selectinload(RequestMember.status),
+            )
+            .where(
+                RequestMember.community_id == parent_request_member.community_id,
+                RequestMember.parent_id.is_(None),
+            )
+        )
+        request_members = await self._session.scalars(query)
+
+        data_to_add: List[RelationRow] = []
+        for request_member in list(request_members):
+            child_request_member: RequestMember = self._create_copy_request_member(request_member)
+            child_request_member.parent_id = request_member.id
+            if request_member.id == parent_request_member.id:
+                status: Status = await self._get_status_by_code(Code.VOTED)
+            else:
+                status: Status = await self._get_status_by_code(Code.VOTED_BY_DEFAULT)
+            child_request_member.status = status
+            try:
+                self._session.add(child_request_member)
+            except Exception as e:
+                logger.error(f'Дочерний запрос на добавление члена сообщества '
+                             f'(родителя с id {request_member.id}) не может быть создан: {e}')
+                continue
+
+            data_to_add.append(
+                RelationRow(
+                    id=build_uuid(),
+                    from_id=user_settings_id,
+                    to_id=child_request_member.id,
+                )
+            )
+        if data_to_add:
+            stmt: Insert = insert(RelationUserCsRequestMember).values(data_to_add)
+            stmt.compile()
+            await self._session.execute(stmt)
 
     async def _check_and_delete_user_settings(self, community_id: str, user_id: str) -> bool:
         is_deleted = False
