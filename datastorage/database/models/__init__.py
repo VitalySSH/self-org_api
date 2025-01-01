@@ -36,6 +36,8 @@ __all__ = (
     'RelationUserCsRequestMember',
     'RelationCsRequestMember',
     'RelationChallengeSolutions',
+    'RelationCsUCs',
+    'RelationUserCsUserCs',
 )
 
 from .base import Base
@@ -75,3 +77,5 @@ from .relation_community_user_community_settings import RelationCommunityUCs
 from .relation_user_cs_request_member import RelationUserCsRequestMember
 from .relation_cs_request_member import RelationCsRequestMember
 from .relation_challenge_solutions import RelationChallengeSolutions
+from .relation_community_settings_ucs import RelationCsUCs
+from .relation_user_community_settings_ucs import RelationUserCsUserCs

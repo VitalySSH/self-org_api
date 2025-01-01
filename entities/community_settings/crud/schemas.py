@@ -16,6 +16,7 @@ class CSRelations(TypedDict, total=False):
     name: Optional[SchemaInstance]
     description: Optional[SchemaInstance]
     categories: List[SchemaInstance]
+    sub_communities_settings: List[SchemaInstance]
     adding_members: List[SchemaInstance]
 
 

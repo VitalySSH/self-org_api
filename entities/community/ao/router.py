@@ -17,10 +17,10 @@ router = APIRouter()
 
 
 @router.get(
-    '/settings_in_percen/{community_id}',
+    '/settings_in_percent/{community_id}',
     dependencies=[Depends(auth_service.get_current_user)]
 )
-async def community_settings_by_percen(
+async def community_settings_by_percent(
     community_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> CsByPercent:

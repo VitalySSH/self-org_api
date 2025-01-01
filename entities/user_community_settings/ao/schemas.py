@@ -17,3 +17,8 @@ class SettingDataToCreate(TypedDict, total=False):
     is_minority_not_participate: Optional[bool]
     is_not_delegate: Optional[bool]
     is_default_add_member: Optional[bool]
+    is_secret_ballot: Optional[bool]
+
+
+class ChildSettingDataToCreate(SettingDataToCreate, total=False):
+    parent_community_id: str

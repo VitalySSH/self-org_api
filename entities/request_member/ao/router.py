@@ -13,12 +13,12 @@ router = APIRouter()
 
 
 @router.get(
-    '/votes_in_percen/{request_member_id}',
+    '/votes_in_percent/{request_member_id}',
     dependencies=[Depends(auth_service.get_current_user)],
     response_model=List[PercentByName],
     status_code=200,
 )
-async def votes_in_percen(
+async def votes_in_percent(
     request_member_id: str,
     session: AsyncSession = Depends(get_async_session),
 ) -> List[PercentByName]:

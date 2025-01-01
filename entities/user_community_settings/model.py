@@ -5,6 +5,7 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -20,6 +21,7 @@ class UserCommunitySettings(Base):
             'user_id', 'community_id', name='idx_unique_user_cs_community_user'),
     )
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     user_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=True,
@@ -27,6 +29,7 @@ class UserCommunitySettings(Base):
     )
     user: Mapped['User'] = relationship(lazy='noload')
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    parent_community_id: Mapped[str] = mapped_column(nullable=True, index=True)
     name_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_NAME}.id'),
         nullable=False,
@@ -46,7 +49,14 @@ class UserCommunitySettings(Base):
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_minority_not_participate: Mapped[bool] = mapped_column(nullable=False, default=False)
     categories: Mapped[List['Category']] = relationship(
-        secondary=TableName.RELATION_UCS_CATEGORIES, lazy='noload')
+        secondary=TableName.RELATION_UCS_CATEGORIES, lazy='noload'
+    )
+    sub_communities_settings: Mapped[List['UserCommunitySettings']] = relationship(
+        secondary=TableName.RELATION_UCS_UCS,
+        primaryjoin='UserCommunitySettings.id == RelationUserCsUserCs.from_id',
+        secondaryjoin='UserCommunitySettings.id == RelationUserCsUserCs.to_id',
+        lazy='noload'
+    )
     delegate_settings: Mapped[List['DelegateSettings']] = relationship(
         secondary=TableName.RELATION_UCS_DS, lazy='noload')
     is_not_delegate: Mapped[bool] = mapped_column(nullable=False, default=False)

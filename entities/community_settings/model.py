@@ -8,7 +8,8 @@ from datastorage.database.models import Base
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Category, CommunityName, CommunityDescription, RequestMember
+        Category, CommunityName, CommunityDescription, RequestMember,
+        Community, UserCommunitySettings
     )
 
 
@@ -29,7 +30,7 @@ class CommunitySettings(Base):
     description: Mapped['CommunityDescription'] = relationship(lazy='noload')
     quorum: Mapped[int] = mapped_column(nullable=True)
     vote: Mapped[int] = mapped_column(nullable=True)
-    #  TODO для данных полей, функционал будет реализован позже
+    #  TODO: для данных полей, функционал будет реализован позже
     significant_minority: Mapped[int] = mapped_column(nullable=True)
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
@@ -37,5 +38,7 @@ class CommunitySettings(Base):
     #
     categories: Mapped[List['Category']] = relationship(
         secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
+    sub_communities_settings: Mapped[List['UserCommunitySettings']] = relationship(
+        secondary=TableName.RELATION_CS_UCS, lazy='noload')
     adding_members: Mapped[List['RequestMember']] = relationship(
         secondary=TableName.RELATION_CS_REQUEST_MEMBER, lazy='noload')

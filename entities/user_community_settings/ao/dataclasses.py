@@ -17,7 +17,7 @@ class CreatingCommunity:
     settings: UserCsAttributes
     user: User
     community_id: Optional[str] = None
+    parent_community_id: Optional[str] = None
     name_obj: Optional[CommunityName] = None
     description_obj: Optional[CommunityDescription] = None
     categories_objs: Optional[List[Category]] = None
-    community_obj: Optional[Community] = None

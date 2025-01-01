@@ -34,4 +34,11 @@ class Community(Base):
         index=True,
     )
     creator: Mapped['User'] = relationship(lazy='noload')
+    parent_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.COMMUNITY}.id'),
+        nullable=True,
+        index=True,
+    )
+    parent: Mapped['Community'] = relationship(lazy='noload')
+    is_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)
     created: Mapped[datetime] = mapped_column(default=datetime.now)

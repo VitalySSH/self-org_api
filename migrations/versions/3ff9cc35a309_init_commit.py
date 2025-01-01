@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: 7005b365555b
+Revision ID: 3ff9cc35a309
 Revises: 
-Create Date: 2024-10-31 21:51:37.761781
+Create Date: 2025-01-02 00:03:47.599071
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '7005b365555b'
+revision: str = '3ff9cc35a309'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -172,8 +172,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_relation_voting_result_voting_options_from_id'), 'relation_voting_result_voting_options', ['from_id'], unique=False)
     op.create_index(op.f('ix_relation_voting_result_voting_options_to_id'), 'relation_voting_result_voting_options', ['to_id'], unique=False)
     op.create_table('user_community_settings',
+    sa.Column('id', sa.String(), nullable=False),
     sa.Column('user_id', sa.String(), nullable=True),
     sa.Column('community_id', sa.String(), nullable=False),
+    sa.Column('parent_community_id', sa.String(), nullable=True),
     sa.Column('name_id', sa.String(), nullable=False),
     sa.Column('description_id', sa.String(), nullable=False),
     sa.Column('quorum', sa.Integer(), nullable=False),
@@ -185,7 +187,6 @@ def upgrade() -> None:
     sa.Column('is_not_delegate', sa.Boolean(), nullable=False),
     sa.Column('is_default_add_member', sa.Boolean(), nullable=False),
     sa.Column('is_blocked', sa.Boolean(), nullable=False),
-    sa.Column('id', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['description_id'], ['community_description.id'], ),
     sa.ForeignKeyConstraint(['name_id'], ['community_name.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['auth_user.id'], ),
@@ -195,6 +196,7 @@ def upgrade() -> None:
     op.create_index(op.f('ix_user_community_settings_community_id'), 'user_community_settings', ['community_id'], unique=False)
     op.create_index(op.f('ix_user_community_settings_description_id'), 'user_community_settings', ['description_id'], unique=False)
     op.create_index(op.f('ix_user_community_settings_name_id'), 'user_community_settings', ['name_id'], unique=False)
+    op.create_index(op.f('ix_user_community_settings_parent_community_id'), 'user_community_settings', ['parent_community_id'], unique=False)
     op.create_index(op.f('ix_user_community_settings_user_id'), 'user_community_settings', ['user_id'], unique=False)
     op.create_table('challenge',
     sa.Column('question', sa.String(), nullable=False),
@@ -216,14 +218,18 @@ def upgrade() -> None:
     op.create_table('community',
     sa.Column('main_settings_id', sa.String(), nullable=False),
     sa.Column('creator_id', sa.String(), nullable=False),
+    sa.Column('parent_id', sa.String(), nullable=True),
+    sa.Column('is_blocked', sa.Boolean(), nullable=False),
     sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('id', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['creator_id'], ['auth_user.id'], ),
     sa.ForeignKeyConstraint(['main_settings_id'], ['community_settings.id'], ),
+    sa.ForeignKeyConstraint(['parent_id'], ['community.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_community_creator_id'), 'community', ['creator_id'], unique=False)
     op.create_index(op.f('ix_community_main_settings_id'), 'community', ['main_settings_id'], unique=False)
+    op.create_index(op.f('ix_community_parent_id'), 'community', ['parent_id'], unique=False)
     op.create_table('delegate_settings',
     sa.Column('category_id', sa.String(), nullable=False),
     sa.Column('user_id', sa.String(), nullable=False),
@@ -271,6 +277,17 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_relation_community_settings_categories_from_id'), 'relation_community_settings_categories', ['from_id'], unique=False)
     op.create_index(op.f('ix_relation_community_settings_categories_to_id'), 'relation_community_settings_categories', ['to_id'], unique=False)
+    op.create_table('relation_community_settings_user_cs',
+    sa.Column('from_id', sa.String(), nullable=False),
+    sa.Column('to_id', sa.String(), nullable=False),
+    sa.Column('id', sa.String(), nullable=False),
+    sa.ForeignKeyConstraint(['from_id'], ['community_settings.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['to_id'], ['user_community_settings.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id'),
+    sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_community_settings_user_community_settings')
+    )
+    op.create_index(op.f('ix_relation_community_settings_user_cs_from_id'), 'relation_community_settings_user_cs', ['from_id'], unique=False)
+    op.create_index(op.f('ix_relation_community_settings_user_cs_to_id'), 'relation_community_settings_user_cs', ['to_id'], unique=False)
     op.create_table('relation_user_community_settings_categories',
     sa.Column('from_id', sa.String(), nullable=False),
     sa.Column('to_id', sa.String(), nullable=False),
@@ -282,6 +299,15 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_relation_user_community_settings_categories_from_id'), 'relation_user_community_settings_categories', ['from_id'], unique=False)
     op.create_index(op.f('ix_relation_user_community_settings_categories_to_id'), 'relation_user_community_settings_categories', ['to_id'], unique=False)
+    op.create_table('relation_user_community_settings_user_cs',
+    sa.Column('from_id', sa.String(), nullable=False),
+    sa.Column('to_id', sa.String(), nullable=False),
+    sa.Column('id', sa.String(), nullable=False),
+    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ),
+    sa.ForeignKeyConstraint(['to_id'], ['user_community_settings.id'], ),
+    sa.PrimaryKeyConstraint('from_id', 'to_id', 'id'),
+    sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_user_community_settings_user_cs')
+    )
     op.create_table('rule',
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('question', sa.String(), nullable=False),
@@ -507,9 +533,13 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_rule_community_id'), table_name='rule')
     op.drop_index(op.f('ix_rule_category_id'), table_name='rule')
     op.drop_table('rule')
+    op.drop_table('relation_user_community_settings_user_cs')
     op.drop_index(op.f('ix_relation_user_community_settings_categories_to_id'), table_name='relation_user_community_settings_categories')
     op.drop_index(op.f('ix_relation_user_community_settings_categories_from_id'), table_name='relation_user_community_settings_categories')
     op.drop_table('relation_user_community_settings_categories')
+    op.drop_index(op.f('ix_relation_community_settings_user_cs_to_id'), table_name='relation_community_settings_user_cs')
+    op.drop_index(op.f('ix_relation_community_settings_user_cs_from_id'), table_name='relation_community_settings_user_cs')
+    op.drop_table('relation_community_settings_user_cs')
     op.drop_index(op.f('ix_relation_community_settings_categories_to_id'), table_name='relation_community_settings_categories')
     op.drop_index(op.f('ix_relation_community_settings_categories_from_id'), table_name='relation_community_settings_categories')
     op.drop_table('relation_community_settings_categories')
@@ -523,6 +553,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_delegate_settings_user_id'), table_name='delegate_settings')
     op.drop_index(op.f('ix_delegate_settings_category_id'), table_name='delegate_settings')
     op.drop_table('delegate_settings')
+    op.drop_index(op.f('ix_community_parent_id'), table_name='community')
     op.drop_index(op.f('ix_community_main_settings_id'), table_name='community')
     op.drop_index(op.f('ix_community_creator_id'), table_name='community')
     op.drop_table('community')
@@ -532,6 +563,7 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_challenge_category_id'), table_name='challenge')
     op.drop_table('challenge')
     op.drop_index(op.f('ix_user_community_settings_user_id'), table_name='user_community_settings')
+    op.drop_index(op.f('ix_user_community_settings_parent_community_id'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_name_id'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_description_id'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_community_id'), table_name='user_community_settings')
