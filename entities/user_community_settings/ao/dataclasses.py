@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 from typing import List, Optional
 
-from entities.community.model import Community
 from entities.community_description.model import CommunityDescription
 from entities.community_name.model import CommunityName
 from entities.category.model import Category

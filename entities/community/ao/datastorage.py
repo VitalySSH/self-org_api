@@ -135,7 +135,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
                 selectinload(UserCommunitySettings.name),
                 selectinload(UserCommunitySettings.description),
                 selectinload(UserCommunitySettings.categories),
-            ).filter(Category.id.in_(settings_ids))
+            ).filter(UserCommunitySettings.id.in_(settings_ids))
         )
         settings_result = await self._session.scalars(query)
 
@@ -369,17 +369,20 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         if ids:
             query = (
                 select(UserCommunitySettings)
-                .filter(UserCommunitySettings.id.in_(ids)))
+                .options(
+                    selectinload(UserCommunitySettings.user),
+                    selectinload(UserCommunitySettings.adding_members),
+                ).filter(UserCommunitySettings.id.in_(ids)))
             sub_user_settings_data = await self._session.scalars(query)
             all_sub_user_settings = list(sub_user_settings_data)
             ucs_ds = UserCommunitySettingsDS(self._session)
             for user_settings in all_sub_user_settings:
                 if selected_ids.get(user_settings.id):
-                    community = ucs_ds.get_or_create_child_community(user_settings)
+                    community = await ucs_ds.get_or_create_child_community(user_settings)
                     community.is_blocked = False
                     sub_user_settings.append(user_settings)
                 else:
-                    community = ucs_ds.get_community(user_settings.community_id)
+                    community = await ucs_ds.get_community(user_settings.community_id)
                     if community:
                         community.is_blocked = True
 

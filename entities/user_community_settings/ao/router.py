@@ -9,7 +9,7 @@ from entities.user_community_settings.ao.datastorage import UserCommunitySetting
 from entities.user_community_settings.ao.schemas import (
     SettingDataToCreate, ChildSettingDataToCreate
 )
-from entities.user_community_settings.crud.schemas import UserCsAttributes
+from entities.user_community_settings.crud.schemas import UserCsAttributes, UserCsRead
 
 router = APIRouter()
 
@@ -46,14 +46,15 @@ async def create_new_community(
 
 
 @router.post(
-    '/create_child_settngs',
+    '/create_child_settings',
+    response_model=UserCsRead,
     status_code=201,
 )
-async def create_child_settngs(
+async def create_child_settings(
         settings: ChildSettingDataToCreate,
         session: AsyncSession = Depends(get_async_session),
         user: User = Depends(auth_service.get_current_user),
-) -> None:
+) -> UserCsRead:
     ds = UserCommunitySettingsDS(session)
     try:
         name = settings.pop('name')
@@ -71,7 +72,9 @@ async def create_child_settngs(
             user=user,
             parent_community_id=parent_community_id,
         )
-        await ds.create_child_settings(data_to_create)
+        child_settings = await ds.create_child_settings(data_to_create)
+
+        return child_settings.to_read_schema()
     except KeyError as key:
         raise Exception(f'Ошибка входных данных, параметр settings не содержит поля {key}')
     except Exception as e:

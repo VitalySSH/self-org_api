@@ -44,7 +44,10 @@ async def my_list(
 ) -> List[Community]:
     ao_ds = CommunityDS(session)
     communities_ids = await ao_ds.get_current_user_community_ids(current_user)
-    my_filters: Filters = [Filter(field='id', op=Operation.IN, val=communities_ids)]
+    my_filters: Filters = [
+        Filter(field='id', op=Operation.IN, val=communities_ids),
+        Filter(field='parent_id', op=Operation.NULL, val=False),
+    ]
     if filters:
         my_filters += filters
 

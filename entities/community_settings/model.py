@@ -9,7 +9,7 @@ from datastorage.database.models import Base
 if TYPE_CHECKING:
     from datastorage.database.models import (
         Category, CommunityName, CommunityDescription, RequestMember,
-        Community, UserCommunitySettings
+        UserCommunitySettings
     )
 
 

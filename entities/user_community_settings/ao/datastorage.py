@@ -55,14 +55,17 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         user_settings.adding_members = [child_request_member]
         await self._session.commit()
 
-    async def create_child_settings(self, data_to_create: CreatingCommunity) -> None:
+    async def create_child_settings(
+            self, data_to_create: CreatingCommunity) -> UserCommunitySettings:
         """Создание пользовательских настроек для внутренних сообществ."""
         data_to_create.community_id = build_uuid()
         await self._create_community_name(data_to_create)
         await self._create_community_description(data_to_create)
         await self._create_categories(data_to_create)
-        await self._create_user_settings(data_to_create)
+        settings: UserCommunitySettings = await self._create_user_settings(data_to_create)
         await self._session.commit()
+
+        return settings
 
     async def get_or_create_child_community(
             self, user_settings: UserCommunitySettings) -> Community:
