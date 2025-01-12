@@ -7,7 +7,7 @@ from auth.auth import auth_service
 from datastorage.crud.interfaces.base import Include
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination, Filter, Operation
 from datastorage.database.base import get_async_session
-from entities.community.ao.dataclasses import CsByPercent
+from entities.community.ao.dataclasses import CsByPercent, CommunityNameData
 from entities.community.ao.datastorage import CommunityDS
 from entities.community.crud.schemas import CommunityRead
 from entities.community.model import Community
@@ -27,6 +27,19 @@ async def community_settings_by_percent(
     ds = CommunityDS(session)
 
     return await ds.get_community_settings_in_percent(community_id)
+
+
+@router.get(
+    '/name/{community_id}',
+    dependencies=[Depends(auth_service.get_current_user)]
+)
+async def get_community_name_data(
+    community_id: str,
+    session: AsyncSession = Depends(get_async_session),
+) -> CommunityNameData:
+    ds = CommunityDS(session)
+
+    return await ds.get_community_name_data(community_id)
 
 
 @router.post(

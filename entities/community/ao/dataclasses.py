@@ -30,3 +30,8 @@ class CsByPercent(TypedDict):
     can_offer: List[PercentByName]
     categories: List[PercentByName]
     sub_communities: List[PercentByName]
+
+
+class CommunityNameData(TypedDict):
+    name: str
+    parent_ids: List[str]

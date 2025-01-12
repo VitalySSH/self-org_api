@@ -13,7 +13,7 @@ from datastorage.database.models import (
 )
 from datastorage.decorators import ds_async_with_new_session
 from entities.community.ao.dataclasses import (
-    OtherCommunitySettings, CsByPercent, UserSettingsModifiedData
+    OtherCommunitySettings, CsByPercent, UserSettingsModifiedData, CommunityNameData
 )
 from entities.status.model import Status
 from auth.models.user import User
@@ -25,6 +25,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
     _model = Community
 
     async def get_community_settings_in_percent(self, community_id: str) -> CsByPercent:
+        """Вернёт статистику в процентах по настройкам сообщества."""
         modified_data = await self._get_user_settings_modified_data(community_id)
         category_data = {
             category_id: count for category_id, count in modified_data.categories_data
@@ -79,6 +80,21 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
             secret_ballot=secret_ballot,
             minority_not_participate=minority_not_participate,
             can_offer=can_offer,
+        )
+
+    async def get_community_name_data(self, community_id: str) -> CommunityNameData:
+        """Вернёт текущее наименование сообщества и список id родительских сообществ."""
+        community: Community = await self._get_community_for_name_data(community_id)
+        parent_ids: List[str] = []
+        parent_community: Optional[Community] = community.parent
+
+        while parent_community:
+            parent_ids.append(parent_community.id)
+            parent_community = await self._get_community_with_parent(parent_community.parent_id)
+
+        return CommunityNameData(
+            name=community.main_settings.name.name,
+            parent_ids=parent_ids
         )
 
     @ds_async_with_new_session
@@ -147,6 +163,29 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
             .options(selectinload(self._model.main_settings)
                      .selectinload(CommunitySettings.categories)
                      .selectinload(Category.status))
+        )
+
+        return await self._session.scalar(query)
+
+    async def _get_community_with_parent(self, community_id: Optional[str]) -> Optional[Community]:
+        if not community_id:
+            return None
+
+        query = (
+            select(self._model)
+            .where(self._model.id == community_id)
+            .options(selectinload(self._model.parent))
+        )
+
+        return await self._session.scalar(query)
+
+    async def _get_community_for_name_data(self, community_id: str) -> Optional[Community]:
+        query = (
+            select(self._model).where(self._model.id == community_id)
+            .options(
+                selectinload(self._model.parent),
+                selectinload(self._model.main_settings).selectinload(CommunitySettings.name)
+            )
         )
 
         return await self._session.scalar(query)
