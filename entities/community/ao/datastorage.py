@@ -13,10 +13,10 @@ from datastorage.database.models import (
 )
 from datastorage.decorators import ds_async_with_new_session
 from entities.community.ao.dataclasses import (
-    OtherCommunitySettings, CsByPercent, UserSettingsModifiedData, CommunityNameData
+    OtherCommunitySettings, CsByPercent, UserSettingsModifiedData, CommunityNameData,
+    ParentCommunity, SubCommunityData
 )
 from entities.status.model import Status
-from auth.models.user import User
 from entities.user_community_settings.ao.datastorage import UserCommunitySettingsDS
 
 
@@ -82,20 +82,56 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
             can_offer=can_offer,
         )
 
-    async def get_community_name_data(self, community_id: str) -> CommunityNameData:
+    async def get_community_name_data(self, community_id: str, user_id: str) -> CommunityNameData:
         """Вернёт текущее наименование сообщества и список id родительских сообществ."""
         community: Community = await self._get_community_for_name_data(community_id)
-        parent_ids: List[str] = []
+        is_blocked = not bool(list(filter(
+            lambda it: it.user.id == user_id and it.is_blocked is False,
+            community.user_settings or [])))
+        parent_data: List[ParentCommunity] = []
         parent_community: Optional[Community] = community.parent
 
         while parent_community:
-            parent_ids.append(parent_community.id)
-            parent_community = await self._get_community_with_parent(parent_community.parent_id)
+            parent_data.append(ParentCommunity(
+                id=parent_community.id, name=parent_community.main_settings.name.name)
+            )
+            parent_community = (
+                await self._get_community_with_parent(parent_community.parent.id)
+                if parent_community.parent else None
+            )
 
         return CommunityNameData(
             name=community.main_settings.name.name,
-            parent_ids=parent_ids
+            parent_data=parent_data,
+            is_blocked=is_blocked,
         )
+
+    async def get_sub_community_data(
+            self, community_id: str, user_id: str) -> List[SubCommunityData]:
+        """Вернёт данные внутренних сообществ."""
+        sub_community_data: List[SubCommunityData] = []
+        community: Community = await self.get(
+            instance_id=community_id,
+            include=[
+                'main_settings.sub_communities_settings.user',
+                'main_settings.sub_communities_settings.name',
+                'main_settings.sub_communities_settings.description',
+            ]
+        )
+        communities_ids: Dict[str, str] = await self.get_user_community_ids_data(user_id)
+        for user_settings in community.main_settings.sub_communities_settings or []:
+            sub_community = SubCommunityData(
+                id=user_settings.community_id,
+                title=user_settings.name.name,
+                description=user_settings.description.value,
+                members=await self._get_total_count_users(user_settings.community_id),
+                isMyCommunity=bool(communities_ids.get(user_settings.id)),
+                isBlocked=user_settings.is_blocked,
+            )
+            sub_community_data.append(sub_community)
+
+        return sub_community_data
+
 
     @ds_async_with_new_session
     async def change_community_settings(self, community_id: str) -> None:
@@ -174,7 +210,10 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         query = (
             select(self._model)
             .where(self._model.id == community_id)
-            .options(selectinload(self._model.parent))
+            .options(
+                selectinload(self._model.parent)
+                .selectinload(self._model.main_settings).selectinload(CommunitySettings.name)
+            )
         )
 
         return await self._session.scalar(query)
@@ -183,22 +222,34 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         query = (
             select(self._model).where(self._model.id == community_id)
             .options(
-                selectinload(self._model.parent),
+                selectinload(self._model.parent)
+                .selectinload(self._model.main_settings).selectinload(CommunitySettings.name),
+                selectinload(self._model.user_settings).selectinload(UserCommunitySettings.user),
                 selectinload(self._model.main_settings).selectinload(CommunitySettings.name)
             )
         )
 
         return await self._session.scalar(query)
 
-    async def get_current_user_community_ids(self, user: User) -> List[str]:
+    async def get_current_user_community_ids(self, user_id: str) -> List[str]:
         query = (
             select(distinct(UserCommunitySettings.community_id))
             .select_from(UserCommunitySettings)
-            .where(UserCommunitySettings.user_id == user.id)
+            .where(UserCommunitySettings.user_id == user_id)
         )
         community_ids = await self._session.execute(query)
 
         return [row[0] for row in community_ids.all()]
+
+    async def get_user_community_ids_data(self, user_id: str) -> Dict[str, str]:
+        query = (
+            select(distinct(UserCommunitySettings.community_id))
+            .select_from(UserCommunitySettings)
+            .where(UserCommunitySettings.user_id == user_id)
+        )
+        community_ids = await self._session.execute(query)
+
+        return {row[0]: row[0] for row in community_ids.all()}
 
     async def _calculate_voting_params(self, community_id: str) -> BaseVotingParams:
         query = (

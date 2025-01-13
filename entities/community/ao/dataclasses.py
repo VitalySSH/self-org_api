@@ -32,6 +32,21 @@ class CsByPercent(TypedDict):
     sub_communities: List[PercentByName]
 
 
+class ParentCommunity(TypedDict):
+    id: str
+    name: str
+
+
 class CommunityNameData(TypedDict):
     name: str
-    parent_ids: List[str]
+    parent_data: List[ParentCommunity]
+    is_blocked: bool
+
+
+class SubCommunityData(TypedDict):
+    id: str
+    title: str
+    description: str
+    members: int
+    isBlocked: bool
+    isMyCommunity: bool
