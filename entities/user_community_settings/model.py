@@ -40,9 +40,9 @@ class UserCommunitySettings(Base):
         index=True,
     )
     description: Mapped['CommunityDescription'] = relationship(lazy='noload')
-    quorum: Mapped[int] = mapped_column(nullable=False)
-    vote: Mapped[int] = mapped_column(nullable=False)
-    significant_minority: Mapped[int] = mapped_column(nullable=True)
+    quorum: Mapped[int] = mapped_column(nullable=False, index=True)
+    vote: Mapped[int] = mapped_column(nullable=False, index=True)
+    significant_minority: Mapped[int] = mapped_column(nullable=False, index=True)
     is_secret_ballot: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_can_offer: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_minority_not_participate: Mapped[bool] = mapped_column(nullable=False, default=False)

@@ -125,17 +125,16 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
                 title=user_settings.name.name,
                 description=user_settings.description.value,
                 members=await self._get_total_count_users(user_settings.community_id),
-                isMyCommunity=bool(communities_ids.get(user_settings.id)),
+                isMyCommunity=bool(communities_ids.get(user_settings.community_id)),
                 isBlocked=user_settings.is_blocked,
             )
             sub_community_data.append(sub_community)
 
         return sub_community_data
 
-
     @ds_async_with_new_session
     async def change_community_settings(self, community_id: str) -> None:
-        voting_params: BaseVotingParams = await self._calculate_voting_params(community_id)
+        voting_params: BaseVotingParams = await self.calculate_voting_params(community_id)
         name: Optional[CommunityName] = None
         description: Optional[CommunityDescription] = None
         names_data = await self._get_first_community_name(community_id)
@@ -250,24 +249,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         community_ids = await self._session.execute(query)
 
         return {row[0]: row[0] for row in community_ids.all()}
-
-    async def _calculate_voting_params(self, community_id: str) -> BaseVotingParams:
-        query = (
-            select(func.avg(UserCommunitySettings.vote),
-                   func.avg(UserCommunitySettings.quorum),
-                   func.avg(UserCommunitySettings.significant_minority))
-            .select_from(UserCommunitySettings)
-            .where(
-                UserCommunitySettings.community_id == community_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
-        )
-        rows = await self._session.execute(query)
-        vote, quorum, significant_minority = rows.first()
-
-        return BaseVotingParams(
-            vote=int(vote), quorum=int(quorum),
-            significant_minority=int(significant_minority))
 
     async def _get_first_community_name(
             self, community_id: str) -> Optional[Tuple[CommunityName, int]]:

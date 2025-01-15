@@ -82,28 +82,8 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         """Удаление дочерних запросов на добавление
          в сообщество, после удаления основного.
          """
-        community_id, user_id = None, None
-        is_deleted_request_members = False
-        child_request_members = await self._get_child_request_members(
-            request_member_id=request_member_id, is_active=False)
-        for child_request_member in child_request_members:
-            if not community_id:
-                community_id = child_request_member.community_id
-            if not user_id:
-                user_id = child_request_member.member_id
-
-            try:
-                await self._session.delete(child_request_member)
-                if not is_deleted_request_members:
-                    is_deleted_request_members = True
-            except Exception as e:
-                logger.error(f'Не удалось удались запрос на членство '
-                             f'с id: {child_request_member.id}: {e}')
-
-        is_deleted_user_settings = await self._check_and_delete_user_settings(
-            community_id=community_id, user_id=user_id)
-
-        if is_deleted_request_members or is_deleted_user_settings:
+        is_deleted: bool = await self._delete_child_request_members(request_member_id)
+        if is_deleted:
             await self._session.commit()
 
     async def add_new_member(self, request_member_id: str, current_user: User) -> None:
@@ -132,6 +112,53 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         await self._create_child_request_members(
             parent_request_member=request_member, user_settings_id=user_settings.id)
         await self._session.commit()
+
+    async def _delete_child_request_members(self, request_member_id: str) -> bool:
+        is_deleted = False
+        community_id, user_id = None, None
+        child_request_members = await self._get_child_request_members(
+            request_member_id=request_member_id, is_active=False)
+
+        for child_request_member in child_request_members:
+            if not community_id:
+                community_id = child_request_member.community_id
+            if not user_id:
+                user_id = child_request_member.member_id
+
+            _is_deleted = await self._delete_request_member(child_request_member)
+            if not is_deleted and _is_deleted:
+                is_deleted = True
+
+        if community_id and user_id:
+            _is_deleted: bool = await self._check_and_delete_user_settings(
+                community_id=community_id, user_id=user_id)
+            if not is_deleted and _is_deleted:
+                is_deleted = True
+
+            child_community_id: Optional[str] = await self._get_child_community_id(community_id)
+            if child_community_id:
+                child_request_member = await self._get_child_request_member(
+                    community_id=child_community_id, user_id=user_id)
+                if child_request_member:
+                    child_request_member_id = child_request_member.id
+                    _is_deleted = await self._delete_request_member(child_request_member)
+                    if not is_deleted and _is_deleted:
+                        is_deleted = True
+
+                    _is_deleted = await self._delete_child_request_members(child_request_member_id)
+                    if not is_deleted and _is_deleted:
+                        is_deleted = True
+
+        return is_deleted
+
+    async def _delete_request_member(self, request_member) -> bool:
+        try:
+            await self._session.delete(request_member)
+            return True
+        except Exception as e:
+            logger.error(f'Не удалось удались запрос на членство '
+                         f'с id: {request_member.id}: {e}')
+            return False
 
     async def _create_user_settings(
             self, community: Community, current_user: User) -> UserCommunitySettings:
@@ -261,6 +288,13 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         )
         return await self._session.scalar(query)
 
+    async def _get_child_community_id(self, community_id: str) -> Optional[str]:
+        query = select(Community.parent_id).where(Community.id == community_id)
+        result = await self._session.execute(query)
+        row = result.fetchone()
+
+        return row[0] if row else None
+
     async def _get_child_request_members(
             self, request_member_id: str, is_active: bool = True) -> List[RequestMember]:
         filters = [RequestMember.parent_id == request_member_id]
@@ -270,6 +304,16 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         child_request_members = await self._session.scalars(query)
 
         return list(child_request_members)
+
+    async def _get_child_request_member(
+            self, community_id: str, user_id: str) -> Optional[RequestMember]:
+        query = select(RequestMember).where(
+            RequestMember.community_id == community_id,
+            RequestMember.member_id == user_id,
+            RequestMember.parent_id.is_(None),
+        )
+
+        return await self._session.scalar(query)
 
     async def _add_rm_to_user_community_settings(self, request_member: RequestMember) -> None:
         """Добавление дочерних запросов на членство в
@@ -332,7 +376,7 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         """
         last_vote: bool = request_member.vote
         last_status: Status = request_member.status
-        voting_params: BaseVotingParams = await self._calculate_voting_params(
+        voting_params: BaseVotingParams = await self.calculate_voting_params(
             request_member.community_id)
         voted: Sequence[Row] = await self._get_voted_by_requests_member(request_member)
         users_count: int = await self._get_count_users_in_community(request_member.community_id)
@@ -402,24 +446,6 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         user_settings = await self._session.scalar(query)
         if user_settings:
             user_settings.is_blocked = False
-
-    async def _calculate_voting_params(self, community_id: str) -> BaseVotingParams:
-        query = (
-            select(func.avg(UserCommunitySettings.vote),
-                   func.avg(UserCommunitySettings.quorum),
-                   func.avg(UserCommunitySettings.significant_minority))
-            .select_from(UserCommunitySettings)
-            .where(
-                UserCommunitySettings.community_id == community_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
-        )
-        rows = await self._session.execute(query)
-        vote, quorum, significant_minority = rows.first()
-
-        return BaseVotingParams(
-            vote=int(vote), quorum=int(quorum),
-            significant_minority=int(significant_minority))
 
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (
