@@ -1,8 +1,11 @@
 from dataclasses import dataclass
-from typing import List, Callable, Dict, Any, Type, Optional
+from typing import List, Callable, Dict, Any, Type, Optional, Generic, TypeVar
 
 from datastorage.ao.base import AODataStorage
 from datastorage.crud.enum import Method
+
+
+Instance = TypeVar('Instance')
 
 
 @dataclass
@@ -18,3 +21,9 @@ class PostProcessingData:
 class TaskFuncData:
     func: Callable
     kwargs: Dict[str, Any]
+
+
+@dataclass
+class ListResponse(Generic[Instance]):
+    data: List[Instance]
+    total: int

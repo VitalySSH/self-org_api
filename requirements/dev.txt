@@ -3,6 +3,7 @@ asyncpg
 click
 dnspython
 email-validator
+pytest
 fastapi==0.109.0
 greenlet
 h11

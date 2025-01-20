@@ -44,10 +44,3 @@ class Order(BaseModel):
 Filters = Optional[List[Filter]]
 Orders = Optional[List[Order]]
 Pagination = Optional[PaginationModel]
-
-
-class ListData(BaseModel):
-    filters: Filters = None
-    orders: Orders = None
-    pagination: Pagination = None
-    include: Optional[List[str]] = None

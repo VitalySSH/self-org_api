@@ -6,12 +6,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.status import HTTP_404_NOT_FOUND
 
 from auth.auth import auth_service
-from datastorage.crud.dataclasses import PostProcessingData
+from datastorage.crud.dataclasses import PostProcessingData, ListResponse
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.enum import Method
 from datastorage.crud.exceptions import CRUDConflict, CRUDNotFound
 from datastorage.crud.interfaces.base import Include
 from datastorage.crud.interfaces.list import Filters, Pagination, Orders
+from datastorage.crud.interfaces.schema import ListResponseSchema
 from datastorage.database.base import get_async_session
 from datastorage.interfaces import T
 
@@ -92,7 +93,7 @@ def get_crud_router(
         @router.post(
             '/list',
             dependencies=[Depends(auth_service.get_current_user)],
-            response_model=List[read_schema],
+            response_model=ListResponseSchema[read_schema],  # type: ignore
             status_code=200,
         )
         async def list_instances(
@@ -102,13 +103,16 @@ def get_crud_router(
                 pagination: Pagination = None,
                 include: Include = None,
                 session: AsyncSession = Depends(get_async_session),
-        ) -> List[read_schema]:
+        ) -> ListResponseSchema[read_schema]:  # type: ignore
             ds = CRUDDataStorage[model](
                 model=model, session=session, background_tasks=background_tasks)
-            instances: List[model] = await ds.list(
+            resp: ListResponse[model] = await ds.list(
                 filters=filters, orders=orders, pagination=pagination, include=include)
 
-            return [instance.to_read_schema() for instance in instances]
+            return ListResponseSchema[read_schema](  # type: ignore
+                items=[instance.to_read_schema() for instance in resp.data],
+                total=resp.total
+            )
 
     if Method.CREATE in methods or is_all_methods:
         @router.post(

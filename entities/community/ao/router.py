@@ -6,11 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from auth.auth import auth_service
 from datastorage.crud.interfaces.base import Include
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination, Filter, Operation
+from datastorage.crud.interfaces.schema import ListResponseSchema
 from datastorage.database.base import get_async_session
 from entities.community.ao.dataclasses import CsByPercent, CommunityNameData, SubCommunityData
 from entities.community.ao.datastorage import CommunityDS
 from entities.community.crud.schemas import CommunityRead
-from entities.community.model import Community
 from auth.models.user import User
 
 router = APIRouter()
@@ -60,7 +60,7 @@ async def get_sub_communities_data(
 
 @router.post(
     '/my_list',
-    response_model=List[CommunityRead],
+    response_model=ListResponseSchema[CommunityRead],  # type: ignore
     status_code=200,
 )
 async def my_list(
@@ -70,7 +70,7 @@ async def my_list(
     include: Include = None,
     current_user: User = Depends(auth_service.get_current_user),
     session: AsyncSession = Depends(get_async_session),
-) -> List[Community]:
+) -> ListResponseSchema[CommunityRead]:  # type: ignore
     ao_ds = CommunityDS(session)
     communities_ids = await ao_ds.get_current_user_community_ids(current_user.id)
     my_filters: Filters = [
@@ -80,7 +80,10 @@ async def my_list(
     if filters:
         my_filters += filters
 
-    communities: List[Community] = await ao_ds.list(
+    resp = await ao_ds.list(
         filters=my_filters, orders=orders, pagination=pagination, include=include)
 
-    return [community.to_read_schema() for community in communities]
+    return ListResponseSchema[CommunityRead](  # type: ignore
+        items=[instance.to_read_schema() for instance in resp.data],
+        total=resp.total
+    )

@@ -1,21 +1,20 @@
 import json
-from typing import Optional, Type, List, Any, cast
+from typing import Optional, Type, List, Any, cast, Dict
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, func, Select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload, Load
 
 from datastorage.base import DataStorage
-from datastorage.crud.dataclasses import PostProcessingData
+from datastorage.crud.dataclasses import PostProcessingData, ListResponse
 from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
 from datastorage.crud.interfaces.base import CRUD, Include
 from datastorage.crud.interfaces.list import (
-    Filters, Operation, Orders, Direction, ListData, Pagination
+    Filters, Operation, Orders, Direction, Pagination, PaginationModel
 )
-from datastorage.crud.interfaces.schema import SchemaInstance, S
+from datastorage.crud.interfaces.schema import SchemaInstance, S, Relations
 from datastorage.crud.post_processing import CRUDPostProcessing
 from datastorage.interfaces import T
-from datastorage.utils import build_uuid
 
 
 class CRUDDataStorage(DataStorage[T], CRUD):
@@ -25,40 +24,11 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
     MAX_PAGE_SIZE = 20
     DEFAULT_INDEX = 1
+    MAX_INCLUDE_DEPTH = 5
 
     async def schema_to_model(self, schema: S) -> T:
         """Сериализует схему в объект модели."""
         return await self._update_instance_from_schema(instance=self._model(), schema=schema)
-
-    async def _update_instance_from_schema(self, instance: T, schema: SchemaInstance) -> T:
-        model = type(instance)
-        if not instance.id:
-            instance.id = schema.get('id') or build_uuid()
-        attributes = schema.get('attributes', {})
-        for attr_name, attr_value in attributes.items():
-            if getattr(type(instance), attr_name, False):
-                setattr(instance, attr_name, attributes.get(attr_name))
-
-        relations = schema.get('relations', {})
-        for rel_name, rel_value in relations.items():
-            if isinstance(rel_value, list):
-                many_to_many_objs: List[T] = []
-                for sub_rel_value in rel_value:
-                    rel_obj_id = sub_rel_value.get('id')
-                    if rel_obj_id:
-                        rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
-                        rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
-                        many_to_many_objs.append(rel_obj)
-                if many_to_many_objs:
-                    setattr(instance, rel_name, many_to_many_objs)
-            else:
-                rel_obj_id = rel_value.get('id')
-                if rel_obj_id:
-                    rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
-                    rel_obj = await self.get(instance_id=rel_obj_id, model=rel_obj_model)
-                    setattr(instance, rel_name, rel_obj)
-
-        return instance
 
     def execute_post_processing(
             self, instance: Optional[T],
@@ -75,18 +45,6 @@ class CRUDDataStorage(DataStorage[T], CRUD):
     @staticmethod
     def get_relation_fields(schema: S) -> List[str]:
         return [key for key, value in schema.get('relations', {}).items() if value]
-
-    @staticmethod
-    def _get_relation_model(model: Type[T], field_name: str) -> Type[T]:
-        field = getattr(model, field_name, None)
-        if field is None:
-            raise Exception(f'Ошибка сериализации. '
-                            f'Модель {model.__name__} не имеет аттрибута {field_name}')
-        try:
-            return field.prop.entity.class_
-        except Exception as e:
-            raise Exception(f'Аттрибут {field_name} модели '
-                            f'{model.__name__} не является типом Relationship: {e}')
 
     async def get(
             self, instance_id: str,
@@ -106,38 +64,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise CRUDException(f'Не удалось получить объект с id {instance_id} '
                                 f'модели {model.__name__}: {e}')
 
-    def _build_options(self, include: List[str]) -> List[Load]:
-        options = []
-        for incl in include:
-            option: Optional[Load] = None
-            field_model: Type[T] = self._model
-            current_field_name: Optional[str] = None
-            for idx, field_name in enumerate(incl.split('.'), 1):
-                if idx == 1:
-                    current_field_name = field_name
-                else:
-                    field_ = getattr(field_model, current_field_name, None)
-                    if field_:
-                        field_model = field_.comparator.entity.class_
-                        current_field_name = field_name
-                    else:
-                        raise CRUDException(f'Модель {field_model.__name__} не имеет атрибута'
-                                            f' {field_name} указанный в include {incl}')
-
-                field = getattr(field_model, field_name, None)
-                if field:
-                    if option:
-                        option = option.selectinload(field)
-                    else:
-                        option = cast(Load, selectinload(field))
-            if option:
-                options.append(option)
-
-        return options
-
     async def create(self, instance: T, relation_fields: Optional[List[str]] = None) -> T:
-        if not instance.id:
-            instance.id = build_uuid()
         relation_data = {rel_field: value for rel_field in relation_fields or []
                          if (value := getattr(instance, rel_field, None))}
         try:
@@ -163,6 +90,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             await self._update_instance_from_schema(instance=instance, schema=schema)
             await self._session.commit()
         except Exception as e:
+            await self._session.rollback()
             raise CRUDConflict(
                 f'Ошибка обновления объекта с id {instance_id} модели {self._model.__name__}: {e}')
 
@@ -178,44 +106,136 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise CRUDConflict(f'Объект с id {instance_id} не может быть удалён: {e}')
 
     async def list(
-            self, filters: Filters = None,
-            orders: Orders = None,
-            pagination: Pagination = None,
-            include: Include = None,
-    ) -> List[T]:
-        list_data = ListData(filters=filters, orders=orders,
-                             pagination=pagination, include=include)
-        query = self._query_for_list(list_data)
-        rows = await self._session.scalars(query)
-        return list(rows)
+            self, filters: Optional[Filters] = None,
+            orders: Optional[Orders] = None,
+            pagination: Optional[Pagination] = None,
+            include: Optional[Include] = None,
+    ) -> ListResponse[T]:
+        filters = self._get_filter_params(filters)
+        base_query = select(self._model).filter(*filters)
+
+        total_query = select(func.count()).select_from(base_query.subquery())
+        total_result = await self._session.execute(total_query)
+        total = total_result.scalar()
+
+        orders = self._get_order_params(orders)
+        limit = pagination.limit if pagination else self.MAX_PAGE_SIZE
+        skip = pagination.skip if pagination else self.DEFAULT_INDEX
+        skip = (skip - 1) * limit
+
+        if include:
+            options = self._build_options(include)
+            base_query = base_query.options(*options)
+
+        base_query.order_by(*orders).limit(limit).offset(skip)
+        rows = await self._session.scalars(base_query)
+
+        return ListResponse(data=list(rows), total=total)
 
     async def first(
-            self, filters: Filters = None,
-            orders: Orders = None,
-            pagination: Pagination = None,
-            include: Include = None,
+            self, filters: Optional[Filters] = None,
+            orders: Optional[Orders] = None,
+            include: Optional[Include] = None,
     ) -> Optional[T]:
-        list_data = ListData(filters=filters, orders=orders,
-                             pagination=pagination, include=include)
-        query = self._query_for_list(list_data)
-        rows = await self._session.scalars(query)
-        data = list(rows)
-        return data[0] if data else None
+        resp = await self.list(
+            filters=filters,
+            orders=orders,
+            pagination=PaginationModel(skip=0, limit=1),
+            include=include,
+        )
 
-    def _query_for_list(self, list_data: ListData) -> Select[Any]:
-        limit = list_data.pagination.limit if list_data.pagination else self.MAX_PAGE_SIZE
-        skip = list_data.pagination.skip if list_data.pagination else self.DEFAULT_INDEX
-        skip = (skip - 1) * limit
-        filters = self._get_filter_params(list_data.filters)
-        orders = self._get_order_params(list_data.orders)
-        query = select(self._model).filter(*filters)
-        if list_data.include:
-            options = self._build_options(list_data.include)
-            query = query.options(*options)
-        query.order_by(*orders).limit(limit).offset(skip)
+        return resp.data[0] if resp.total > 0 else None
 
-        return query
-    
+    async def _update_instance_from_schema(self, instance: T, schema: SchemaInstance) -> T:
+        self._update_attributes(instance, schema.get('attributes', {}))
+        await self._update_relations(instance, schema.get('relations', {}))
+
+        return instance
+
+    @staticmethod
+    def _update_attributes(instance: T, attributes: Dict[str, Any]) -> None:
+        for attr_name, attr_value in attributes.items():
+            if hasattr(instance, attr_name):
+                setattr(instance, attr_name, attr_value)
+
+    async def _update_relations(self, instance: T, relations: Relations) -> None:
+        model = type(instance)
+        for rel_name, rel_value in relations.items():
+            if isinstance(rel_value, list):
+                many_to_many_objs = await self._fetch_many_to_many(rel_value, model, rel_name)
+                setattr(instance, rel_name, many_to_many_objs)
+            elif isinstance(rel_value, dict):
+                related_obj = await self._fetch_relation(rel_value, model, rel_name)
+                setattr(instance, rel_name, related_obj)
+
+    async def _fetch_many_to_many(
+            self, rel_values: list, model: Type[T], rel_name: str
+    ) -> List[T]:
+        objs = []
+        for rel_value in rel_values:
+            rel_obj = await self._fetch_relation(rel_value, model, rel_name)
+            if rel_obj:
+                objs.append(rel_obj)
+
+        return objs
+
+    async def _fetch_relation(self, rel_value: dict, model: Type[T], rel_name: str) -> Optional[T]:
+        rel_obj_id = rel_value.get('id')
+        if not rel_obj_id:
+            return None
+
+        rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
+
+        return await self.get(instance_id=rel_obj_id, model=rel_obj_model)
+
+    @staticmethod
+    def _get_relation_model(model: Type[T], field_name: str) -> Type[T]:
+        field = getattr(model, field_name, None)
+        if field is None:
+            raise Exception(f'Ошибка сериализации. '
+                            f'Модель {model.__name__} не имеет аттрибута {field_name}')
+        try:
+            return field.prop.entity.class_
+        except Exception as e:
+            raise Exception(f'Аттрибут {field_name} модели '
+                            f'{model.__name__} не является типом Relationship: {e}')
+
+    def _build_options(self, include: List[str]) -> List[Load]:
+        """Создаёт опции для загрузки связанных сущностей."""
+        options = []
+        for incl in include:
+            option: Optional[Load] = None
+            field_model: Type[T] = self._model
+            current_field_name: Optional[str] = None
+            fields: List[str] = incl.split('.')
+
+            if len(fields) > self.__class__.MAX_INCLUDE_DEPTH:
+                raise CRUDException(f'Глубина вложенности для include "{incl}" '
+                                    f'превышает {self.__class__.MAX_INCLUDE_DEPTH}')
+
+            for idx, field_name in enumerate(fields, 1):
+                if idx == 1:
+                    current_field_name = field_name
+                else:
+                    field_ = getattr(field_model, current_field_name, None)
+                    if field_:
+                        field_model = field_.comparator.entity.class_
+                        current_field_name = field_name
+                    else:
+                        raise CRUDException(f'Модель {field_model.__name__} не имеет атрибута'
+                                            f' {field_name} указанный в include {incl}')
+
+                field = getattr(field_model, field_name, None)
+                if field:
+                    if option:
+                        option = option.selectinload(field)
+                    else:
+                        option = cast(Load, selectinload(field))
+            if option:
+                options.append(option)
+
+        return options
+
     def _get_filter_params(self, filters: Filters) -> List:
         params = []
         for _filter in filters or []:

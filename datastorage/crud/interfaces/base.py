@@ -1,7 +1,7 @@
 import abc
 from typing import Optional, Type, List
 
-from datastorage.crud.dataclasses import PostProcessingData
+from datastorage.crud.dataclasses import PostProcessingData, ListResponse
 from datastorage.crud.interfaces.list import Filters, Orders, Pagination
 from datastorage.crud.interfaces.schema import S
 from datastorage.interfaces import T
@@ -55,14 +55,13 @@ class CRUD(abc.ABC):
             orders: Orders = None,
             pagination: Pagination = None,
             include: Include = None,
-    ) -> List[T]:
+    ) -> ListResponse:
         raise NotImplementedError
 
     @abc.abstractmethod
     async def first(
             self, filters: Filters = None,
             orders: Orders = None,
-            pagination: Pagination = None,
             include: Include = None,
     ) -> Optional[T]:
         raise NotImplementedError
