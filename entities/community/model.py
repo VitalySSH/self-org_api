@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
-
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 class Community(Base):
     __tablename__ = TableName.COMMUNITY
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     main_settings_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id'),
         nullable=False,
@@ -39,6 +40,6 @@ class Community(Base):
         nullable=True,
         index=True,
     )
-    parent: Mapped['Community'] = relationship(lazy='noload')
+    parent: Mapped['Community'] = relationship(lazy='noload', remote_side=[id])
     is_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)
     created: Mapped[datetime] = mapped_column(default=datetime.now)

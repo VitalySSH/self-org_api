@@ -29,10 +29,11 @@ COOKIE_TOKEN_NAME=
 ```
 > Сгенерировать SECRET_KEYS можно здесь: https://jwtsecret.com/
 * Создать чистую БД PostgreSQL
+* Перейдите в репозиторий app `cd app`
 * Если в папке migrations/versions отсутствует файл с конфигурацией БД, то создайте его командой `alembic revision --autogenerate -m "init commit"`
-* Создать таблицы в БД `alembic upgrade 7005b365555b` (или другой uuid конфигурации)
-* Наполнить БД предустановленными значениями командой `python3.12 app/init_db_data.py`
-* Запустить API командой `python3.12 app/main.py`
+* Создать таблицы в БД `alembic upgrade d9b2697815c7` (или другой uuid конфигурации)
+* Наполнить БД предустановленными значениями командой `python3.12 init_db_data.py`
+* Запустить API командой `python3.12 main.py`
 
 ## Технологии
 - [Python 3.12](https://www.python.org/)

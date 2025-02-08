@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: 3ff9cc35a309
+Revision ID: d9b2697815c7
 Revises: 
-Create Date: 2025-01-02 00:03:47.599071
+Create Date: 2025-02-08 15:38:19.499739
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '3ff9cc35a309'
+revision: str = 'd9b2697815c7'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -172,7 +172,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_relation_voting_result_voting_options_from_id'), 'relation_voting_result_voting_options', ['from_id'], unique=False)
     op.create_index(op.f('ix_relation_voting_result_voting_options_to_id'), 'relation_voting_result_voting_options', ['to_id'], unique=False)
     op.create_table('user_community_settings',
-    sa.Column('id', sa.String(), nullable=False),
     sa.Column('user_id', sa.String(), nullable=True),
     sa.Column('community_id', sa.String(), nullable=False),
     sa.Column('parent_community_id', sa.String(), nullable=True),
@@ -180,13 +179,14 @@ def upgrade() -> None:
     sa.Column('description_id', sa.String(), nullable=False),
     sa.Column('quorum', sa.Integer(), nullable=False),
     sa.Column('vote', sa.Integer(), nullable=False),
-    sa.Column('significant_minority', sa.Integer(), nullable=True),
+    sa.Column('significant_minority', sa.Integer(), nullable=False),
     sa.Column('is_secret_ballot', sa.Boolean(), nullable=False),
     sa.Column('is_can_offer', sa.Boolean(), nullable=False),
     sa.Column('is_minority_not_participate', sa.Boolean(), nullable=False),
     sa.Column('is_not_delegate', sa.Boolean(), nullable=False),
     sa.Column('is_default_add_member', sa.Boolean(), nullable=False),
     sa.Column('is_blocked', sa.Boolean(), nullable=False),
+    sa.Column('id', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['description_id'], ['community_description.id'], ),
     sa.ForeignKeyConstraint(['name_id'], ['community_name.id'], ),
     sa.ForeignKeyConstraint(['user_id'], ['auth_user.id'], ),
@@ -197,7 +197,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_user_community_settings_description_id'), 'user_community_settings', ['description_id'], unique=False)
     op.create_index(op.f('ix_user_community_settings_name_id'), 'user_community_settings', ['name_id'], unique=False)
     op.create_index(op.f('ix_user_community_settings_parent_community_id'), 'user_community_settings', ['parent_community_id'], unique=False)
+    op.create_index(op.f('ix_user_community_settings_quorum'), 'user_community_settings', ['quorum'], unique=False)
+    op.create_index(op.f('ix_user_community_settings_significant_minority'), 'user_community_settings', ['significant_minority'], unique=False)
     op.create_index(op.f('ix_user_community_settings_user_id'), 'user_community_settings', ['user_id'], unique=False)
+    op.create_index(op.f('ix_user_community_settings_vote'), 'user_community_settings', ['vote'], unique=False)
     op.create_table('challenge',
     sa.Column('question', sa.String(), nullable=False),
     sa.Column('content', sa.String(), nullable=False),
@@ -216,12 +219,12 @@ def upgrade() -> None:
     op.create_index(op.f('ix_challenge_creator_id'), 'challenge', ['creator_id'], unique=False)
     op.create_index(op.f('ix_challenge_status_id'), 'challenge', ['status_id'], unique=False)
     op.create_table('community',
+    sa.Column('id', sa.String(), nullable=False),
     sa.Column('main_settings_id', sa.String(), nullable=False),
     sa.Column('creator_id', sa.String(), nullable=False),
     sa.Column('parent_id', sa.String(), nullable=True),
     sa.Column('is_blocked', sa.Boolean(), nullable=False),
     sa.Column('created', sa.DateTime(), nullable=False),
-    sa.Column('id', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['creator_id'], ['auth_user.id'], ),
     sa.ForeignKeyConstraint(['main_settings_id'], ['community_settings.id'], ),
     sa.ForeignKeyConstraint(['parent_id'], ['community.id'], ),
@@ -562,7 +565,10 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_challenge_community_id'), table_name='challenge')
     op.drop_index(op.f('ix_challenge_category_id'), table_name='challenge')
     op.drop_table('challenge')
+    op.drop_index(op.f('ix_user_community_settings_vote'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_user_id'), table_name='user_community_settings')
+    op.drop_index(op.f('ix_user_community_settings_significant_minority'), table_name='user_community_settings')
+    op.drop_index(op.f('ix_user_community_settings_quorum'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_parent_community_id'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_name_id'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_description_id'), table_name='user_community_settings')

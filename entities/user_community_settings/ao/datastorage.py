@@ -40,7 +40,7 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         community = Community()
         community.id = data_to_create.community_id
         community.main_settings = main_settings
-        community.user_settings = [user_settings]
+        community.user_settings.append(user_settings)
         community.creator = data_to_create.user
 
         self._session.add(community)
@@ -49,10 +49,10 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
 
         request_member = await self._create_request_member(
             community=community, user=data_to_create.user)
-        main_settings.adding_members = [request_member]
+        main_settings.adding_members.append(request_member)
         child_request_member = await self._create_child_request_member(
             community=community, user=data_to_create.user, request_member=request_member)
-        user_settings.adding_members = [child_request_member]
+        user_settings.adding_members.append(child_request_member)
         await self._session.commit()
 
     async def create_child_settings(
@@ -68,7 +68,8 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         return settings
 
     async def get_or_create_child_community(
-            self, user_settings: UserCommunitySettings) -> Community:
+            self, user_settings: UserCommunitySettings
+    ) -> Community:
         """Создание внутреннего сообщества, если оно отсутствует
         на основе утверждённых большинством пользовательских настроек.
         """
@@ -80,21 +81,21 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         community = Community()
         community.id = user_settings.community_id
         community.main_settings = main_settings
-        community.user_settings = [user_settings]
+        community.user_settings.append(user_settings)
         community.creator = user_settings.user
-        if user_settings.parent_community_id:
-            community.parent = await self.get_community(
-                cast(str, user_settings.parent_community_id))
+        parent_community_id: Optional[str] = user_settings.parent_community_id
+        if parent_community_id:
+            community.parent = await self._session.get(Community, parent_community_id)
         self._session.add(community)
         await self._session.flush([community])
         await self._session.refresh(community)
 
         request_member = await self._create_request_member(
             community=community, user=user_settings.user)
-        main_settings.adding_members = [request_member]
+        main_settings.adding_members.append(request_member)
         child_request_member = await self._create_child_request_member(
             community=community, user=user_settings.user, request_member=request_member)
-        user_settings.adding_members = [child_request_member]
+        user_settings.adding_members.append(child_request_member)
 
         return community
 
@@ -106,7 +107,6 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         community_name.is_readonly = True
         self._session.add(community_name)
         await self._session.flush([community_name])
-        await self._session.refresh(community_name)
         data_to_create.name_obj = community_name
 
     async def _create_community_description(self, data_to_create: CreatingCommunity) -> None:
@@ -117,7 +117,6 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         description.is_readonly = True
         self._session.add(description)
         await self._session.flush([description])
-        await self._session.refresh(description)
         data_to_create.description_obj = description
 
     async def _create_categories(self, data_to_create: CreatingCommunity) -> None:
@@ -182,7 +181,9 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         return settings
 
     async def _create_user_settings(
-            self, data_to_create: CreatingCommunity) -> UserCommunitySettings:
+            self, data_to_create: CreatingCommunity
+    ) -> UserCommunitySettings:
+        """Создание пользовательских настроек."""
         settings = UserCommunitySettings()
         settings.user = data_to_create.user
         settings.community_id = data_to_create.community_id
@@ -216,7 +217,6 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         request_member.reason = 'Инициатор создания сообщества'
         self._session.add(request_member)
         await self._session.flush([request_member])
-        await self._session.refresh(request_member)
 
         return request_member
 
@@ -231,7 +231,6 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         child_request_member.status = status
         self._session.add(child_request_member)
         await self._session.flush([child_request_member])
-        await self._session.refresh(child_request_member)
 
         return child_request_member
 

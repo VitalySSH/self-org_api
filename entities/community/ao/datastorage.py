@@ -195,9 +195,13 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
     async def _get_community(self, community_id: str) -> Optional[Community]:
         query = (
             select(self._model).where(self._model.id == community_id)
-            .options(selectinload(self._model.main_settings)
-                     .selectinload(CommunitySettings.categories)
-                     .selectinload(Category.status))
+            .options(
+                selectinload(self._model.main_settings)
+                .selectinload(CommunitySettings.categories)
+                .selectinload(Category.status),
+                selectinload(self._model.main_settings)
+                .selectinload(CommunitySettings.sub_communities_settings),
+            )
         )
 
         return await self._session.scalar(query)
@@ -435,7 +439,9 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         return categories
 
     async def _get_selected_sub_user_settings(
-            self, ids: List[str], selected_ids: Dict[str, str]) -> List[UserCommunitySettings]:
+            self, ids: List[str],
+            selected_ids: Dict[str, str],
+    ) -> List[UserCommunitySettings]:
         sub_user_settings: List[UserCommunitySettings] = []
         if ids:
             query = (

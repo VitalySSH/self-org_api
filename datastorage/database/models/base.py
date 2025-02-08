@@ -1,4 +1,4 @@
-from typing import Optional, List, TypeVar
+from typing import Optional, TypeVar
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
@@ -9,6 +9,7 @@ S = TypeVar('S')
 
 
 class Base(DeclarativeBase):
+    __abstract__ = True
 
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
 
