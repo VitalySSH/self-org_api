@@ -102,6 +102,7 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
                 'community.main_settings.name',
                 'community.main_settings.description',
                 'community.main_settings.categories',
+                'community.main_settings.sub_communities_settings',
             ]
         )
         community: Community = request_member.community
@@ -176,6 +177,7 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
             community.main_settings.is_minority_not_participate
         )
         user_settings.categories = community.main_settings.categories
+        user_settings.sub_communities_settings = community.main_settings.sub_communities_settings
         user_settings.is_not_delegate = False
         user_settings.is_default_add_member = False
         try:
