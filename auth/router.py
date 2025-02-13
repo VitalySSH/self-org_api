@@ -1,12 +1,14 @@
-from typing import Optional
+from typing import Optional, Tuple, Dict
 
+import jsonify as jsonify
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from auth.auth import auth_service
-from auth.schemas import CurrentUser, UserCreate, UserUpdate
+from auth.dataclasses import CreateUserResult
+from auth.schemas import CurrentUser, UserCreate, UserUpdate, CreateUserResponse
 from auth.security import decrypt_password, verify_password
 from auth.services.user_service import UserService
 from datastorage.database.base import get_async_session
@@ -62,16 +64,20 @@ async def get_current_user(
     )
 
 
-@auth_router.post(
-    '/user',
-    status_code=201,
-)
+@auth_router.post('/user')
 async def create_user(
         user_data: UserCreate,
         session: AsyncSession = Depends(get_async_session),
-):
+) -> CreateUserResponse:
     user_service: UserService = auth_service.create_user_service(session)
-    await user_service.create_user(user_data)
+    result: CreateUserResult = await user_service.create_user(user_data)
+    match result.status_code:
+        case 201:
+            return {'ok': result.message}
+        case 409:
+            return {'error': result.message}
+        case 500:
+            return {'error': result.message}
 
 
 @auth_router.patch(

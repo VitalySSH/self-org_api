@@ -1,8 +1,10 @@
 from typing import Optional
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from auth.dataclasses import CreateUserResult
 from auth.schemas import UserCreate, UserUpdate
 from auth.security import decrypt_password, hash_password
 from datastorage.database.models import User, UserData
@@ -34,7 +36,7 @@ class UserService:
 
         return await self._session.scalar(query)
 
-    async def create_user(self, user_data: UserCreate) -> None:
+    async def create_user(self, user_data: UserCreate) -> CreateUserResult:
         """Создание пользователя."""
         user = User()
         user.firstname = user_data.firstname
@@ -45,8 +47,16 @@ class UserService:
             self._session.add(user)
             await self._session.flush([user])
             await self._session.refresh(user)
+        except IntegrityError:
+            await self._session.rollback()
+
+            return CreateUserResult(
+                status_code=409, message='Пользователь с таким email уже существует')
         except Exception as e:
-            raise Exception(f'Не удалось создать пользователя: {e}')
+            await self._session.rollback()
+
+            return CreateUserResult(
+                status_code=500, message=f'Произошла ошибка при добавлении пользователя: {e}')
         password = decrypt_password(user_data.secret_password)
         hashed_password = hash_password(password)
         user_data = UserData()
@@ -55,9 +65,13 @@ class UserService:
         try:
             self._session.add(user_data)
             await self._session.commit()
+
+            return CreateUserResult(status_code=201, message='Пользователь успешно добавлен')
         except Exception as e:
             await self._session.rollback()
-            raise Exception(f'Не удалось создать авторизационные данные пользователя: {e}')
+
+            return CreateUserResult(
+                status_code=500, message=f'Произошла ошибка при авторизации пользователя: {e}')
 
     async def update_user(self, user_id: str, user_data: UserUpdate) -> None:
         """Изменение пользователя."""

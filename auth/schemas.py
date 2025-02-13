@@ -25,3 +25,8 @@ class UserUpdate(TypedDict, total=False):
     email: str
     about_me: Optional[str]
     foto_id: Optional[str]
+
+
+class CreateUserResponse(TypedDict, total=False):
+    ok: str
+    error: str
