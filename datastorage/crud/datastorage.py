@@ -127,7 +127,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             options = self._build_options(include)
             base_query = base_query.options(*options)
 
-        base_query.order_by(*orders).limit(limit).offset(skip)
+        base_query = base_query.order_by(*orders).offset(skip).limit(limit)
         rows = await self._session.scalars(base_query)
 
         return ListResponse(data=list(rows), total=total)
