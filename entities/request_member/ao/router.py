@@ -7,6 +7,7 @@ from auth.auth import auth_service
 from auth.models.user import User
 from core.dataclasses import PercentByName
 from datastorage.database.base import get_async_session
+from entities.request_member.ao.dataclasses import MyMemberRequest
 from entities.request_member.ao.datastorage import RequestMemberDS
 
 router = APIRouter()
@@ -38,3 +39,17 @@ async def add_new_member(
 ) -> None:
     ds = RequestMemberDS(session)
     await ds.add_new_member(request_member_id=request_member_id, current_user=current_user)
+
+
+@router.get(
+    '/my_list',
+    status_code=200,
+    response_model=List[MyMemberRequest]
+)
+async def my_list(
+    session: AsyncSession = Depends(get_async_session),
+    current_user: User = Depends(auth_service.get_current_user),
+) -> List[MyMemberRequest]:
+    ds = RequestMemberDS(session)
+
+    return await ds.my_list(current_user.id)

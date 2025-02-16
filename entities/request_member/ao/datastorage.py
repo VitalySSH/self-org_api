@@ -1,9 +1,9 @@
 import logging
 from datetime import datetime
-from typing import Optional, List, cast, Sequence
+from typing import Optional, List, cast, Sequence, Dict
 
 from sqlalchemy import select, insert, func, Insert, Row
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import selectinload, joinedload, aliased
 
 from auth.models.user import User
 from core.dataclasses import BaseVotingParams, PercentByName
@@ -17,13 +17,13 @@ from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 from entities.community.model import Community
+from entities.request_member.ao.dataclasses import MyMemberRequest
 from entities.status.model import Status
 
 logger = logging.getLogger(__name__)
 
 
 class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
-
     _model = RequestMember
 
     async def get_request_member_in_percent(self, request_member_id: str) -> List[PercentByName]:
@@ -113,6 +113,53 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         await self._create_child_request_members(
             parent_request_member=request_member, user_settings_id=user_settings.id)
         await self._session.commit()
+
+    async def my_list(self, member_id: str) -> List[MyMemberRequest]:
+        """Вернёт список заявок на добавление в сообщества для текущего пользователя."""
+        result = await self._session.execute(
+            select(RequestMember)
+            .options(
+                joinedload(self._model.status),
+                joinedload(self._model.community)
+                .joinedload(Community.parent),
+                joinedload(self._model.community)
+                .joinedload(Community.main_settings)
+                .joinedload(CommunitySettings.name),
+                joinedload(self._model.community)
+                .joinedload(Community.main_settings)
+                .joinedload(CommunitySettings.description),
+            )
+            .where(
+                RequestMember.member_id == member_id,
+                RequestMember.parent_id.is_(None),
+            )
+        )
+        request_members = result.scalars().all()
+
+        request_map = {}
+        root_requests: List[MyMemberRequest] = []
+
+        for req in request_members:
+            req_data = MyMemberRequest(
+                key=req.id,
+                communityId=req.community.id,
+                communityName=req.community.main_settings.name.name,
+                communityDescription=req.community.main_settings.description.value,
+                status=req.status.name,
+                statusCode=req.status.code,
+                reason=req.reason,
+                created=req.created.strftime('%Y.%m.%d %H-%M'),
+                solution='Да' if req.vote else 'Нет',
+                children=[],
+            )
+            request_map[req.community.id] = req_data
+
+            if req.community.parent_id and req.community.parent_id in request_map:
+                request_map[req.community.parent_id]['children'].append(req_data)
+            else:
+                root_requests.append(req_data)
+
+        return root_requests
 
     async def _delete_child_request_members(self, request_member_id: str) -> bool:
         is_deleted = False
