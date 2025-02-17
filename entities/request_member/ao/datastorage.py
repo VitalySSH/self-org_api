@@ -125,9 +125,9 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
                 joinedload(self._model.community)
                 .joinedload(Community.main_settings)
                 .joinedload(CommunitySettings.name),
-                joinedload(self._model.community)
-                .joinedload(Community.main_settings)
-                .joinedload(CommunitySettings.description),
+                # joinedload(self._model.community)
+                # .joinedload(Community.main_settings)
+                # .joinedload(CommunitySettings.description),
             )
             .where(
                 RequestMember.member_id == member_id,
@@ -144,12 +144,12 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
                 key=req.id,
                 communityId=req.community.id,
                 communityName=req.community.main_settings.name.name,
-                communityDescription=req.community.main_settings.description.value,
+                # communityDescription=req.community.main_settings.description.value,
                 status=req.status.name,
                 statusCode=req.status.code,
                 reason=req.reason,
-                created=req.created.strftime('%Y.%m.%d %H-%M'),
-                solution='Да' if req.vote else 'Нет',
+                created=req.created.strftime('%d.%m.%Y %H:%M'),
+                # solution='Да' if req.vote else 'Нет',
                 children=[],
             )
             request_map[req.community.id] = req_data
