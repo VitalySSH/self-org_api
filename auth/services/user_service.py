@@ -41,6 +41,7 @@ class UserService:
         user = User()
         user.firstname = user_data.firstname
         user.surname = user_data.surname
+        user.fullname = f'{user.firstname} {user.surname}'
         user.email = user_data.email
         user.about_me = user_data.about_me
         try:
@@ -81,6 +82,8 @@ class UserService:
 
         for key, value in user_data.items():
             setattr(user, key, value)
+
+        user.fullname = f'{user.firstname} {user.surname}'
 
         try:
             await self._session.commit()

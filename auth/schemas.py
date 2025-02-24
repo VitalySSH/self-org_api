@@ -12,6 +12,7 @@ class BaseUser(BaseModel):
 
 class CurrentUser(BaseUser):
     id: str
+    fullname: str
     foto_id: Optional[str]
 
 

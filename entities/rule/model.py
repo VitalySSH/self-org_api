@@ -46,6 +46,7 @@ class Rule(Base):
         index=True,
     )
     voting_result: Mapped['VotingResult'] = relationship(uselist=False, lazy='noload')
+    extra_question: Mapped[str] = mapped_column(nullable=True)
     extra_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_RULE_OPTIONS, lazy='noload')
     user_results: Mapped[List['UserVotingResult']] = relationship(

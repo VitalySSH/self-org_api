@@ -1,4 +1,4 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 
 
 class CreatingNewRule(TypedDict):
@@ -9,5 +9,6 @@ class CreatingNewRule(TypedDict):
     is_multi_select: bool
     community_id: str
     category_id: str
+    extra_question: Optional[str]
     extra_options: List[str]
 

@@ -11,6 +11,7 @@ class User(Base):
 
     firstname: Mapped[str] = mapped_column(nullable=False)
     surname: Mapped[str] = mapped_column(nullable=False)
+    fullname: Mapped[str] = mapped_column(nullable=True)
     about_me: Mapped[str] = mapped_column(nullable=True)
     foto_id: Mapped[str] = mapped_column(nullable=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True)

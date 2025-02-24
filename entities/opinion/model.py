@@ -9,3 +9,5 @@ class Opinion(Base):
 
     text: Mapped[str] = mapped_column(nullable=False)
     creator_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    initiative_id: Mapped[str] = mapped_column(nullable=True, index=True)
+    rule_id: Mapped[str] = mapped_column(nullable=True, index=True)

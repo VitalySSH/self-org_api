@@ -58,6 +58,7 @@ async def get_current_user(
         id=current_user.id,
         firstname=current_user.firstname,
         surname=current_user.surname,
+        fullname=current_user.fullname,
         about_me=current_user.about_me,
         foto_id=current_user.foto_id,
         email=current_user.email,

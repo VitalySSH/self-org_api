@@ -27,6 +27,7 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
         rule.is_extra_options = data.get('is_extra_options') or False
         rule.is_multi_select = data.get('is_multi_select') or False
         rule.community_id = data.get('community_id')
+        rule.extra_question = data.get('extra_question')
         rule.creator = creator
         rule.voting_result = await self._create_voting_result()
         rule.status = await self._get_status_by_code(Code.ON_CONSIDERATION)
