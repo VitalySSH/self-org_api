@@ -9,7 +9,7 @@ from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Status, Category, User, UserVotingResult, Opinion, VotingOption, VotingResult
+        Status, Category, User, VotingOption, VotingResult
     )
 
 

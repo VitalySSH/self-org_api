@@ -1,7 +1,7 @@
 from typing import List, TypedDict, Optional
 
 
-class CreatingNewRule(TypedDict):
+class CreatingNewRule(TypedDict, total=False):
     title: str
     question: str
     content: str

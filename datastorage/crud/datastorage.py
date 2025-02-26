@@ -58,8 +58,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             options = self._build_options(include)
             query = query.options(*options)
         try:
-            rows = await self._session.scalars(query)
-            return rows.first()
+            return await self._session.scalar(query)
         except Exception as e:
             raise CRUDException(f'Не удалось получить объект с id {instance_id} '
                                 f'модели {model.__name__}: {e}')

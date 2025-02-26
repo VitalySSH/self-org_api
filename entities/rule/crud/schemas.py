@@ -1,4 +1,4 @@
-from typing import TypedDict, List
+from typing import TypedDict, List, Optional
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
@@ -6,6 +6,7 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 class RuleAttributes(TypedDict):
     title: str
     question: str
+    extra_question: Optional[str]
     content: str
     is_extra_options: bool
     is_multi_select: bool
@@ -18,7 +19,6 @@ class RuleRelations(TypedDict, total=False):
     category: SchemaInstance
     voting_result: SchemaInstance
     extra_options: List[SchemaInstance]
-    user_results: List[SchemaInstance]
 
 
 class RuleRead(TypedDict):
