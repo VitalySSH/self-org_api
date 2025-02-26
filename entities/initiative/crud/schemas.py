@@ -21,7 +21,6 @@ class InitiativeRelations(TypedDict, total=False):
     voting_result: SchemaInstance
     extra_options: List[SchemaInstance]
     user_results: List[SchemaInstance]
-    opinions: List[SchemaInstance]
 
 
 class InitiativeRead(TypedDict):

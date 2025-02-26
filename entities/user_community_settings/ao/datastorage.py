@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, List, cast
+from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
@@ -33,7 +33,7 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         data_to_create.community_id = build_uuid()
         await self._create_community_name(data_to_create)
         await self._create_community_description(data_to_create)
-        await self._create_categories(data_to_create)
+        await self._create_categories(data_to_create=data_to_create, is_selected=True)
         user_settings = await self._create_user_settings(data_to_create)
         main_settings = await self._create_main_settings(data_to_create)
 
@@ -61,7 +61,7 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         data_to_create.community_id = build_uuid()
         await self._create_community_name(data_to_create)
         await self._create_community_description(data_to_create)
-        await self._create_categories(data_to_create)
+        await self._create_categories(data_to_create=data_to_create)
         settings: UserCommunitySettings = await self._create_user_settings(data_to_create)
         await self._session.commit()
 
@@ -119,30 +119,39 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         await self._session.flush([description])
         data_to_create.description_obj = description
 
-    async def _create_categories(self, data_to_create: CreatingCommunity) -> None:
+    async def _create_categories(
+            self, data_to_create: CreatingCommunity,
+            is_selected: bool = False,
+    ) -> None:
         categories: List[Category] = []
         category_names = data_to_create.category_names
-        category_names.insert(0, 'Общие вопросы')
-        category_status: Optional[Status] = None
-        for idx, category_name in enumerate(category_names):
-            if idx == 0:
-                status = await self._get_status_by_code(Code.SYSTEM_CATEGORY)
-            else:
-                status = category_status
-            if not status:
-                status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
-                category_status = status
+        status_code = Code.CATEGORY_SELECTED if is_selected else Code.ON_CONSIDERATION
+        category_status: Status = await self._get_status_by_code(status_code)
+        for category_name in category_names:
             category = Category()
             category.name = category_name
             category.community_id = data_to_create.community_id
             category.creator_id = data_to_create.user.id
-            category.status = status
+            category.status = category_status
             self._session.add(category)
             await self._session.flush([category])
             await self._session.refresh(category)
             categories.append(category)
 
         data_to_create.categories_objs = categories
+
+    async def _create_system_category(self, community_id: str, creator_id: str) -> Category:
+        category_status: Status = await self._get_status_by_code(Code.SYSTEM_CATEGORY)
+        category = Category()
+        category.name = 'Общие вопросы'
+        category.community_id = community_id
+        category.creator_id = creator_id
+        category.status = category_status
+        self._session.add(category)
+        await self._session.flush([category])
+        await self._session.refresh(category)
+
+        return category
 
     async def _create_main_settings(self, data_to_create: CreatingCommunity) -> CommunitySettings:
         settings = CommunitySettings()
@@ -155,7 +164,11 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         settings.is_can_offer = data_to_create.settings.get('is_can_offer')
         settings.is_minority_not_participate = data_to_create.settings.get(
             'is_minority_not_participate')
-        settings.categories = data_to_create.categories_objs
+        system_category = await self._create_system_category(
+            community_id=data_to_create.community_id, creator_id=data_to_create.user.id)
+        categories = [system_category]
+        categories += data_to_create.categories_objs
+        settings.categories = categories
         self._session.add(settings)
         await self._session.flush([settings])
         await self._session.refresh(settings)
@@ -181,7 +194,7 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         return settings
 
     async def _create_user_settings(
-            self, data_to_create: CreatingCommunity
+            self, data_to_create: CreatingCommunity,
     ) -> UserCommunitySettings:
         """Создание пользовательских настроек."""
         settings = UserCommunitySettings()
@@ -262,6 +275,8 @@ class UserCommunitySettingsDS(AODataStorage[UserCommunitySettings], CRUDDataStor
         new_request_member.id = build_uuid()
         for key, value in request_member.__dict__.items():
             if RequestMember.__annotations__.get(key):
+                if key == 'id':
+                    continue
                 setattr(new_request_member, key, value)
 
         return new_request_member

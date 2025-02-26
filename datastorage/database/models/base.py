@@ -1,17 +1,14 @@
 from typing import Optional, TypeVar
 
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase
 
 from datastorage.crud.interfaces.schema import SchemaInstance
-from datastorage.utils import build_uuid
 
 S = TypeVar('S')
 
 
 class Base(DeclarativeBase):
     __abstract__ = True
-
-    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
 
     def to_read_schema(self) -> S:
         """Вернёт сериализованный объект модели."""

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
-
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 class Initiative(Base):
     __tablename__ = TableName.INITIATIVE
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     title: Mapped[str] = mapped_column(nullable=False)
     question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
@@ -55,8 +56,6 @@ class Initiative(Base):
         secondary=TableName.RELATION_INITIATIVE_OPTIONS, lazy='noload')
     user_results: Mapped[List['UserVotingResult']] = relationship(
         secondary=TableName.RELATION_INITIATIVE_USER_VR, lazy='noload')
-    opinions: Mapped[List['Opinion']] = relationship(
-        secondary=TableName.RELATION_INITIATIVE_OPINION, lazy='noload')
     responsible_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=True,

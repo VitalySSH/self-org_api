@@ -4,11 +4,13 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 
 class User(Base):
     __tablename__ = TableName.USER
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     firstname: Mapped[str] = mapped_column(nullable=False)
     surname: Mapped[str] = mapped_column(nullable=False)
     fullname: Mapped[str] = mapped_column(nullable=True)

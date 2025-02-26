@@ -5,6 +5,7 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -16,6 +17,7 @@ if TYPE_CHECKING:
 class CommunitySettings(Base):
     __tablename__ = TableName.COMMUNITY_SETTINGS
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     name_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_NAME}.id'),
         nullable=True,

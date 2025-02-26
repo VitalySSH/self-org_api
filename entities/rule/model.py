@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
-
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 class Rule(Base):
     __tablename__ = TableName.RULE
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     title: Mapped[str] = mapped_column(nullable=False)
     question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
@@ -49,7 +50,3 @@ class Rule(Base):
     extra_question: Mapped[str] = mapped_column(nullable=True)
     extra_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_RULE_OPTIONS, lazy='noload')
-    user_results: Mapped[List['UserVotingResult']] = relationship(
-        secondary=TableName.RELATION_RULE_USER_VR, lazy='noload')
-    opinions: Mapped[List['Opinion']] = relationship(
-        secondary=TableName.RELATION_RULE_OPINION, lazy='noload')

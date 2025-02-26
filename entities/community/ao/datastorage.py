@@ -35,8 +35,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
                                     percent=int(
                                         category_data.get(category.id) /
                                         modified_data.user_count * 100))
-                      for category in categories_list
-                      if category.status.code != Code.SYSTEM_CATEGORY]
+                      for category in categories_list]
 
         child_settings_data = {
             category_id: count for category_id, count in modified_data.child_settings_data
@@ -152,6 +151,9 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         other_settings: OtherCommunitySettings = await self._get_other_community_settings(
             community_id=community_id, vote=voting_params.vote)
         community_settings: CommunitySettings = community.main_settings
+        system_categories = list(filter(lambda it: it.status.code == Code.SYSTEM_CATEGORY,
+                                        community_settings.categories or []))
+        system_category: Optional[Category] = system_categories[0] if system_categories else None
         community_settings.vote = voting_params.vote
         community_settings.quorum = voting_params.quorum
         community_settings.significant_minority = voting_params.significant_minority
@@ -163,6 +165,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
         if description:
             community_settings.description = description
         if other_settings.categories:
+            if system_category:
+                other_settings.categories.insert(0, system_category)
             community_settings.categories = other_settings.categories
         if other_settings.sub_communities_settings:
             community_settings.sub_communities_settings = other_settings.sub_communities_settings
@@ -427,9 +431,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
             selected_status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
             on_cons_status = await self._get_status_by_code(Code.ON_CONSIDERATION)
             for category in all_categories:
-                if category.status.code == Code.SYSTEM_CATEGORY:
-                    categories.append(category)
-                elif selected_ids.get(category.id):
+                if selected_ids.get(category.id):
                     if category.status.code != Code.CATEGORY_SELECTED:
                         category.status = selected_status
                     categories.append(category)

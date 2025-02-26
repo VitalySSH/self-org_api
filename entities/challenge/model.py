@@ -5,7 +5,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
-
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 class Challenge(Base):
     __tablename__ = TableName.CHALLENGE
 
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)

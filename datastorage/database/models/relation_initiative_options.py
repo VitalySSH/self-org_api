@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 
 class RelationInitiativeOptions(Base):
@@ -11,7 +12,7 @@ class RelationInitiativeOptions(Base):
         UniqueConstraint(
             'from_id', 'to_id', name='idx_unique_initiative_voting_options'),
     )
-
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.INITIATIVE}.id', ondelete="CASCADE"),
         nullable=False, index=True)

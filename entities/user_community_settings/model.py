@@ -5,6 +5,7 @@ from sqlalchemy.orm import mapped_column, Mapped, relationship
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
@@ -19,7 +20,7 @@ class UserCommunitySettings(Base):
         UniqueConstraint(
             'user_id', 'community_id', name='idx_unique_user_cs_community_user'),
     )
-
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     user_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=True,

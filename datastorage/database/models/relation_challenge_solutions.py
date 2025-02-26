@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 
 class RelationChallengeSolutions(Base):
@@ -11,7 +12,7 @@ class RelationChallengeSolutions(Base):
         UniqueConstraint(
             'from_id', 'to_id', name='idx_unique_challenge_solutions'),
     )
-
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.CHALLENGE}.id', ondelete="CASCADE"),
         nullable=False, index=True)

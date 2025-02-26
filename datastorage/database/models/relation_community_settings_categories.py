@@ -3,6 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
+from datastorage.utils import build_uuid
 
 
 class RelationCsCategories(Base):
@@ -10,7 +11,7 @@ class RelationCsCategories(Base):
     __table_args__ = (
         UniqueConstraint('from_id', 'to_id', name='idx_unique_cs_category'),
     )
-
+    id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_SETTINGS}.id'),
         nullable=False, index=True)

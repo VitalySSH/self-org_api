@@ -18,7 +18,6 @@ class RuleRelations(TypedDict, total=False):
     category: SchemaInstance
     extra_options: List[SchemaInstance]
     user_results: List[SchemaInstance]
-    opinions: List[SchemaInstance]
 
 
 class RuleRead(TypedDict):

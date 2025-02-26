@@ -1,7 +1,7 @@
 from typing import TypedDict, Optional
 
 
-class VotingOptionAttributes(TypedDict):
+class VotingOptionAttributes(TypedDict, total=False):
     content: str
     is_multi_select: bool
     creator_id: str
