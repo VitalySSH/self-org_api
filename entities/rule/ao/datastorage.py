@@ -24,7 +24,7 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
     async def create_rule(self, data: CreatingNewRule, creator: User) -> None:
         """Создаст новое правило."""
         rule_id = build_uuid()
-        is_multi_select = data.get('is_extra_options') or False
+        is_multi_select = data.get('is_multi_select') or False
         rule = self.__class__._model()
         rule.id = rule_id
         rule.title = data.get('title')
