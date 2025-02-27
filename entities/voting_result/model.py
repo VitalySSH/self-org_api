@@ -15,6 +15,7 @@ class VotingResult(Base):
 
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     vote: Mapped[bool] = mapped_column(nullable=True)
-    is_significant_minority: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_significant_minority: Mapped[bool] = mapped_column(
+        nullable=False, default=False)
     selected_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_VR_VO, lazy='noload')

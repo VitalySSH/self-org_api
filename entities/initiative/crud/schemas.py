@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TypedDict, List
+from typing import TypedDict
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
@@ -19,8 +19,6 @@ class InitiativeRelations(TypedDict, total=False):
     status: SchemaInstance
     category: SchemaInstance
     voting_result: SchemaInstance
-    extra_options: List[SchemaInstance]
-    user_results: List[SchemaInstance]
 
 
 class InitiativeRead(TypedDict):

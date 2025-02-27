@@ -1,7 +1,8 @@
 from typing import TypedDict
 
 
-class SimpleVoteResult(TypedDict):
+class SimpleVoteInPercent(TypedDict):
     yes: int
     no: int
     abstain: int
+

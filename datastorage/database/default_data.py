@@ -37,4 +37,24 @@ STATUSES = [
         'name': 'Участник исключён',
         'code': Code.MEMBER_EXCLUDED,
     },
+    {
+        'name': 'Получено принципиальное согласие',
+        'code': Code.PRINCIPAL_AGREEMENT,
+    },
+    {
+        'name': 'Правило вступило в силу',
+        'code': Code.RULE_APPROVED,
+    },
+    {
+        'name': 'Правило отменено',
+        'code': Code.RULE_REVOKED,
+    },
+    {
+        'name': 'Инициатива одобрена',
+        'code': Code.INITIATIVE_APPROVED,
+    },
+    {
+        'name': 'Инициатива отменена',
+        'code': Code.INITIATIVE_REVOKED,
+    },
 ]

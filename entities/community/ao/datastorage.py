@@ -428,8 +428,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
                 .filter(Category.id.in_(ids)))
             categories_data = await self._session.scalars(query)
             all_categories = list(categories_data)
-            selected_status = await self._get_status_by_code(Code.CATEGORY_SELECTED)
-            on_cons_status = await self._get_status_by_code(Code.ON_CONSIDERATION)
+            selected_status = await self.get_status_by_code(Code.CATEGORY_SELECTED)
+            on_cons_status = await self.get_status_by_code(Code.ON_CONSIDERATION)
             for category in all_categories:
                 if selected_ids.get(category.id):
                     if category.status.code != Code.CATEGORY_SELECTED:
@@ -470,7 +470,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage):
 
         return sub_user_settings
 
-    async def _get_status_by_code(self, code: str) -> Optional[Status]:
+    async def get_status_by_code(self, code: str) -> Optional[Status]:
         status_query = select(Status).where(Status.code == code)
 
         return await self._session.scalar(status_query)

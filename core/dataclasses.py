@@ -9,6 +9,13 @@ class BaseVotingParams:
     significant_minority: int
 
 
+@dataclass
+class SimpleVoteResult:
+    yes: int
+    no: int
+    abstain: int
+
+
 class PercentByName(TypedDict):
     percent: int
     name: str

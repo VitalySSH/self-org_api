@@ -16,7 +16,6 @@ from datastorage.crud.interfaces.schema import ListResponseSchema
 from datastorage.database.base import get_async_session
 from datastorage.interfaces import T
 
-
 RS = TypeVar('RS')
 CS = TypeVar('CS')
 US = TypeVar('US')
@@ -65,12 +64,15 @@ def get_crud_router(
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
             ds = CRUDDataStorage[model](
-                model=model, session=session, background_tasks=background_tasks)
-            instance: model = await ds.get(instance_id=instance_id, include=include)
+                model=model, session=session,
+                background_tasks=background_tasks)
+            instance: model = await ds.get(instance_id=instance_id,
+                                           include=include)
             if instance:
                 if post_processing_data:
                     pp_data, include = build_post_processing_data(
-                        current_method=Method.GET, post_processing_data=post_processing_data)
+                        current_method=Method.GET,
+                        post_processing_data=post_processing_data)
                     if pp_data:
                         if include:
                             post_instance: model = await ds.get(
@@ -80,13 +82,15 @@ def get_crud_router(
                             post_instance = deepcopy(instance)
 
                         ds.execute_post_processing(
-                            instance=post_instance, post_processing_data=pp_data)
+                            instance=post_instance,
+                            post_processing_data=pp_data)
 
                 return instance.to_read_schema()
 
             raise HTTPException(
                 status_code=HTTP_404_NOT_FOUND,
-                detail=f'Объект модели {model.__name__} с id: {instance_id} не найден',
+                detail=(f'Объект модели {model.__name__} '
+                        f'с id: {instance_id} не найден'),
             )
 
     if Method.LIST in methods or is_all_methods:
@@ -105,9 +109,13 @@ def get_crud_router(
                 session: AsyncSession = Depends(get_async_session),
         ) -> ListResponseSchema[read_schema]:  # type: ignore
             ds = CRUDDataStorage[model](
-                model=model, session=session, background_tasks=background_tasks)
+                model=model, session=session,
+                background_tasks=background_tasks
+            )
             resp: ListResponse[model] = await ds.list(
-                filters=filters, orders=orders, pagination=pagination, include=include)
+                filters=filters, orders=orders,
+                pagination=pagination, include=include
+            )
 
             return ListResponseSchema[read_schema](  # type: ignore
                 items=[instance.to_read_schema() for instance in resp.data],
@@ -127,7 +135,10 @@ def get_crud_router(
                 session: AsyncSession = Depends(get_async_session),
         ) -> read_schema:
             ds = CRUDDataStorage[model](
-                model=model, session=session, background_tasks=background_tasks)
+                model=model,
+                session=session,
+                background_tasks=background_tasks
+            )
             instance_to_add: model = await ds.schema_to_model(schema=body)
             relation_fields: List[str] = ds.get_relation_fields(body)
             try:
@@ -136,7 +147,9 @@ def get_crud_router(
 
                 if post_processing_data:
                     pp_data, include = build_post_processing_data(
-                        current_method=Method.CREATE, post_processing_data=post_processing_data)
+                        current_method=Method.CREATE,
+                        post_processing_data=post_processing_data
+                    )
                     if pp_data:
                         if include:
                             post_instance: model = await ds.get(
@@ -146,7 +159,9 @@ def get_crud_router(
                             post_instance = deepcopy(new_instance)
 
                         ds.execute_post_processing(
-                            instance=post_instance, post_processing_data=pp_data)
+                            instance=post_instance,
+                            post_processing_data=pp_data
+                        )
 
                 return new_instance.to_read_schema()
 
@@ -169,7 +184,10 @@ def get_crud_router(
                 session: AsyncSession = Depends(get_async_session),
         ) -> None:
             ds = CRUDDataStorage[model](
-                model=model, session=session, background_tasks=background_tasks)
+                model=model,
+                session=session,
+                background_tasks=background_tasks
+            )
             try:
                 await ds.update(instance_id=instance_id, schema=body)
             except CRUDNotFound as e:
@@ -184,7 +202,8 @@ def get_crud_router(
                 )
             if post_processing_data:
                 pp_data, include = build_post_processing_data(
-                    current_method=Method.UPDATE, post_processing_data=post_processing_data)
+                    current_method=Method.UPDATE,
+                    post_processing_data=post_processing_data)
                 if pp_data:
                     post_instance: model = await ds.get(
                         instance_id=instance_id, include=include)
@@ -204,7 +223,8 @@ def get_crud_router(
                 session: AsyncSession = Depends(get_async_session),
         ) -> None:
             ds = CRUDDataStorage[model](
-                model=model, session=session, background_tasks=background_tasks)
+                model=model, session=session,
+                background_tasks=background_tasks)
             try:
                 await ds.delete(instance_id)
             except CRUDConflict as e:
@@ -214,10 +234,12 @@ def get_crud_router(
                 )
             if post_processing_data:
                 pp_data, include = build_post_processing_data(
-                    current_method=Method.DELETE, post_processing_data=post_processing_data)
+                    current_method=Method.DELETE,
+                    post_processing_data=post_processing_data)
                 if pp_data:
                     await ds.invalidate_session()
                     ds.execute_post_processing(
-                        instance=None, post_processing_data=pp_data, instance_id=instance_id)
+                        instance=None, post_processing_data=pp_data,
+                        instance_id=instance_id)
 
     return router

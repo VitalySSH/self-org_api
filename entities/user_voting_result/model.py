@@ -17,7 +17,8 @@ class UserVotingResult(Base):
     vote: Mapped[bool] = mapped_column(nullable=True)
     extra_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_USER_VR_VO, lazy='noload')
-    is_voted_myself: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_voted_myself: Mapped[bool] = mapped_column(
+        nullable=False, default=False)
     member_id: Mapped[str] = mapped_column(nullable=True, index=True)
     community_id: Mapped[str] = mapped_column(nullable=False)
     voting_result_id: Mapped[str] = mapped_column(nullable=False)

@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -9,7 +9,7 @@ from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Status, Category, User, VotingOption, VotingResult
+        Status, Category, User, VotingResult
     )
 
 
@@ -20,8 +20,10 @@ class Rule(Base):
     title: Mapped[str] = mapped_column(nullable=False)
     question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
-    is_extra_options: Mapped[bool] = mapped_column(nullable=False, default=False)
-    is_multi_select: Mapped[bool] = mapped_column(nullable=False, default=False)
+    is_extra_options: Mapped[bool] = mapped_column(
+        nullable=False, default=False)
+    is_multi_select: Mapped[bool] = mapped_column(
+        nullable=False, default=False)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
@@ -46,7 +48,6 @@ class Rule(Base):
         nullable=False,
         index=True,
     )
-    voting_result: Mapped['VotingResult'] = relationship(uselist=False, lazy='noload')
+    voting_result: Mapped['VotingResult'] = relationship(
+        uselist=False, lazy='noload')
     extra_question: Mapped[str] = mapped_column(nullable=True)
-    extra_options: Mapped[List['VotingOption']] = relationship(
-        secondary=TableName.RELATION_RULE_OPTIONS, lazy='noload')

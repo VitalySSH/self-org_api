@@ -8,3 +8,8 @@ class Code:
     MEMBER_EXCLUDED = 'member_excluded'
     COMMUNITY_MEMBER = 'community_member'
     VOTED_BY_DEFAULT = 'voted_by_default'
+    PRINCIPAL_AGREEMENT = 'principal_agreement'
+    RULE_APPROVED = 'rule_approved'
+    RULE_REVOKED = 'rule_revoked'
+    INITIATIVE_APPROVED = 'initiative_approved'
+    INITIATIVE_REVOKED = 'initiative_revoked'

@@ -55,7 +55,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             model = self._model
         query = select(model).where(model.id == instance_id)
         if include:
-            options = self._build_options(include)
+            options = self._build_options(include=include, model=model)
             query = query.options(*options)
         try:
             return await self._session.scalar(query)
@@ -123,7 +123,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         skip = (skip - 1) * limit
 
         if include:
-            options = self._build_options(include)
+            options = self._build_options(include=include, model=self._model)
             base_query = base_query.options(*options)
 
         base_query = base_query.order_by(*orders).offset(skip).limit(limit)
@@ -199,18 +199,20 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise Exception(f'Аттрибут {field_name} модели '
                             f'{model.__name__} не является типом Relationship: {e}')
 
-    def _build_options(self, include: List[str]) -> List[Load]:
+    def _build_options(self, include: List[str], model: Type[T]) -> List[Load]:
         """Создаёт опции для загрузки связанных сущностей."""
         options = []
         for incl in include:
             option: Optional[Load] = None
-            field_model: Type[T] = self._model
+            field_model: Type[T] = model
             current_field_name: Optional[str] = None
             fields: List[str] = incl.split('.')
 
             if len(fields) > self.__class__.MAX_INCLUDE_DEPTH:
-                raise CRUDException(f'Глубина вложенности для include "{incl}" '
-                                    f'превышает {self.__class__.MAX_INCLUDE_DEPTH}')
+                raise CRUDException(
+                    f'Глубина вложенности для include "{incl}" '
+                    f'превышает {self.__class__.MAX_INCLUDE_DEPTH}'
+                )
 
             for idx, field_name in enumerate(fields, 1):
                 if idx == 1:
@@ -221,8 +223,10 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                         field_model = field_.comparator.entity.class_
                         current_field_name = field_name
                     else:
-                        raise CRUDException(f'Модель {field_model.__name__} не имеет атрибута'
-                                            f' {field_name} указанный в include {incl}')
+                        raise CRUDException(
+                            f'Модель {field_model.__name__} не имеет атрибута '
+                            f'{field_name} указанный в include {incl}'
+                        )
 
                 field = getattr(field_model, field_name, None)
                 if field:

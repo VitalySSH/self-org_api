@@ -36,9 +36,10 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
         rule.extra_question = data.get('extra_question')
         rule.creator = creator
         rule.voting_result = await self._create_voting_result()
-        rule.status = await self._get_status_by_code(Code.ON_CONSIDERATION)
-        rule.category = await self.get(instance_id=data.get('category_id'), model=Category)
-        rule.extra_options = await self._create_options(
+        rule.status = await self.get_status_by_code(Code.ON_CONSIDERATION)
+        rule.category = await self.get(
+            instance_id=data.get('category_id'), model=Category)
+        extra_options = await self._create_options(
             option_values=data.get('extra_options') or [],
             is_multi_select=is_multi_select,
             creator_id=creator.id,
@@ -49,12 +50,16 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
             self._session.add(rule)
             await self._session.flush([rule])
             await self._session.refresh(rule)
-            await self._create_user_results(rule)
+            await self._create_user_results(
+                rule=rule,
+                extra_options=extra_options,
+                creator_id=creator.id,
+            )
             await self._session.commit()
         except Exception as e:
             raise Exception(f'Не удалось создать правило: {e}')
 
-    async def _get_status_by_code(self, code: str) -> Optional[Status]:
+    async def get_status_by_code(self, code: str) -> Optional[Status]:
         status_query = select(Status).where(Status.code == code)
 
         return await self._session.scalar(status_query)
@@ -89,11 +94,16 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
             await self._session.flush([voting_result])
             await self._session.refresh(voting_result)
         except Exception as e:
-            raise Exception(f'Не удалось создать результат голосования для правила: {e}')
+            raise Exception(
+                f'Не удалось создать результат голосования для правила: {e}')
 
         return voting_result
 
-    async def _create_user_results(self, rule: Rule) -> None:
+    async def _create_user_results(
+            self, rule: Rule,
+            extra_options: List[VotingOption],
+            creator_id: str,
+    ) -> None:
         user_cs_query = (
             select(
                 UserCommunitySettings.user_id,
@@ -110,4 +120,6 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
             voting_result.community_id = rule.community_id
             voting_result.rule_id = rule.id
             voting_result.is_blocked = is_blocked
+            if user_id == creator_id:
+                voting_result.extra_options = extra_options
             self._session.add(voting_result)
