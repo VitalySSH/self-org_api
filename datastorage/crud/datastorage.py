@@ -3,7 +3,7 @@ from typing import Optional, Type, List, Any, cast, Dict
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, func
-from sqlalchemy.orm import selectinload, Load
+from sqlalchemy.orm import selectinload, Load, RelationshipProperty
 
 from datastorage.base import DataStorage
 from datastorage.crud.dataclasses import PostProcessingData, ListResponse
@@ -240,43 +240,91 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return options
 
     def _get_filter_params(self, filters: Filters) -> List:
+        """Формирует список параметров для фильтрации."""
         params = []
         for _filter in filters or []:
-            field = getattr(self._model, _filter.field)
-            operation = _filter.op
-            value = _filter.val
-            if operation == Operation.EQ:
-                params.append(field == value)
-            elif operation == Operation.NOT_EQ:
-                params.append(field != value)
-            elif operation == Operation.IN:
-                if isinstance(value, str):
-                    value = json.loads(value)
-                params.append(field.in_(value))
-            elif operation == Operation.NOT_IN:
-                if isinstance(value, str):
-                    value = json.loads(value)
-                params.append(field.notin_(value))
-            elif operation == Operation.LIKE:
-                params.append(field.like(f'%{value}%'))
-            elif operation == Operation.ILIKE:
-                params.append(field.ilike(f'%{value}%'))
-            elif operation == Operation.GT:
-                params.append(field > value)
-            elif operation == Operation.GTE:
-                params.append(field >= value)
-            elif operation == Operation.LT:
-                params.append(field < value)
-            elif operation == Operation.LTE:
-                params.append(field <= value)
-            elif operation == Operation.IEQ:
-                params.append(func.lower(field) == func.lower(value))
-            elif operation == Operation.NULL:
-                params.append(field.is_(None) if value else field.isnot(None))
-            elif operation == Operation.BETWEEN:
-                params.append(field.between(*json.loads(value)))
+
+            try:
+                parts = _filter.field.split('.')
+                condition = self._build_condition(
+                    model=self._model,
+                    parts=parts,
+                    operation=_filter.op,
+                    value=_filter.val,
+                )
+                params.append(condition)
+            except AttributeError as e:
+                raise CRUDException(f'Неверное поле фильтра {_filter.field}: {e}')
 
         return params
+
+    def _build_condition(
+            self, model: Type[T],
+            parts: List[str],
+            operation: Operation,
+            value: Any,
+    ) -> Any:
+        if len(parts) == 1:
+            field_name = parts[0]
+            field = getattr(model, field_name)
+
+            return self._apply_operation(field, operation, value)
+        else:
+
+            current_part = parts[0]
+            remaining_parts = parts[1:]
+            rel = getattr(model, current_part)
+            rel_prop = rel.property
+            if not isinstance(rel_prop, RelationshipProperty):
+                raise AttributeError(f'Поле {current_part} не является relation')
+            rel_model = rel_prop.entity.class_
+            sub_condition = self._build_condition(
+                model=rel_model,
+                parts=remaining_parts,
+                operation=operation,
+                value=value
+            )
+            if rel_prop.uselist:
+
+                return rel.any(sub_condition)
+            else:
+
+                return rel.has(sub_condition)
+
+    @staticmethod
+    def _apply_operation(field: Any, operation: Operation, value: Any) -> Any:
+        if operation == Operation.EQ:
+            return field == value
+        elif operation == Operation.NOT_EQ:
+            return field != value
+        elif operation == Operation.IN:
+            if isinstance(value, str):
+                value = json.loads(value)
+            return field.in_(value)
+        elif operation == Operation.NOT_IN:
+            if isinstance(value, str):
+                value = json.loads(value)
+            return field.notin_(value)
+        elif operation == Operation.LIKE:
+            return field.like(f'%{value}%')
+        elif operation == Operation.ILIKE:
+            return field.ilike(f'%{value}%')
+        elif operation == Operation.GT:
+            return field > value
+        elif operation == Operation.GTE:
+            return field >= value
+        elif operation == Operation.LT:
+            return field < value
+        elif operation == Operation.LTE:
+            return field <= value
+        elif operation == Operation.IEQ:
+            return func.lower(field) == func.lower(value)
+        elif operation == Operation.NULL:
+            return field.is_(None) if value else field.isnot(None)
+        elif operation == Operation.BETWEEN:
+            return field.between(*json.loads(value))
+        else:
+            raise CRUDException(f'Неподдерживаемая операция {operation}')
 
     def _get_order_params(self, orders: Orders = None) -> List:
         params = []
