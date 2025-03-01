@@ -1,6 +1,5 @@
-from typing import Optional, Tuple, Dict
+from typing import Optional
 
-import jsonify as jsonify
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pydantic import EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,9 +7,16 @@ from starlette import status
 
 from auth.auth import auth_service
 from auth.dataclasses import CreateUserResult
-from auth.schemas import CurrentUser, UserCreate, UserUpdate, CreateUserResponse
+from auth.schemas import (
+    CurrentUser, UserCreate, UserUpdate, CreateUserResponse, ListUserSchema,
+    ReadUser
+)
 from auth.security import decrypt_password, verify_password
 from auth.services.user_service import UserService
+from datastorage.crud.dataclasses import ListResponse
+from datastorage.crud.datastorage import CRUDDataStorage
+from datastorage.crud.interfaces.base import Include
+from datastorage.crud.interfaces.list import Filters, Orders, Pagination
 from datastorage.database.base import get_async_session
 from datastorage.database.models import User, UserData
 
@@ -32,7 +38,10 @@ async def login_for_access_token(
 
     user_data: UserData = await user_service.get_user_data_by_user_id(user.id)
     password = decrypt_password(secret_password)
-    if not verify_password(password=password, hashed_password=user_data.hashed_password):
+    if not verify_password(
+            password=password, 
+            hashed_password=user_data.hashed_password
+    ):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail='Введён некорректный email или пароль',
@@ -62,6 +71,41 @@ async def get_current_user(
         about_me=current_user.about_me,
         foto_id=current_user.foto_id,
         email=current_user.email,
+    )
+
+
+@auth_router.post(
+    '/user/list',
+    dependencies=[Depends(auth_service.get_current_user)],
+    response_model=ListUserSchema,
+    status_code=200,
+)
+async def list_users(
+        filters: Filters = None,
+        orders: Orders = None,
+        pagination: Pagination = None,
+        include: Include = None,
+        session: AsyncSession = Depends(get_async_session),
+) -> ListUserSchema:
+    ds = CRUDDataStorage[User](model=User, session=session)
+    resp: ListResponse[User] = await ds.list(
+        filters=filters, orders=orders,
+        pagination=pagination, include=include
+    )
+
+    return ListUserSchema(
+        items=[
+            ReadUser(
+                id=user.id,
+                fullname=user.fullname,
+                firstname=user.firstname,
+                surname=user.surname,
+                about_me=user.about_me,
+                foto_id=user.foto_id,
+            )
+            for user in resp.data
+        ],
+        total=resp.total
     )
 
 

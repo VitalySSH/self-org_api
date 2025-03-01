@@ -10,6 +10,8 @@ S = TypeVar('S')
 class Base(DeclarativeBase):
     __abstract__ = True
 
+    id: str = ...
+
     def to_read_schema(self) -> S:
         """Вернёт сериализованный объект модели."""
         return self._to_read_schema()
@@ -22,7 +24,8 @@ class Base(DeclarativeBase):
         if recursion_level is None:
             recursion_level = 1
         if recursion_level > 10:
-            raise Exception(f'Рекурсивная ошибка сериализации модели {self.__class__.__name__}')
+            raise Exception(f'Рекурсивная ошибка сериализации '
+                            f'модели {self.__class__.__name__}')
         if instance is None:
             instance = self
 
@@ -40,11 +43,15 @@ class Base(DeclarativeBase):
                     m_2_m_result = []
                     for retrieved_instance in getattr(instance, field_name, []):
                         if self.id == retrieved_instance.id:
-                            raise Exception(f'Модель {self.__class__.__name__} '
-                                            f'в связанных моделях ссылается сама на себя')
+                            raise Exception(
+                                f'Модель {self.__class__.__name__} в связанных'
+                                f' моделях ссылается сама на себя'
+                            )
                         else:
                             instance_schema = self._to_read_schema(
-                                instance=retrieved_instance, recursion_level=recursion_level + 1)
+                                instance=retrieved_instance,
+                                recursion_level=recursion_level + 1
+                            )
                             m_2_m_result.append(instance_schema)
 
                     relations[field_name] = m_2_m_result
@@ -53,11 +60,15 @@ class Base(DeclarativeBase):
                     retrieved_instance = getattr(instance, field_name)
                     if retrieved_instance:
                         if str(self.id) == retrieved_instance.id:
-                            raise Exception(f'Модель {self.__class__.__name__} '
-                                            f'в связанных моделях ссылается сама на себя')
+                            raise Exception(
+                                f'Модель {self.__class__.__name__} в связанных'
+                                f' моделях ссылается сама на себя'
+                            )
                         else:
                             relations[field_name] = self._to_read_schema(
-                                instance=retrieved_instance, recursion_level=recursion_level + 1)
+                                instance=retrieved_instance,
+                                recursion_level=recursion_level + 1
+                            )
                     else:
                         relations[field_name] = {}
             else:
