@@ -16,7 +16,8 @@ from auth.services.user_service import UserService
 from datastorage.crud.dataclasses import ListResponse
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.interfaces.base import Include
-from datastorage.crud.interfaces.list import Filters, Orders, Pagination
+from datastorage.crud.interfaces.list import Filters, Orders, Pagination, \
+    Filter, Operation
 from datastorage.database.base import get_async_session
 from datastorage.database.models import User, UserData
 
@@ -88,6 +89,53 @@ async def list_users(
         session: AsyncSession = Depends(get_async_session),
 ) -> ListUserSchema:
     ds = CRUDDataStorage[User](model=User, session=session)
+    resp: ListResponse[User] = await ds.list(
+        filters=filters, orders=orders,
+        pagination=pagination, include=include
+    )
+
+    return ListUserSchema(
+        items=[
+            ReadUser(
+                id=user.id,
+                fullname=user.fullname,
+                firstname=user.firstname,
+                surname=user.surname,
+                about_me=user.about_me,
+                foto_id=user.foto_id,
+            )
+            for user in resp.data
+        ],
+        total=resp.total
+    )
+
+
+@auth_router.post(
+    '/user/list/{community_id}',
+    response_model=ListUserSchema,
+    status_code=200,
+)
+async def list_users(
+        community_id: str,
+        filters: Filters = None,
+        orders: Orders = None,
+        pagination: Pagination = None,
+        include: Include = None,
+        is_delegates: bool = False,
+        current_user: User = Depends(auth_service.get_current_user),
+        session: AsyncSession = Depends(get_async_session),
+) -> ListUserSchema:
+    user_service: UserService = auth_service.create_user_service(session)
+    ds = CRUDDataStorage[User](model=User, session=session)
+    user_ids = await user_service.get_user_ids_from_community(
+        community_id=community_id,
+        is_delegates=is_delegates,
+        current_user_id=current_user.id,
+    )
+    if filters is None:
+        filters = []
+    filters.append(Filter(field='id', op=Operation.IN, val=user_ids))
+
     resp: ListResponse[User] = await ds.list(
         filters=filters, orders=orders,
         pagination=pagination, include=include

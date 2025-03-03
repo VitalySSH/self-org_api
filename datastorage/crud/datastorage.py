@@ -114,8 +114,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         base_query = select(self._model).filter(*filters)
 
         total_query = select(func.count()).select_from(base_query.subquery())
-        total_result = await self._session.execute(total_query)
-        total = total_result.scalar()
+        total = await self._session.scalar(total_query)
 
         orders = self._get_order_params(orders)
         limit = pagination.limit if pagination else self.MAX_PAGE_SIZE

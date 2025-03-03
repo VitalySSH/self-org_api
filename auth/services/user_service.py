@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -8,6 +8,7 @@ from auth.dataclasses import CreateUserResult
 from auth.schemas import UserCreate, UserUpdate
 from auth.security import decrypt_password, hash_password
 from datastorage.database.models import User, UserData
+from entities.user_community_settings.model import UserCommunitySettings
 
 
 class UserService:
@@ -30,7 +31,9 @@ class UserService:
 
         return await self._session.scalar(query)
 
-    async def get_user_data_by_user_id(self, user_id: str) -> Optional[UserData]:
+    async def get_user_data_by_user_id(
+            self, user_id: str
+    ) -> Optional[UserData]:
         """Получить пользователя по идентификатору."""
         query = select(UserData).where(UserData.user_id == user_id)
 
@@ -52,12 +55,16 @@ class UserService:
             await self._session.rollback()
 
             return CreateUserResult(
-                status_code=409, message='Пользователь с таким email уже существует')
+                status_code=409,
+                message='Пользователь с таким email уже существует'
+            )
         except Exception as e:
             await self._session.rollback()
 
             return CreateUserResult(
-                status_code=500, message=f'Произошла ошибка при добавлении пользователя: {e}')
+                status_code=500,
+                message=f'Произошла ошибка при добавлении пользователя: {e}'
+            )
         password = decrypt_password(user_data.secret_password)
         hashed_password = hash_password(password)
         user_data = UserData()
@@ -67,12 +74,17 @@ class UserService:
             self._session.add(user_data)
             await self._session.commit()
 
-            return CreateUserResult(status_code=201, message='Пользователь успешно добавлен')
+            return CreateUserResult(
+                status_code=201,
+                message='Пользователь успешно добавлен'
+            )
         except Exception as e:
             await self._session.rollback()
 
             return CreateUserResult(
-                status_code=500, message=f'Произошла ошибка при авторизации пользователя: {e}')
+                status_code=500,
+                message=f'Произошла ошибка при авторизации пользователя: {e}'
+            )
 
     async def update_user(self, user_id: str, user_data: UserUpdate) -> None:
         """Изменение пользователя."""
@@ -88,4 +100,29 @@ class UserService:
         try:
             await self._session.commit()
         except Exception as e:
-            raise Exception(f'Ошибка обновления пользователя с id {user_id}: {e}')
+            raise Exception(
+                f'Ошибка обновления пользователя с id {user_id}: {e}'
+            )
+
+    async def get_user_ids_from_community(
+            self, community_id: str,
+            is_delegates: bool,
+            current_user_id: str,
+    ) -> List[str]:
+        """Получить список id пользователей в сообществе."""
+        query_filters = [
+            UserCommunitySettings.community_id == community_id,
+            UserCommunitySettings.user_id == current_user_id,
+            UserCommunitySettings.is_blocked.is_not(True),
+        ]
+        if is_delegates:
+            query_filters.append(
+                UserCommunitySettings.is_not_delegate.is_not(True)
+            )
+        query = (
+            select(UserCommunitySettings.user_id)
+            .where(*query_filters)
+        )
+        user_cs_data = await self._session.execute(query)
+
+        return [it[0] for it in user_cs_data.all()]

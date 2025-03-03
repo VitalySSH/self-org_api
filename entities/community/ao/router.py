@@ -41,7 +41,10 @@ async def get_community_name_data(
 ) -> CommunityNameData:
     ds = CommunityDS(session)
 
-    return await ds.get_community_name_data(community_id=community_id, user_id=current_user.id)
+    return await ds.get_community_name_data(
+        community_id=community_id,
+        user_id=current_user.id
+    )
 
 
 @router.get(
@@ -55,7 +58,10 @@ async def get_sub_communities_data(
 ) -> List[SubCommunityData]:
     ds = CommunityDS(session)
 
-    return await ds.get_sub_community_data(community_id=community_id, user_id=current_user.id)
+    return await ds.get_sub_community_data(
+        community_id=community_id,
+        user_id=current_user.id
+    )
 
 
 @router.post(
@@ -72,7 +78,9 @@ async def my_list(
     session: AsyncSession = Depends(get_async_session),
 ) -> ListResponseSchema[CommunityRead]:  # type: ignore
     ao_ds = CommunityDS(session)
-    communities_ids = await ao_ds.get_current_user_community_ids(current_user.id)
+    communities_ids = await ao_ds.get_current_user_community_ids(
+        current_user.id
+    )
     my_filters: Filters = [
         Filter(field='id', op=Operation.IN, val=communities_ids),
         Filter(field='parent_id', op=Operation.NULL, val=True),
@@ -81,7 +89,9 @@ async def my_list(
         my_filters += filters
 
     resp = await ao_ds.list(
-        filters=my_filters, orders=orders, pagination=pagination, include=include)
+        filters=my_filters, orders=orders,
+        pagination=pagination, include=include
+    )
 
     return ListResponseSchema[CommunityRead](  # type: ignore
         items=[instance.to_read_schema() for instance in resp.data],

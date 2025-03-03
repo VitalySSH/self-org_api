@@ -47,14 +47,17 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
                 voting_result.vote = True
 
                 if resource.is_extra_options:
-                    voting_result.selected_options = (
+                    selected_options = (
                         await self._get_new_selected_options(
                             user_voting_result=user_voting_result,
                             voting_params=community_voting_params
                         )
                     )
-                    is_selected_options = (
-                            len(voting_result.selected_options) > 0
+                    is_selected_options = len(selected_options) > 0
+                    voting_result.selected_options = (
+                        is_selected_options if resource.is_multi_select
+                        else [is_selected_options[0]]
+                        if is_selected_options else []
                     )
 
             else:
@@ -206,6 +209,7 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
         )
 
         option_counts_result = await self._session.execute(option_counts_query)
-        options_data = option_counts_result.all()
+        options_data = sorted(option_counts_result.all(),
+                              key=lambda it: it[2], reverse=True)
 
         return [item[1] for item in options_data]

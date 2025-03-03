@@ -69,10 +69,9 @@ class AODataStorage(DataStorage[T], AO):
             UserVotingResult.voting_result_id == result_id,
             UserVotingResult.is_blocked.isnot(True),
         )
-        total_count_result = await self._session.execute(total_count_query)
-        total_count = total_count_result.scalar()
-
+        total_count = await self._session.scalar(total_count_query)
         if total_count == 0:
+
             return SimpleVoteResult(yes=0, no=0, abstain=0)
 
         vote_counts_query = select(
