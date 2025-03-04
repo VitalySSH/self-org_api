@@ -32,6 +32,7 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
         resource, resource_type = await self._get_resource(user_voting_result)
         last_vote = voting_result.vote
         last_status_code = resource.status.code
+        is_significant_minority = voting_result.is_significant_minority
         community_voting_params = await self.calculate_voting_params(
             user_voting_result.community_id)
         vote_in_percent = await self.get_vote_in_percent(voting_result.id)
@@ -47,7 +48,7 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
                 voting_result.vote = True
 
                 if resource.is_extra_options:
-                    selected_options = (
+                    selected_options, is_significant_minority = (
                         await self._get_new_selected_options(
                             user_voting_result=user_voting_result,
                             voting_params=community_voting_params
@@ -55,19 +56,25 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
                     )
                     is_selected_options = len(selected_options) > 0
                     voting_result.selected_options = (
-                        is_selected_options if resource.is_multi_select
-                        else [is_selected_options[0]]
-                        if is_selected_options else []
+                        selected_options if resource.is_multi_select
+                        else [selected_options[0]]
+                        if selected_options else []
+                    )
+                    voting_result.is_significant_minority = (
+                        is_significant_minority
                     )
 
             else:
                 voting_result.vote = False
+                voting_result.is_significant_minority = False
                 if resource.is_extra_options:
                     voting_result.selected_options = []
 
         else:
             if last_vote:
                 voting_result.vote = False
+            if is_significant_minority:
+                voting_result.is_significant_minority = False
             if resource.is_extra_options:
                 voting_result.selected_options = []
 
@@ -76,6 +83,7 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
             resource_type=resource_type,
             last_status_code=last_status_code,
             is_selected_options=is_selected_options,
+            is_significant_minority=is_significant_minority,
             is_quorum=is_quorum,
             is_decision=is_decision,
         )
@@ -86,6 +94,7 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
             resource_type: ResourceType,
             last_status_code: str,
             is_selected_options: bool,
+            is_significant_minority: bool,
             is_quorum: bool,
             is_decision: bool,
     ) -> None:
@@ -100,7 +109,14 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
                 elif (is_quorum and is_decision and (
                         (resource.is_extra_options and is_selected_options)
                         or not resource.is_extra_options)):
-                    status = await self.get_status_by_code(Code.RULE_APPROVED)
+                    if is_significant_minority:
+                        status = await self.get_status_by_code(
+                            Code.COMPROMISE
+                        )
+                    else:
+                        status = await self.get_status_by_code(
+                            Code.RULE_APPROVED
+                        )
                 elif (is_quorum and is_decision and
                       (resource.is_extra_options and not is_selected_options)):
                     status = await self.get_status_by_code(
@@ -121,9 +137,14 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
                 elif (is_quorum and is_decision and (
                         (resource.is_extra_options and is_selected_options)
                         or not resource.is_extra_options)):
-                    status = await self.get_status_by_code(
-                        Code.INITIATIVE_APPROVED
-                    )
+                    if is_significant_minority:
+                        status = await self.get_status_by_code(
+                            Code.COMPROMISE
+                        )
+                    else:
+                        status = await self.get_status_by_code(
+                            Code.RULE_APPROVED
+                        )
                 elif (is_quorum and is_decision and
                       (resource.is_extra_options and not is_selected_options)):
                     status = await self.get_status_by_code(
@@ -163,7 +184,8 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
     async def _get_new_selected_options(
             self, user_voting_result: UserVotingResult,
             voting_params: BaseVotingParams,
-    ) -> List[VotingOption]:
+    ) -> Tuple[List[VotingOption], bool]:
+        is_significant_minority = False
         filters = [UserVotingResult.is_blocked.isnot(True)]
         if user_voting_result.rule_id:
             filters.append(
@@ -186,9 +208,12 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
         total_count = total_count_result.scalar_one()
 
         if total_count == 0:
-            return []
+            return [], is_significant_minority
 
         min_count = (voting_params.vote / 100) * total_count
+        min_count_minority = (
+                (voting_params.significant_minority / 100) * total_count
+        )
 
         option_counts_query = select(
             VotingOption.id,
@@ -205,11 +230,20 @@ class UserVotingResultDS(AODataStorage[UserVotingResult], CRUDDataStorage):
         ).group_by(
             VotingOption.id
         ).having(
-            func.count(RelationUserVrVo.to_id) >= min_count
+            func.count(RelationUserVrVo.to_id) >= min_count_minority
         )
 
         option_counts_result = await self._session.execute(option_counts_query)
         options_data = sorted(option_counts_result.all(),
                               key=lambda it: it[2], reverse=True)
 
-        return [item[1] for item in options_data]
+        options: List[VotingOption] = []
+        for item in options_data:
+            count = item[2]
+            if count >= min_count:
+                options.append(item[1])
+            else:
+                if not is_significant_minority:
+                    is_significant_minority = True
+
+        return options, is_significant_minority

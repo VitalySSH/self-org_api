@@ -42,6 +42,10 @@ STATUSES = [
         'code': Code.PRINCIPAL_AGREEMENT,
     },
     {
+        'name': 'Необходим компромисс',
+        'code': Code.COMPROMISE,
+    },
+    {
         'name': 'Правило вступило в силу',
         'code': Code.RULE_APPROVED,
     },

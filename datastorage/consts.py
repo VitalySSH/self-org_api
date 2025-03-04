@@ -9,6 +9,7 @@ class Code:
     COMMUNITY_MEMBER = 'community_member'
     VOTED_BY_DEFAULT = 'voted_by_default'
     PRINCIPAL_AGREEMENT = 'principal_agreement'
+    COMPROMISE = 'compromise'
     RULE_APPROVED = 'rule_approved'
     RULE_REVOKED = 'rule_revoked'
     INITIATIVE_APPROVED = 'initiative_approved'

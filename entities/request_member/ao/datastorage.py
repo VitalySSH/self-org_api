@@ -2,7 +2,7 @@ import logging
 from datetime import datetime
 from typing import Optional, List, cast, Sequence
 
-from sqlalchemy import select, insert, func, Insert, Row, text
+from sqlalchemy import select, insert, func, Row, text
 from sqlalchemy.orm import selectinload, joinedload
 
 from auth.models.user import User
@@ -291,7 +291,8 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
                 selectinload(RequestMember.status),
             )
             .where(
-                RequestMember.community_id == parent_request_member.community_id,
+                RequestMember.community_id ==
+                parent_request_member.community_id,
                 RequestMember.parent_id.is_(None),
             )
         )
@@ -426,7 +427,10 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
                 UserCommunitySettings.is_default_add_member,
                 UserCommunitySettings.user_id,
                 UserCommunitySettings.is_blocked,
-            ).where(UserCommunitySettings.community_id == request_member.community_id)
+            ).where(
+                UserCommunitySettings.community_id ==
+                request_member.community_id
+            )
         )
         user_cs_data = await self._session.execute(user_cs_query)
         user_cs_list = user_cs_data.all()
@@ -553,7 +557,8 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         query = (
             select(UserCommunitySettings)
             .where(
-                UserCommunitySettings.community_id == request_member.community_id,
+                UserCommunitySettings.community_id ==
+                request_member.community_id,
                 UserCommunitySettings.user_id == request_member.member_id,
                 UserCommunitySettings.is_blocked.is_not(True),
             )
