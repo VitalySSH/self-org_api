@@ -323,6 +323,7 @@ class UserCommunitySettingsDS(
             if RequestMember.__annotations__.get(key):
                 if key == 'id':
                     continue
+
                 setattr(new_request_member, key, value)
 
         return new_request_member

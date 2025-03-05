@@ -49,5 +49,6 @@ class Rule(Base):
         index=True,
     )
     voting_result: Mapped['VotingResult'] = relationship(
-        uselist=False, lazy='noload')
+        uselist=False, lazy='noload'
+    )
     extra_question: Mapped[str] = mapped_column(nullable=True)

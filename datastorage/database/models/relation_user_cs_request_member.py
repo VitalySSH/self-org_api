@@ -10,12 +10,18 @@ class RelationUserCsRequestMember(Base):
     __tablename__ = TableName.RELATION_UCS_REQUEST_MEMBER
     __table_args__ = (
         UniqueConstraint(
-            'from_id', 'to_id', name='idx_unique_user_community_settings_request_member'),
+            'from_id', 'to_id',
+            name='idx_unique_user_community_settings_request_member'
+        ),
     )
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete="CASCADE"),
-        nullable=False, index=True)
+        ForeignKey(
+            f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete="CASCADE"
+        ),
+        nullable=False, index=True
+    )
     to_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.REQUEST_MEMBER}.id', ondelete="CASCADE"),
-        nullable=False, index=True)
+        nullable=False, index=True
+    )

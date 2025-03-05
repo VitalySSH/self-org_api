@@ -1,4 +1,4 @@
-from typing import List, TypedDict
+from typing import List, TypedDict, Optional
 
 
 class MyMemberRequest(TypedDict):
@@ -8,7 +8,7 @@ class MyMemberRequest(TypedDict):
     communityId: str
     status: str
     statusCode: str
-    reason: str
+    reason: Optional[str]
     created: str
     # solution: str
     children: List['MyMemberRequest']

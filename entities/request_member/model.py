@@ -40,6 +40,8 @@ class RequestMember(Base):
     vote: Mapped[bool] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(nullable=True)
     parent_id: Mapped[str] = mapped_column(nullable=True)
-    created: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)
+    created: Mapped[datetime] = mapped_column(
+        nullable=False, default=datetime.now
+    )
     updated: Mapped[datetime] = mapped_column(nullable=True)
     is_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)

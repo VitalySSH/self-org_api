@@ -10,6 +10,7 @@ class RequestMemberAttributes(TypedDict, total=False):
     parent_id: Optional[str]
     created: Optional[datetime]
     updated: Optional[datetime]
+    is_blocked: bool
 
 
 class RequestMemberRelations(TypedDict, total=False):

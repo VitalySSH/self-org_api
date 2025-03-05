@@ -7,7 +7,9 @@ from sqlalchemy.orm import selectinload, Load, RelationshipProperty
 
 from datastorage.base import DataStorage
 from datastorage.crud.dataclasses import PostProcessingData, ListResponse
-from datastorage.crud.exceptions import CRUDNotFound, CRUDConflict, CRUDException
+from datastorage.crud.exceptions import (
+    CRUDNotFound, CRUDConflict, CRUDException
+)
 from datastorage.crud.interfaces.base import CRUD, Include
 from datastorage.crud.interfaces.list import (
     Filters, Operation, Orders, Direction, Pagination, PaginationModel
@@ -28,7 +30,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
     async def schema_to_model(self, schema: S) -> T:
         """Сериализует схему в объект модели."""
-        return await self._update_instance_from_schema(instance=self._model(), schema=schema)
+        return await self._update_instance_from_schema(
+            instance=self._model(), schema=schema
+        )
 
     def execute_post_processing(
             self, instance: Optional[T],
@@ -44,7 +48,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
     @staticmethod
     def get_relation_fields(schema: S) -> List[str]:
-        return [key for key, value in schema.get('relations', {}).items() if value]
+        return [
+            key for key, value in schema.get('relations', {}).items() if value
+        ]
 
     async def get(
             self, instance_id: str,
@@ -60,18 +66,26 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         try:
             return await self._session.scalar(query)
         except Exception as e:
-            raise CRUDException(f'Не удалось получить объект с id {instance_id} '
-                                f'модели {model.__name__}: {e}')
+            raise CRUDException(
+                f'Не удалось получить объект с id {instance_id} '
+                f'модели {model.__name__}: {e}'
+            )
 
-    async def create(self, instance: T, relation_fields: Optional[List[str]] = None) -> T:
-        relation_data = {rel_field: value for rel_field in relation_fields or []
-                         if (value := getattr(instance, rel_field, None))}
+    async def create(
+            self, instance: T,
+            relation_fields: Optional[List[str]] = None
+    ) -> T:
+        relation_data = {
+            rel_field: value for rel_field in relation_fields or []
+            if (value := getattr(instance, rel_field, None))
+        }
         try:
             self._session.add(instance)
             await self._session.commit()
             await self._session.refresh(instance)
         except IntegrityError as e:
-            raise CRUDConflict(f'Объект модели {self._model.__name__} не может быть создан: {e}')
+            raise CRUDConflict(f'Объект модели {self._model.__name__} '
+                               f'не может быть создан: {e}')
 
         for field, value in relation_data.items():
             setattr(instance, field, value)
@@ -82,16 +96,21 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         include = self.get_relation_fields(schema)
         instance = await self.get(instance_id=instance_id, include=include)
         if not instance:
-            raise CRUDNotFound(
-                f'Объект с id {instance_id} модели {self._model.__name__} не найден')
+            raise CRUDNotFound(f'Объект с id {instance_id} модели '
+                               f'{self._model.__name__} не найден')
 
         try:
-            await self._update_instance_from_schema(instance=instance, schema=schema)
+            await self._update_instance_from_schema(
+                instance=instance,
+                schema=schema
+            )
             await self._session.commit()
         except Exception as e:
             await self._session.rollback()
             raise CRUDConflict(
-                f'Ошибка обновления объекта с id {instance_id} модели {self._model.__name__}: {e}')
+                f'Ошибка обновления объекта с id {instance_id} '
+                f'модели {self._model.__name__}: {e}'
+            )
 
     async def delete(self, instance_id: str) -> None:
         instance = await self.get(instance_id=instance_id)
@@ -102,7 +121,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             await self._session.commit()
         except Exception as e:
             await self._session.rollback()
-            raise CRUDConflict(f'Объект с id {instance_id} не может быть удалён: {e}')
+            raise CRUDConflict(f'Объект с id {instance_id} '
+                               f'не может быть удалён: {e}')
 
     async def list(
             self, filters: Optional[Filters] = None,
@@ -144,7 +164,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return resp.data[0] if resp.total > 0 else None
 
-    async def _update_instance_from_schema(self, instance: T, schema: SchemaInstance) -> T:
+    async def _update_instance_from_schema(
+            self, instance: T, schema: SchemaInstance
+    ) -> T:
         self._update_attributes(instance, schema.get('attributes', {}))
         await self._update_relations(instance, schema.get('relations', {}))
 
@@ -156,14 +178,21 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             if hasattr(instance, attr_name):
                 setattr(instance, attr_name, attr_value)
 
-    async def _update_relations(self, instance: T, relations: Relations) -> None:
+    async def _update_relations(
+            self, instance: T,
+            relations: Relations
+    ) -> None:
         model = type(instance)
         for rel_name, rel_value in relations.items():
             if isinstance(rel_value, list):
-                many_to_many_objs = await self._fetch_many_to_many(rel_value, model, rel_name)
+                many_to_many_objs = await self._fetch_many_to_many(
+                    rel_values=rel_value, model=model, rel_name=rel_name
+                )
                 setattr(instance, rel_name, many_to_many_objs)
             elif isinstance(rel_value, dict):
-                related_obj = await self._fetch_relation(rel_value, model, rel_name)
+                related_obj = await self._fetch_relation(
+                    rel_value=rel_value, model=model, rel_name=rel_name
+                )
                 setattr(instance, rel_name, related_obj)
 
     async def _fetch_many_to_many(
@@ -177,12 +206,17 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return objs
 
-    async def _fetch_relation(self, rel_value: dict, model: Type[T], rel_name: str) -> Optional[T]:
+    async def _fetch_relation(
+            self, rel_value: dict,
+            model: Type[T], rel_name: str
+    ) -> Optional[T]:
         rel_obj_id = rel_value.get('id')
         if not rel_obj_id:
             return None
 
-        rel_obj_model = self._get_relation_model(model=model, field_name=rel_name)
+        rel_obj_model = self._get_relation_model(
+            model=model, field_name=rel_name
+        )
 
         return await self.get(instance_id=rel_obj_id, model=rel_obj_model)
 
@@ -190,13 +224,17 @@ class CRUDDataStorage(DataStorage[T], CRUD):
     def _get_relation_model(model: Type[T], field_name: str) -> Type[T]:
         field = getattr(model, field_name, None)
         if field is None:
-            raise Exception(f'Ошибка сериализации. '
-                            f'Модель {model.__name__} не имеет аттрибута {field_name}')
+            raise Exception(
+                f'Ошибка сериализации. Модель {model.__name__} '
+                f'не имеет аттрибута {field_name}'
+            )
         try:
             return field.prop.entity.class_
         except Exception as e:
-            raise Exception(f'Аттрибут {field_name} модели '
-                            f'{model.__name__} не является типом Relationship: {e}')
+            raise Exception(
+                f'Аттрибут {field_name} модели {model.__name__}'
+                f' не является типом Relationship: {e}'
+            )
 
     def _build_options(self, include: List[str], model: Type[T]) -> List[Load]:
         """Создаёт опции для загрузки связанных сущностей."""
@@ -253,7 +291,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 )
                 params.append(condition)
             except AttributeError as e:
-                raise CRUDException(f'Неверное поле фильтра {_filter.field}: {e}')
+                raise CRUDException(
+                    f'Неверное поле фильтра {_filter.field}: {e}'
+                )
 
         return params
 
@@ -275,7 +315,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             rel = getattr(model, current_part)
             rel_prop = rel.property
             if not isinstance(rel_prop, RelationshipProperty):
-                raise AttributeError(f'Поле {current_part} не является relation')
+                raise AttributeError(
+                    f'Поле {current_part} не является relation'
+                )
             rel_model = rel_prop.entity.class_
             sub_condition = self._build_condition(
                 model=rel_model,

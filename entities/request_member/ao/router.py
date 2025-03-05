@@ -38,7 +38,10 @@ async def add_new_member(
     current_user: User = Depends(auth_service.get_current_user),
 ) -> None:
     ds = RequestMemberDS(session)
-    await ds.add_new_member(request_member_id=request_member_id, current_user=current_user)
+    await ds.add_new_member(
+        request_member_id=request_member_id,
+        current_user=current_user
+    )
 
 
 @router.get(

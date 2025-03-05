@@ -40,7 +40,9 @@ async def create_new_community(
         )
         await ds.create_community(data_to_create)
     except KeyError as key:
-        raise Exception(f'Ошибка входных данных, параметр settings не содержит поля {key}')
+        raise Exception(
+            f'Ошибка входных данных, параметр settings не содержит поля {key}'
+        )
     except Exception as e:
         raise Exception(f'Ошибка создания сообщества: {e}')
 

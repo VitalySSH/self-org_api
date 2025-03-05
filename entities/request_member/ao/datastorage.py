@@ -20,6 +20,8 @@ from datastorage.utils import build_uuid
 from entities.community.model import Community
 from entities.request_member.ao.dataclasses import MyMemberRequest
 from entities.status.model import Status
+from entities.user_voting_result.model import UserVotingResult
+from entities.voting_result.model import VotingResult
 
 logger = logging.getLogger(__name__)
 
@@ -136,6 +138,7 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
             parent_request_member=request_member,
             user_settings_id=user_settings.id
         )
+        await self._create_new_voting_results(request_member)
         await self._session.commit()
 
     async def my_list(self, member_id: str) -> List[MyMemberRequest]:
@@ -476,6 +479,9 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         new_request_member.id = build_uuid()
         for key, value in request_member.__dict__.items():
             if RequestMember.__annotations__.get(key):
+                if key == 'id':
+                    continue
+
                 setattr(new_request_member, key, value)
 
         return new_request_member
@@ -579,7 +585,8 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         query = (
             select(UserCommunitySettings)
             .where(
-                UserCommunitySettings.community_id == request_member.community_id,
+                UserCommunitySettings.community_id ==
+                request_member.community_id,
                 UserCommunitySettings.user_id == request_member.member_id,
                 UserCommunitySettings.is_blocked.is_(True),
             )
@@ -624,3 +631,53 @@ class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
         row = await self._session.scalar(query)
 
         return int(row) if row else 0
+
+    async def _create_new_voting_results(
+            self, request_member: RequestMember
+    ) -> None:
+        """Возвращает сгруппированные результаты голосований по сообществам."""
+        query = (
+            select(
+                UserVotingResult.voting_result_id,
+                func.max(UserVotingResult.initiative_id)
+                .label('initiative_id'),
+                func.max(UserVotingResult.rule_id).label('rule_id'),
+            )
+            .where(
+                UserVotingResult.community_id == request_member.community_id
+            )
+            .group_by(UserVotingResult.voting_result_id)
+        )
+
+        grouped_results = (await self._session.execute(query)).all()
+        voting_result_ids = [row.voting_result_id for row in grouped_results]
+
+        related_query = (
+            select(VotingResult)
+            .options(selectinload(VotingResult.selected_options))
+            .where(VotingResult.id.in_(voting_result_ids))
+        )
+
+        related_results = {
+            row.id: row
+            for row in (
+                    await self._session.execute(related_query)
+            ).scalars().all()
+        }
+
+        for row in grouped_results:
+            voting_result = related_results.get(row.voting_result_id)
+            user_voting_result = UserVotingResult()
+            user_voting_result.vote = voting_result.vote
+            user_voting_result.extra_options = voting_result.selected_options
+            user_voting_result.member_id = request_member.member_id
+            user_voting_result.community_id = request_member.community_id
+            user_voting_result.voting_result = voting_result
+            user_voting_result.initiative_id = row.initiative_id
+            user_voting_result.rule_id = row.rule_id
+
+            try:
+                self._session.add(user_voting_result)
+            except Exception as e:
+                raise Exception(f'Не удалось создать '
+                                f'пользовательский результат голосования: {e}')
