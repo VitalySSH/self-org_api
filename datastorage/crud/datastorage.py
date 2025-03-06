@@ -6,7 +6,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload, Load, RelationshipProperty
 
 from datastorage.base import DataStorage
-from datastorage.crud.dataclasses import PostProcessingData, ListResponse
+from datastorage.crud.dataclasses import ListResponse
 from datastorage.crud.exceptions import (
     CRUDNotFound, CRUDConflict, CRUDException
 )
@@ -17,6 +17,7 @@ from datastorage.crud.interfaces.list import (
 from datastorage.crud.interfaces.schema import SchemaInstance, S, Relations
 from datastorage.crud.post_processing import CRUDPostProcessing
 from datastorage.interfaces import T
+from datastorage.crud.dataclasses import PostProcessingData
 
 
 class CRUDDataStorage(DataStorage[T], CRUD):

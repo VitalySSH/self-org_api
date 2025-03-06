@@ -1,7 +1,7 @@
-from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.enum import Method
 from datastorage.crud.router import get_crud_router
 from datastorage.database.models import UserVotingResult
+from datastorage.crud.dataclasses import PostProcessingData
 from .schemas import UserVRRead, UserVRCreate, UserVRUpdate
 from ..ao.datastorage import UserVotingResultDS
 

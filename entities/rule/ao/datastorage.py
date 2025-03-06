@@ -1,6 +1,6 @@
 from typing import List, Optional
 
-from datastorage.ao.base import AODataStorage
+from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from sqlalchemy import select
 

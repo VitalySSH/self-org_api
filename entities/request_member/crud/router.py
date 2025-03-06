@@ -1,7 +1,7 @@
-from datastorage.crud.dataclasses import PostProcessingData
 from datastorage.crud.enum import Method
 from datastorage.crud.router import get_crud_router
 from datastorage.database.models import RequestMember
+from datastorage.crud.dataclasses import PostProcessingData
 from .schemas import (
     RequestMemberRead, RequestMemberCreate, RequestMemberUpdate
 )

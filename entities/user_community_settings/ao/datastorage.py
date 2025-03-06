@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from auth.models.user import User
-from datastorage.ao.base import AODataStorage
+from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import RequestMember

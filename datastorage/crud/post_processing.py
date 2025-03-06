@@ -3,7 +3,7 @@ import logging
 from fastapi import BackgroundTasks
 from typing import Optional, List
 
-from datastorage.ao.base import AODataStorage
+from datastorage.ao.datastorage import AODataStorage
 from datastorage.crud.dataclasses import TaskFuncData, PostProcessingData
 from datastorage.crud.interfaces.base import PostProcessing
 from datastorage.interfaces import T

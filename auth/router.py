@@ -16,8 +16,9 @@ from auth.services.user_service import UserService
 from datastorage.crud.dataclasses import ListResponse
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.crud.interfaces.base import Include
-from datastorage.crud.interfaces.list import Filters, Orders, Pagination, \
-    Filter, Operation
+from datastorage.crud.interfaces.list import (
+    Filters, Orders, Pagination, Filter, Operation
+)
 from datastorage.database.base import get_async_session
 from datastorage.database.models import User, UserData
 

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import List, Callable, Dict, Any, Type, Optional, Generic, TypeVar
 
-from datastorage.ao.base import AODataStorage
+from datastorage.ao.datastorage import AODataStorage
 from datastorage.crud.enum import Method
 
 

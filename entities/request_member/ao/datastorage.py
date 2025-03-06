@@ -7,7 +7,7 @@ from sqlalchemy.orm import selectinload, joinedload
 
 from auth.models.user import User
 from core.dataclasses import BaseVotingParams, PercentByName
-from datastorage.ao.base import AODataStorage
+from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.database.models import (
@@ -26,7 +26,10 @@ from entities.voting_result.model import VotingResult
 logger = logging.getLogger(__name__)
 
 
-class RequestMemberDS(AODataStorage[RequestMember], CRUDDataStorage):
+class RequestMemberDS(
+    AODataStorage[RequestMember],
+    CRUDDataStorage[RequestMember],
+):
     _model = RequestMember
 
     async def get_request_member_in_percent(
