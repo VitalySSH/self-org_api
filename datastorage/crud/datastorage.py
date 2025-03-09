@@ -1,5 +1,5 @@
 import json
-from typing import Optional, Type, List, Any, cast, Dict
+from typing import Optional, Type, List, Any, cast, Dict, Union
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select, func
@@ -56,8 +56,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
     async def get(
             self, instance_id: str,
             include: Include = None,
-            model: Type[T] = None
-    ) -> Optional[T]:
+            model: Type[T] = None,
+    ) -> Union[None, T, Any]:
         if model is None:
             model = self._model
         query = select(model).where(model.id == instance_id)
@@ -130,9 +130,12 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             orders: Optional[Orders] = None,
             pagination: Optional[Pagination] = None,
             include: Optional[Include] = None,
-    ) -> ListResponse[T]:
+            model: Type[T] = None,
+    ) -> ListResponse[Union[T, Any]]:
+        if model is None:
+            model = self._model
         filters = self._get_filter_params(filters)
-        base_query = select(self._model).filter(*filters)
+        base_query = select(model).filter(*filters)
 
         total_query = select(func.count()).select_from(base_query.subquery())
         total = await self._session.scalar(total_query)
@@ -143,7 +146,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         skip = (skip - 1) * limit
 
         if include:
-            options = self._build_options(include=include, model=self._model)
+            options = self._build_options(include=include, model=model)
             base_query = base_query.options(*options)
 
         base_query = base_query.order_by(*orders).offset(skip).limit(limit)

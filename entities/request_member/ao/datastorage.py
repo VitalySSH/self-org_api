@@ -10,6 +10,7 @@ from core.dataclasses import BaseVotingParams, PercentByName
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
+from datastorage.crud.interfaces.list import Operation, Filter
 from datastorage.database.models import (
     RequestMember, CommunitySettings,
     RelationUserCsRequestMember, UserCommunitySettings
@@ -18,7 +19,9 @@ from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 from entities.community.model import Community
+from entities.initiative.model import Initiative
 from entities.request_member.ao.dataclasses import MyMemberRequest
+from entities.rule.model import Rule
 from entities.status.model import Status
 from entities.user_voting_result.model import UserVotingResult
 from entities.voting_result.model import VotingResult
@@ -576,11 +579,12 @@ class RequestMemberDS(
         if user_settings:
             user_settings.is_blocked = True
         #  Блокируем голосования пользователя.
-        #  После этого нужно запустить пересчёт голосов
         await self._update_user_voting_results(
             member_id=request_member.member_id,
             value=True
         )
+        #  Пересчитываем голоса в голосованиях.
+        await self._recount_community_vote(request_member.community_id)
 
     async def _unblock_user_settings(
             self, request_member: RequestMember
@@ -598,11 +602,12 @@ class RequestMemberDS(
         if user_settings:
             user_settings.is_blocked = False
         #  Разблокируем голосования пользователя.
-        #  После этого нужно запустить пересчёт голосов
         await self._update_user_voting_results(
             member_id=request_member.member_id,
             value=False
         )
+        #  Пересчитываем голоса в голосованиях.
+        await self._recount_community_vote(request_member.community_id)
 
     async def _update_user_voting_results(
             self, member_id: str,
@@ -615,6 +620,7 @@ class RequestMemberDS(
         """)
         await self._session.execute(query,
                                     {'member_id': member_id, 'value': value})
+        await self._session.flush()
 
     async def _delete_user_voting_results(self, member_id: str) -> None:
         query = text("""
@@ -622,6 +628,7 @@ class RequestMemberDS(
             WHERE member_id = :member_id
         """)
         await self._session.execute(query, {'member_id': member_id})
+        await self._session.flush()
 
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (
@@ -638,7 +645,9 @@ class RequestMemberDS(
     async def _create_new_voting_results(
             self, request_member: RequestMember
     ) -> None:
-        """Возвращает сгруппированные результаты голосований по сообществам."""
+        """Создание пользовательских результатов голосований
+        при вступлении нового участника в сообщество.
+        """
         query = (
             select(
                 UserVotingResult.voting_result_id,
@@ -684,3 +693,39 @@ class RequestMemberDS(
             except Exception as e:
                 raise Exception(f'Не удалось создать '
                                 f'пользовательский результат голосования: {e}')
+
+    async def _recount_community_vote(self, community_id: str) -> None:
+        """Пересчёт голосов по всем голосованиям сообщества."""
+        rule_data = await self.list(
+            filters=[Filter(
+                field='community_id',
+                op=Operation.EQ,
+                val=community_id
+            )],
+            include=['status', 'voting_result.selected_options'],
+            model=Rule
+        )
+        rules: List[Rule] = rule_data.data
+        for rule in rules:
+            await self.user_vote_count(
+                voting_result=rule.voting_result,
+                resource=rule,
+                resource_type='rule',
+            )
+
+        initiative_data = await self.list(
+            filters=[Filter(
+                field='community_id',
+                op=Operation.EQ,
+                val=community_id
+            )],
+            include=['status', 'voting_result.selected_options'],
+            model=Initiative
+        )
+        initiatives: List[Initiative] = initiative_data.data
+        for initiative in initiatives:
+            await self.user_vote_count(
+                voting_result=initiative.voting_result,
+                resource=initiative,
+                resource_type='initiative',
+            )

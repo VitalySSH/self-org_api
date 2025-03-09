@@ -1,4 +1,4 @@
-from typing import Optional, Union, Tuple, List
+from typing import Optional, Tuple, List
 
 from sqlalchemy import text, select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,8 +9,6 @@ from datastorage.base import DataStorage
 from datastorage.consts import Code
 from datastorage.database.models import RelationUserVrVo
 from datastorage.interfaces import T
-from entities.initiative.model import Initiative
-from entities.rule.model import Rule
 from entities.status.model import Status
 from entities.user_voting_result.ao.interfaces import Resource, ResourceType
 from entities.user_voting_result.model import UserVotingResult
@@ -100,18 +98,18 @@ class AODataStorage(DataStorage[T], AO):
 
         return SimpleVoteResult(yes=int(yes), no=int(no), abstain=int(abstain))
 
-    async def vote_count(self, result_id: str) -> None:
+    async def user_vote_count(
+            self, voting_result: VotingResult,
+            resource: Resource,
+            resource_type: ResourceType,
+    ) -> None:
         """Подсчет голосов."""
-        user_voting_result = await self._get_user_voting_result(result_id)
-        voting_result = await self._get_voting_result(
-            user_voting_result.voting_result_id
-        )
-        resource, resource_type = await self._get_resource(user_voting_result)
         last_vote = voting_result.vote
         last_status_code = resource.status.code
         is_significant_minority = voting_result.is_significant_minority
         community_voting_params = await self.calculate_voting_params(
-            user_voting_result.community_id)
+            resource.community_id
+        )
         vote_in_percent = await self.get_vote_in_percent(voting_result.id)
         is_selected_options = False
         is_quorum = (
@@ -127,7 +125,8 @@ class AODataStorage(DataStorage[T], AO):
                 if resource.is_extra_options:
                     selected_options, is_significant_minority = (
                         await self._get_new_selected_options(
-                            user_voting_result=user_voting_result,
+                            resource=resource,
+                            resource_type=resource_type,
                             voting_params=community_voting_params
                         )
                     )
@@ -164,7 +163,6 @@ class AODataStorage(DataStorage[T], AO):
             is_quorum=is_quorum,
             is_decision=is_decision,
         )
-        await self._session.commit()
 
     async def _update_status_in_resource(
             self, resource: Resource,
@@ -234,42 +232,22 @@ class AODataStorage(DataStorage[T], AO):
 
         resource.status = status
 
-    async def _get_resource(
-            self, user_voting_result: UserVotingResult
-    ) -> Union[Tuple[Resource, ResourceType], Exception]:
-        rule_id: Optional[str] = user_voting_result.rule_id
-        initiative_id: Optional[str] = user_voting_result.initiative_id
-        if rule_id:
-            return await self._get_rule(rule_id), 'rule'
-        elif initiative_id:
-            return await self._get_initiative(initiative_id), 'initiative'
-
-        else:
-            raise Exception(
-                f'Пользовательский результат голосования с id: '
-                f'{user_voting_result.id} не имеет связи с источником'
-            )
-
     async def _get_new_selected_options(
-            self, user_voting_result: UserVotingResult,
+            self, resource: Resource,
+            resource_type: ResourceType,
             voting_params: BaseVotingParams,
     ) -> Tuple[List[VotingOption], bool]:
         is_significant_minority = False
         filters = [UserVotingResult.is_blocked.isnot(True)]
-        if user_voting_result.rule_id:
-            filters.append(
-                UserVotingResult.rule_id == user_voting_result.rule_id
-            )
-        elif user_voting_result.initiative_id:
-            filters.append(
-                UserVotingResult.initiative_id ==
-                user_voting_result.initiative_id
-            )
-        else:
-            raise Exception(
-                f'Пользовательский результат голосования с id: '
-                f'{user_voting_result.id} не имеет связи с источником'
-            )
+        match resource_type:
+            case 'rule':
+                filters.append(
+                    UserVotingResult.rule_id == resource.id
+                )
+            case 'initiative':
+                filters.append(
+                    UserVotingResult.initiative_id == resource.id
+                )
         total_count_query = (
             select(func.count(UserVotingResult.id)).where(*filters)
         )
@@ -316,41 +294,3 @@ class AODataStorage(DataStorage[T], AO):
                     is_significant_minority = True
 
         return options, is_significant_minority
-
-    async def _get_user_voting_result(
-            self, result_id: str
-    ) -> Optional[UserVotingResult]:
-        query = (
-            select(UserVotingResult)
-            .where(UserVotingResult.id == result_id)
-            .selectinload(UserVotingResult.extra_options)
-        )
-        return await self._session.scalar(query)
-
-    async def _get_voting_result(
-            self, result_id: str
-    ) -> Optional[VotingResult]:
-        query = (
-            select(VotingResult)
-            .where(VotingResult.id == result_id)
-            .selectinload(VotingResult.selected_options)
-        )
-        return await self._session.scalar(query)
-
-    async def _get_rule(self, rule_id: str) -> Optional[Rule]:
-        query = (
-            select(Rule)
-            .where(Rule.id == rule_id)
-            .selectinload(Rule.status)
-        )
-        return await self._session.scalar(query)
-
-    async def _get_initiative(
-            self, initiative_id: str
-    ) -> Optional[Initiative]:
-        query = (
-            select(Initiative)
-            .where(Initiative.id == initiative_id)
-            .selectinload(Initiative.status)
-        )
-        return await self._session.scalar(query)

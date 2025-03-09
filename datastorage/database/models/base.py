@@ -1,6 +1,6 @@
 from typing import Optional, TypeVar
 
-from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.orm import DeclarativeBase, Mapped
 
 from datastorage.crud.interfaces.schema import SchemaInstance
 
@@ -10,7 +10,7 @@ S = TypeVar('S')
 class Base(DeclarativeBase):
     __abstract__ = True
 
-    id: str = ...
+    id: Mapped[str] = ...
 
     def to_read_schema(self) -> S:
         """Вернёт сериализованный объект модели."""
