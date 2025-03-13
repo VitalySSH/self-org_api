@@ -6,7 +6,7 @@ from entities.category.model import Category
 from entities.user_community_settings.model import UserCommunitySettings
 
 
-@dataclass
+@dataclass(kw_only=True)
 class OtherCommunitySettings:
     categories: List[Category]
     sub_communities_settings: List[UserCommunitySettings]
@@ -15,7 +15,7 @@ class OtherCommunitySettings:
     is_can_offer: bool
 
 
-@dataclass
+@dataclass(kw_only=True)
 class UserSettingsModifiedData:
     user_count: int
     categories_data: List[Tuple[str, int]]

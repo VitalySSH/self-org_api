@@ -35,6 +35,7 @@ class Initiative(Base):
         foreign_keys=f'{TableName.INITIATIVE}.c.creator_id',
         lazy='noload'
     )
+    # created: Mapped[datetime] = mapped_column(default=datetime.now)
     status_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,
@@ -55,6 +56,7 @@ class Initiative(Base):
     )
     voting_result: Mapped['VotingResult'] = relationship(
         uselist=False, lazy='noload')
+    extra_question: Mapped[str] = mapped_column(nullable=True)
     responsible_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=True,

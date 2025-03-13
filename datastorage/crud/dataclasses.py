@@ -8,7 +8,7 @@ from datastorage.crud.enum import Method
 Instance = TypeVar('Instance')
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PostProcessingData:
     data_storage: Type[AODataStorage]
     methods: List[Method]
@@ -17,13 +17,13 @@ class PostProcessingData:
     include: Optional[List[str]] = None
 
 
-@dataclass
+@dataclass(kw_only=True)
 class TaskFuncData:
     func: Callable
     kwargs: Dict[str, Any]
 
 
-@dataclass
+@dataclass(kw_only=True)
 class ListResponse(Generic[Instance]):
     data: List[Instance]
     total: int

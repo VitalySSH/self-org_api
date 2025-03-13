@@ -8,7 +8,7 @@ from auth.models.user import User
 from entities.user_community_settings.crud.schemas import UserCsAttributes
 
 
-@dataclass
+@dataclass(kw_only=True)
 class CreatingCommunity:
     name: str
     description: str

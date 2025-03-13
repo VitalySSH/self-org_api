@@ -2,14 +2,14 @@ from dataclasses import dataclass
 from typing import TypedDict
 
 
-@dataclass
+@dataclass(kw_only=True)
 class BaseVotingParams:
     vote: int
     quorum: int
     significant_minority: int
 
 
-@dataclass
+@dataclass(kw_only=True)
 class SimpleVoteResult:
     yes: int
     no: int

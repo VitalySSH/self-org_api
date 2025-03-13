@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
@@ -31,6 +32,7 @@ class Rule(Base):
         index=True,
     )
     creator: Mapped['User'] = relationship(lazy='noload')
+    # created: Mapped[datetime] = mapped_column(default=datetime.now)
     status_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,

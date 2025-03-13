@@ -4,7 +4,7 @@ from typing import List
 from fastapi import APIRouter
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RouterParams:
     prefix: str
     tags: List[str]

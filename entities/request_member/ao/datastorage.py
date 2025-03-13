@@ -618,17 +618,29 @@ class RequestMemberDS(
             SET is_blocked = :is_blocked
             WHERE member_id = :member_id
         """)
-        await self._session.execute(query,
-                                    {'member_id': member_id, 'value': value})
-        await self._session.flush()
+        try:
+            await self._session.execute(
+                query,
+                {'member_id': member_id, 'value': value}
+            )
+            await self._session.flush()
+        except Exception as e:
+            # await self._session.rollback()
+            logger.error(f'Ошибка при обновлении пользовательских '
+                         f'результатов голосований: {e}')
 
     async def _delete_user_voting_results(self, member_id: str) -> None:
         query = text("""
             DELETE FROM public.user_voting_result
             WHERE member_id = :member_id
         """)
-        await self._session.execute(query, {'member_id': member_id})
-        await self._session.flush()
+        try:
+            await self._session.execute(query, {'member_id': member_id})
+            await self._session.flush()
+        except Exception as e:
+            # await self._session.rollback()
+            logger.error(f'Ошибка при удалении пользовательских '
+                         f'результатов голосований: {e}')
 
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (
