@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: a441e61ef946
+Revision ID: a0089ae284e9
 Revises: 
-Create Date: 2025-03-05 14:58:08.398357
+Create Date: 2025-03-15 00:25:49.237790
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'a441e61ef946'
+revision: str = 'a0089ae284e9'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -93,6 +93,8 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('vote', sa.Boolean(), nullable=True),
     sa.Column('is_significant_minority', sa.Boolean(), nullable=False),
+    sa.Column('options', sa.JSON(), nullable=False),
+    sa.Column('minority_options', sa.JSON(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('auth_user_data',
@@ -144,17 +146,6 @@ def upgrade() -> None:
     op.create_index(op.f('ix_opinion_creator_id'), 'opinion', ['creator_id'], unique=False)
     op.create_index(op.f('ix_opinion_initiative_id'), 'opinion', ['initiative_id'], unique=False)
     op.create_index(op.f('ix_opinion_rule_id'), 'opinion', ['rule_id'], unique=False)
-    op.create_table('relation_voting_result_voting_options',
-    sa.Column('id', sa.String(), nullable=False),
-    sa.Column('from_id', sa.String(), nullable=False),
-    sa.Column('to_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['from_id'], ['voting_result.id'], ondelete='CASCADE'),
-    sa.ForeignKeyConstraint(['to_id'], ['voting_option.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_voting_result_voting_option')
-    )
-    op.create_index(op.f('ix_relation_voting_result_voting_options_from_id'), 'relation_voting_result_voting_options', ['from_id'], unique=False)
-    op.create_index(op.f('ix_relation_voting_result_voting_options_to_id'), 'relation_voting_result_voting_options', ['to_id'], unique=False)
     op.create_table('user_community_settings',
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('user_id', sa.String(), nullable=True),
@@ -249,14 +240,18 @@ def upgrade() -> None:
     sa.Column('title', sa.String(), nullable=False),
     sa.Column('question', sa.String(), nullable=False),
     sa.Column('content', sa.String(), nullable=False),
+    sa.Column('is_one_day_event', sa.Boolean(), nullable=False),
     sa.Column('is_extra_options', sa.Boolean(), nullable=False),
     sa.Column('is_multi_select', sa.Boolean(), nullable=False),
     sa.Column('community_id', sa.String(), nullable=False),
     sa.Column('creator_id', sa.String(), nullable=False),
+    sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('status_id', sa.String(), nullable=False),
     sa.Column('category_id', sa.String(), nullable=False),
-    sa.Column('deadline', sa.DateTime(), nullable=False),
+    sa.Column('deadline', sa.DateTime(), nullable=True),
+    sa.Column('event_date', sa.DateTime(), nullable=True),
     sa.Column('voting_result_id', sa.String(), nullable=False),
+    sa.Column('extra_question', sa.String(), nullable=True),
     sa.Column('responsible_id', sa.String(), nullable=True),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
     sa.ForeignKeyConstraint(['creator_id'], ['auth_user.id'], ),
@@ -333,6 +328,7 @@ def upgrade() -> None:
     sa.Column('is_multi_select', sa.Boolean(), nullable=False),
     sa.Column('community_id', sa.String(), nullable=False),
     sa.Column('creator_id', sa.String(), nullable=False),
+    sa.Column('created', sa.DateTime(), nullable=False),
     sa.Column('status_id', sa.String(), nullable=False),
     sa.Column('category_id', sa.String(), nullable=False),
     sa.Column('voting_result_id', sa.String(), nullable=False),
@@ -513,9 +509,6 @@ def downgrade() -> None:
     op.drop_index(op.f('ix_user_community_settings_description_id'), table_name='user_community_settings')
     op.drop_index(op.f('ix_user_community_settings_community_id'), table_name='user_community_settings')
     op.drop_table('user_community_settings')
-    op.drop_index(op.f('ix_relation_voting_result_voting_options_to_id'), table_name='relation_voting_result_voting_options')
-    op.drop_index(op.f('ix_relation_voting_result_voting_options_from_id'), table_name='relation_voting_result_voting_options')
-    op.drop_table('relation_voting_result_voting_options')
     op.drop_index(op.f('ix_opinion_rule_id'), table_name='opinion')
     op.drop_index(op.f('ix_opinion_initiative_id'), table_name='opinion')
     op.drop_index(op.f('ix_opinion_creator_id'), table_name='opinion')

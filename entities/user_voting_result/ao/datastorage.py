@@ -25,7 +25,6 @@ class UserVotingResultDS(
         )
         voting_result: Optional[VotingResult] = await self.get(
             instance_id=user_voting_result.voting_result_id,
-            include=['selected_options'],
             model=VotingResult,
         )
         resource, resource_type = await self._get_resource(user_voting_result)
@@ -34,6 +33,7 @@ class UserVotingResultDS(
             resource=resource,
             resource_type=resource_type,
         )
+        await self._session.commit()
 
     async def _get_resource(
             self, user_voting_result: UserVotingResult

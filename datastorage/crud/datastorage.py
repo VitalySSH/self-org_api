@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 from typing import Optional, Type, List, Any, cast, Dict, Union
 
 from sqlalchemy.exc import IntegrityError
@@ -180,6 +181,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
     def _update_attributes(instance: T, attributes: Dict[str, Any]) -> None:
         for attr_name, attr_value in attributes.items():
             if hasattr(instance, attr_name):
+                # TODO: сделать обработку поля типа JSON,
+                #  конвертировать строку в dict
                 setattr(instance, attr_name, attr_value)
 
     async def _update_relations(

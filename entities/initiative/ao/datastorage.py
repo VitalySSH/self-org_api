@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import List, Optional
 
 from datastorage.ao.datastorage import AODataStorage
@@ -7,7 +8,7 @@ from sqlalchemy import select
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.utils import build_uuid
 from entities.category.model import Category
-from entities.rule.ao.dataclasses import CreatingNewRule
+from entities.initiative.ao.dataclasses import CreatingNewInitiative
 from entities.initiative.model import Initiative
 from entities.status.model import Status
 from auth.models.user import User
@@ -22,18 +23,24 @@ class InitiativeDS(AODataStorage[Initiative], CRUDDataStorage):
     _model = Initiative
 
     async def create_initiative(
-            self, data: CreatingNewRule,
+            self, data: CreatingNewInitiative,
             creator: User
     ) -> None:
         """Создаст новую инициативу."""
         initiative_id = build_uuid()
         is_multi_select = data.get('is_multi_select') or False
         voting_result: VotingResult = await self._create_voting_result()
+        event_date_str = data.get('event_date')
+        event_date: Optional[datetime] = None
+        if event_date_str:
+            event_date = datetime.fromisoformat(event_date_str).today()
         initiative = self.__class__._model()
         initiative.id = initiative_id
         initiative.title = data.get('title')
         initiative.question = data.get('question')
         initiative.content = data.get('content')
+        initiative.is_one_day_event = data.get('is_one_day_event')
+        initiative.event_date = event_date
         initiative.is_extra_options = data.get('is_extra_options') or False
         initiative.is_multi_select = is_multi_select
         initiative.community_id = data.get('community_id')

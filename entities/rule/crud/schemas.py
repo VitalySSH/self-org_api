@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TypedDict, Optional
 
 from datastorage.crud.interfaces.schema import SchemaInstance
@@ -11,6 +12,7 @@ class RuleAttributes(TypedDict):
     is_extra_options: bool
     is_multi_select: bool
     community_id: str
+    created: Optional[datetime]
 
 
 class RuleRelations(TypedDict, total=False):

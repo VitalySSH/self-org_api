@@ -1,9 +1,10 @@
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, Dict
 
 from sqlalchemy import text, select, func, case
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.dataclasses import BaseVotingParams, SimpleVoteResult
+from entities.voting_option.dataclasses import VotingOptionData
 from datastorage.ao.interfaces import AO
 from datastorage.base import DataStorage
 from datastorage.consts import Code
@@ -123,19 +124,16 @@ class AODataStorage(DataStorage[T], AO):
                 voting_result.vote = True
 
                 if resource.is_extra_options:
-                    selected_options, is_significant_minority = (
+                    options, minority_options = (
                         await self._get_new_selected_options(
                             resource=resource,
                             resource_type=resource_type,
                             voting_params=community_voting_params
                         )
                     )
-                    is_selected_options = len(selected_options) > 0
-                    voting_result.selected_options = (
-                        selected_options if resource.is_multi_select
-                        else [selected_options[0]]
-                        if selected_options else []
-                    )
+                    is_significant_minority = bool(minority_options)
+                    is_selected_options = bool(options)
+                    voting_result.options = options
                     voting_result.is_significant_minority = (
                         is_significant_minority
                     )
@@ -144,7 +142,8 @@ class AODataStorage(DataStorage[T], AO):
                 voting_result.vote = False
                 voting_result.is_significant_minority = False
                 if resource.is_extra_options:
-                    voting_result.selected_options = []
+                    voting_result.options = {}
+                    voting_result.minority_options = {}
 
         else:
             if last_vote:
@@ -152,7 +151,8 @@ class AODataStorage(DataStorage[T], AO):
             if is_significant_minority:
                 voting_result.is_significant_minority = False
             if resource.is_extra_options:
-                voting_result.selected_options = []
+                voting_result.options = {}
+                voting_result.minority_options = {}
 
         await self._update_status_in_resource(
             resource=resource,
@@ -218,7 +218,7 @@ class AODataStorage(DataStorage[T], AO):
                         )
                     else:
                         status = await self.get_status_by_code(
-                            Code.RULE_APPROVED
+                            Code.INITIATIVE_APPROVED
                         )
                 elif (is_quorum and is_decision and
                       (resource.is_extra_options and not is_selected_options)):
@@ -236,8 +236,7 @@ class AODataStorage(DataStorage[T], AO):
             self, resource: Resource,
             resource_type: ResourceType,
             voting_params: BaseVotingParams,
-    ) -> Tuple[List[VotingOption], bool]:
-        is_significant_minority = False
+    ) -> Tuple[Dict[str, VotingOptionData], Dict[str, VotingOptionData]]:
         filters = [UserVotingResult.is_blocked.isnot(True)]
         match resource_type:
             case 'rule':
@@ -255,7 +254,7 @@ class AODataStorage(DataStorage[T], AO):
         total_count = total_count_result.scalar_one()
 
         if total_count == 0:
-            return [], is_significant_minority
+            return {}, {}
 
         min_count = (voting_params.vote / 100) * total_count
         min_count_minority = (
@@ -284,13 +283,19 @@ class AODataStorage(DataStorage[T], AO):
         options_data = sorted(option_counts_result.all(),
                               key=lambda it: it[2], reverse=True)
 
-        options: List[VotingOption] = []
-        for item in options_data:
+        options: Dict[str, VotingOptionData] = {}
+        minority_options: Dict[str, VotingOptionData] = {}
+        for idx, item in enumerate(options_data, 1):
+            voting_option: VotingOption = item[1]
             count = item[2]
+            option = VotingOptionData(
+                number=idx,
+                value=voting_option.content,
+                percent=str(int(count / total_count) * 100),
+            )
             if count >= min_count:
-                options.append(item[1])
+                options[voting_option.id] = option
             else:
-                if not is_significant_minority:
-                    is_significant_minority = True
+                minority_options[voting_option.id] = option
 
-        return options, is_significant_minority
+        return options, minority_options

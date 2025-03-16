@@ -24,7 +24,6 @@ __all__ = (
     'RelationUserCsCategories',
     'RelationUCsDs',
     'RelationDsUsers',
-    'RelationVrVo',
     'RelationUserVrVo',
     'RelationCommunityUCs',
     'RelationUserCsRequestMember',
@@ -59,7 +58,6 @@ from .relation_community_settings_categories import RelationCsCategories
 from .relation_user_community_settings_categories import RelationUserCsCategories
 from .relation_user_community_settings_delegate_settings import RelationUCsDs
 from .relation_delegate_settings_users import RelationDsUsers
-from .relation_voting_result_voting_options import RelationVrVo
 from .relation_user_voting_result_options import RelationUserVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
 from .relation_user_cs_request_member import RelationUserCsRequestMember

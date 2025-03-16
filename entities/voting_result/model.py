@@ -1,13 +1,12 @@
-from typing import TYPE_CHECKING, List
+from typing import Dict
 
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy import JSON
+from sqlalchemy.orm import Mapped, mapped_column
 
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
 from datastorage.utils import build_uuid
-
-if TYPE_CHECKING:
-    from datastorage.database.models import VotingOption
+from entities.voting_option.dataclasses import VotingOptionData
 
 
 class VotingResult(Base):
@@ -18,6 +17,9 @@ class VotingResult(Base):
     is_significant_minority: Mapped[bool] = mapped_column(
         nullable=False, default=False
     )
-    selected_options: Mapped[List['VotingOption']] = relationship(
-        secondary=TableName.RELATION_VR_VO, lazy='noload'
+    options: Mapped[Dict[str, VotingOptionData]] = mapped_column(
+        JSON, default=dict
+    )
+    minority_options: Mapped[Dict[str, VotingOptionData]] = mapped_column(
+        JSON, default=dict
     )

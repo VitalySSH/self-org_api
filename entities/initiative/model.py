@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
@@ -21,10 +21,15 @@ class Initiative(Base):
     title: Mapped[str] = mapped_column(nullable=False)
     question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
+    is_one_day_event: Mapped[bool] = mapped_column(
+        nullable=False, default=False
+    )
     is_extra_options: Mapped[bool] = mapped_column(
-        nullable=False, default=False)
+        nullable=False, default=False
+    )
     is_multi_select: Mapped[bool] = mapped_column(
-        nullable=False, default=False)
+        nullable=False, default=False
+    )
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
@@ -35,7 +40,7 @@ class Initiative(Base):
         foreign_keys=f'{TableName.INITIATIVE}.c.creator_id',
         lazy='noload'
     )
-    # created: Mapped[datetime] = mapped_column(default=datetime.now)
+    created: Mapped[datetime] = mapped_column(default=datetime.now)
     status_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.STATUS}.id'),
         nullable=False,
@@ -48,7 +53,8 @@ class Initiative(Base):
         index=True,
     )
     category: Mapped['Category'] = relationship(lazy='noload')
-    deadline: Mapped[datetime] = mapped_column(default=datetime.now)
+    deadline: Mapped[datetime] = mapped_column(nullable=True)
+    event_date: Mapped[date] = mapped_column(nullable=True)
     voting_result_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.VOTING_RESULT}.id'),
         nullable=False,

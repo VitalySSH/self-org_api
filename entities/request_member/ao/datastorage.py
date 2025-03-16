@@ -24,6 +24,7 @@ from entities.request_member.ao.dataclasses import MyMemberRequest
 from entities.rule.model import Rule
 from entities.status.model import Status
 from entities.user_voting_result.model import UserVotingResult
+from entities.voting_option.model import VotingOption
 from entities.voting_result.model import VotingResult
 
 logger = logging.getLogger(__name__)
@@ -678,22 +679,26 @@ class RequestMemberDS(
 
         related_query = (
             select(VotingResult)
-            .options(selectinload(VotingResult.selected_options))
             .where(VotingResult.id.in_(voting_result_ids))
         )
 
         related_results = {
             row.id: row
             for row in (
-                    await self._session.execute(related_query)
+                await self._session.execute(related_query)
             ).scalars().all()
         }
 
         for row in grouped_results:
             voting_result = related_results.get(row.voting_result_id)
+            option_ids = list((voting_result.options or {}).keys())
+            options = (
+                await self._get_options_by_ids(option_ids)
+                if option_ids else []
+            )
             user_voting_result = UserVotingResult()
             user_voting_result.vote = voting_result.vote
-            user_voting_result.extra_options = voting_result.selected_options
+            user_voting_result.extra_options = options
             user_voting_result.member_id = request_member.member_id
             user_voting_result.community_id = request_member.community_id
             user_voting_result.voting_result = voting_result
@@ -706,6 +711,15 @@ class RequestMemberDS(
                 raise Exception(f'Не удалось создать '
                                 f'пользовательский результат голосования: {e}')
 
+    async def _get_options_by_ids(self, ids: List[str]) -> List[VotingOption]:
+        query = (
+            select(VotingOption)
+            .where(VotingOption.id.in_(ids))
+        )
+        result = await self._session.scalars(query)
+
+        return list(result)
+
     async def _recount_community_vote(self, community_id: str) -> None:
         """Пересчёт голосов по всем голосованиям сообщества."""
         rule_data = await self.list(
@@ -714,7 +728,7 @@ class RequestMemberDS(
                 op=Operation.EQ,
                 val=community_id
             )],
-            include=['status', 'voting_result.selected_options'],
+            include=['status', 'voting_result'],
             model=Rule
         )
         rules: List[Rule] = rule_data.data
@@ -731,7 +745,7 @@ class RequestMemberDS(
                 op=Operation.EQ,
                 val=community_id
             )],
-            include=['status', 'voting_result.selected_options'],
+            include=['status', 'voting_result'],
             model=Initiative
         )
         initiatives: List[Initiative] = initiative_data.data

@@ -73,7 +73,10 @@ class Base(DeclarativeBase):
                         relations[field_name] = {}
             else:
                 if len(class_attr.foreign_keys) == 0:
-                    attributes[field_name] = getattr(instance, field_name)
+                    attr_value = getattr(instance, field_name)
+                    # TODO: сделать обработку поля типа JSON,
+                    #  конвертировать в строку
+                    attributes[field_name] = attr_value
 
         read_obj['attributes'] = attributes
         read_obj['relations'] = relations
