@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, Type, List, Any, cast, Dict, Union
 
 from sqlalchemy.exc import IntegrityError
@@ -313,8 +313,18 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         if len(parts) == 1:
             field_name = parts[0]
             field = getattr(model, field_name)
+            # FIXME: переделать
+            field_types = (
+                model.__annotations__.
+                get(field_name).__dict__.get('__args__')
+            )
+            is_date = (
+                    field_types and (
+                    field_types[0] == date or field_types[0] == datetime
+                )
+            )
 
-            return self._apply_operation(field, operation, value)
+            return self._apply_operation(field, operation, value, is_date)
         else:
 
             current_part = parts[0]
@@ -340,7 +350,15 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 return rel.has(sub_condition)
 
     @staticmethod
-    def _apply_operation(field: Any, operation: Operation, value: Any) -> Any:
+    def _apply_operation(
+            field: Any,
+            operation: Operation,
+            value: Any,
+            is_date: bool = False,
+    ) -> Any:
+        if is_date:
+            value = datetime.fromisoformat(value)
+
         if operation == Operation.EQ:
             return field == value
         elif operation == Operation.NOT_EQ:
