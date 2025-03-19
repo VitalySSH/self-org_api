@@ -5,11 +5,12 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 
 class DelegateSettingsAttributes(TypedDict):
     user_id: str
+    community_id: str
 
 
 class DelegateSettingsRelations(TypedDict, total=False):
     category: SchemaInstance
-    delegates: List[SchemaInstance]
+    delegate: SchemaInstance
 
 
 class DelegateSettingsRead(TypedDict):

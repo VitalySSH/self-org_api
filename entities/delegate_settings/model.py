@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -22,5 +22,10 @@ class DelegateSettings(Base):
     )
     category: Mapped['Category'] = relationship(lazy='noload')
     user_id: Mapped[str] = mapped_column(nullable=False, index=True)
-    delegates: Mapped[List['User']] = relationship(
-        secondary=TableName.RELATION_DS_USERS, lazy='noload')
+    community_id: Mapped[str] = mapped_column(nullable=False, index=True)
+    delegate_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.USER}.id'),
+        nullable=False,
+        index=True,
+    )
+    delegate: Mapped['User'] = relationship(lazy='noload')

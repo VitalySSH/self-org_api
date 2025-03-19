@@ -22,8 +22,6 @@ __all__ = (
     'RequestMember',
     'RelationCsCategories',
     'RelationUserCsCategories',
-    'RelationUCsDs',
-    'RelationDsUsers',
     'RelationUserVrVo',
     'RelationCommunityUCs',
     'RelationUserCsRequestMember',
@@ -56,8 +54,6 @@ from entities.request_member.model import RequestMember
 from .file_metadata import FileMetaData
 from .relation_community_settings_categories import RelationCsCategories
 from .relation_user_community_settings_categories import RelationUserCsCategories
-from .relation_user_community_settings_delegate_settings import RelationUCsDs
-from .relation_delegate_settings_users import RelationDsUsers
 from .relation_user_voting_result_options import RelationUserVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
 from .relation_user_cs_request_member import RelationUserCsRequestMember

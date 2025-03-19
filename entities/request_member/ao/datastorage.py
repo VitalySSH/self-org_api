@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import Optional, List, cast, Sequence
 
 from sqlalchemy import select, insert, func, Row, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload, joinedload
 
 from auth.models.user import User
@@ -620,15 +621,20 @@ class RequestMemberDS(
             WHERE member_id = :member_id
         """)
         try:
+            await self._session.begin_nested()
+
             await self._session.execute(
                 query,
                 {'member_id': member_id, 'value': value}
             )
-            await self._session.flush()
-        except Exception as e:
-            # await self._session.rollback()
-            logger.error(f'Ошибка при обновлении пользовательских '
-                         f'результатов голосований: {e}')
+            await self._session.commit()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при обновлении пользовательских '
+                f'результатов голосований: {e}.\n'
+                f'Параметры: member_id={member_id}, value={str(value)}'
+            )
+            await self._session.rollback()
 
     async def _delete_user_voting_results(self, member_id: str) -> None:
         query = text("""
@@ -636,12 +642,19 @@ class RequestMemberDS(
             WHERE member_id = :member_id
         """)
         try:
-            await self._session.execute(query, {'member_id': member_id})
-            await self._session.flush()
-        except Exception as e:
-            # await self._session.rollback()
-            logger.error(f'Ошибка при удалении пользовательских '
-                         f'результатов голосований: {e}')
+            await self._session.begin_nested()
+
+            await self._session.execute(
+                query, {'member_id': member_id}
+            )
+            await self._session.commit()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при удалении пользовательских '
+                f'результатов голосований: {e}.\n'
+                f'Параметры: member_id={member_id}'
+            )
+            await self._session.rollback()
 
     async def _get_count_users_in_community(self, community_id: str) -> int:
         query = (

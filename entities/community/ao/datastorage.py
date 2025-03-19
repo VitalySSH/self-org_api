@@ -1,6 +1,9 @@
+import logging
+
 from typing import List, Optional, Tuple, cast, Dict
 
-from sqlalchemy import select, func, desc, distinct
+from sqlalchemy import select, func, desc, distinct, text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
 from core.dataclasses import PercentByName
@@ -21,6 +24,8 @@ from entities.status.model import Status
 from entities.user_community_settings.ao.datastorage import (
     UserCommunitySettingsDS
 )
+
+logger = logging.getLogger(__name__)
 
 
 class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
@@ -185,15 +190,20 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 description = desc_data[0]
 
         community: Community = await self._get_community(community_id)
-        other_settings = await self._get_other_community_settings(
-            community_id=community_id, vote=voting_params.vote
-        )
         community_settings: CommunitySettings = community.main_settings
-        system_categories = list(filter(
-            lambda it: it.status.code == Code.SYSTEM_CATEGORY,
-            community_settings.categories or []))
-        system_category: Optional[Category] = (
-            system_categories[0] if system_categories else None
+        system_category: Optional[Category] = None
+        current_category_ids: List[str] = []
+        for category in community_settings.categories:
+            if category.status.code == Code.SYSTEM_CATEGORY:
+                system_category = category
+                continue
+            current_category_ids.append(category.id)
+
+        other_settings = await self._get_other_community_settings(
+            community_id=community_id,
+            vote=voting_params.vote,
+            current_category_ids=current_category_ids,
+            system_category_id=system_category.id if system_category else None
         )
         community_settings.vote = voting_params.vote
         community_settings.quorum = voting_params.quorum
@@ -445,7 +455,10 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
 
     async def _get_other_community_settings(
-            self, community_id: str, vote: int
+            self, community_id: str,
+            vote: int,
+            current_category_ids: List[str],
+            system_category_id: Optional[str],
     ) -> OtherCommunitySettings:
         all_category_ids = []
         selected_category_ids: Dict[str, str] = {}
@@ -465,7 +478,12 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 selected_user_settings_ids[settings_id] = settings_id
 
         categories = await self._get_selected_categories(
-            ids=all_category_ids, selected_ids=selected_category_ids)
+            all_ids=all_category_ids,
+            selected_ids=selected_category_ids,
+            community_id=community_id,
+            current_category_ids=current_category_ids,
+            system_category_id=system_category_id,
+        )
         sub_communities_settings = await self._get_selected_sub_user_settings(
             ids=all_user_settings_ids, selected_ids=selected_user_settings_ids
         )
@@ -498,30 +516,42 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
 
     async def _get_selected_categories(
-            self, ids: List[str],
-            selected_ids: Dict[str, str]
+            self, all_ids: List[str],
+            selected_ids: Dict[str, str],
+            community_id: str,
+            current_category_ids: List[str],
+            system_category_id: Optional[str],
     ) -> List[Category]:
         categories: List[Category] = []
-        if ids:
+        if all_ids:
             query = (
                 select(Category)
                 .options(selectinload(Category.status))
-                .filter(Category.id.in_(ids)))
+                .filter(Category.id.in_(all_ids)))
             categories_data = await self._session.scalars(query)
-            all_categories = list(categories_data)
             selected_status = await self.get_status_by_code(
                 Code.CATEGORY_SELECTED
             )
             on_cons_status = await self.get_status_by_code(
                 Code.ON_CONSIDERATION
             )
-            for category in all_categories:
+            for category in list(categories_data):
                 if selected_ids.get(category.id):
                     if category.status.code != Code.CATEGORY_SELECTED:
                         category.status = selected_status
+                        await self._update_category_from_old_category(
+                            community_id
+                        )
                     categories.append(category)
                 else:
-                    category.status = on_cons_status
+                    if category.status.code != Code.ON_CONSIDERATION:
+                        if system_category_id:
+                            await self._add_old_category(
+                                new_category_id=system_category_id,
+                                old_category_id=category.id,
+                                community_id=community_id,
+                            )
+                        category.status = on_cons_status
 
         return categories
 
@@ -608,3 +638,88 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             )
         )
         return await self._session.scalar(count_query)
+
+    async def _add_old_category(
+            self, new_category_id: str,
+            old_category_id: str,
+            community_id: str,
+    ) -> None:
+        query = text("""
+            WITH updated_rule AS (
+                UPDATE public.rule
+                SET category_id = :new_category_id, old_category_id = :old_category_id
+                WHERE community_id = :community_id
+            ),
+            updated_initiative AS (
+                UPDATE public.initiative
+                SET category_id = :new_category_id, old_category_id = :old_category_id
+                WHERE community_id = :community_id
+            ),
+            UPDATE public.challenge
+            SET category_id = :new_category_id, old_category_id = :old_category_id
+            WHERE community_id = :community_id
+        """)
+
+        try:
+            await self._session.begin_nested()
+
+            await self._session.execute(
+                query,
+                {
+                    'new_category_id': new_category_id,
+                    'old_category_id': old_category_id,
+                    'community_id': community_id,
+                }
+            )
+            await self._session.commit()
+
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при обновлении пользовательских'
+                f' результатов голосований: {e}.\n'
+                f'Параметры: new_category_id={new_category_id}, '
+                f'old_category_id={old_category_id}, '
+                f'community_id={community_id}'
+            )
+            await self._session.rollback()
+
+    async def _update_category_from_old_category(self, community_id: str):
+        query = text("""
+            WITH updated_rule AS (
+                UPDATE public.rule
+                SET 
+                    category_id = old_category_id,
+                    old_category_id = NULL
+                WHERE community_id = :community_id
+                  AND old_category_id IS NOT NULL
+            ),
+            updated_initiative AS (
+                UPDATE public.initiative
+                SET 
+                    category_id = old_category_id,
+                    old_category_id = NULL
+                WHERE community_id = :community_id
+                  AND old_category_id IS NOT NULL
+            )
+            UPDATE public.challenge
+            SET 
+                category_id = old_category_id,
+                old_category_id = NULL
+            WHERE community_id = :community_id
+              AND old_category_id IS NOT NULL
+        """)
+
+        try:
+            await self._session.begin_nested()
+
+            await self._session.execute(
+                query,
+                {'community_id': community_id}
+            )
+            await self._session.commit()
+
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при обновлении категорий для записей с'
+                f'community_id={community_id}: {e}'
+            )

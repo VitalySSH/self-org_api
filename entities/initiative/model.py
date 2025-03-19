@@ -52,7 +52,18 @@ class Initiative(Base):
         nullable=False,
         index=True,
     )
-    category: Mapped['Category'] = relationship(lazy='noload')
+    category: Mapped['Category'] = relationship(
+        lazy='noload',
+        foreign_keys=[category_id],
+    )
+    old_category_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.CATEGORY}.id'),
+        nullable=True,
+    )
+    old_category: Mapped['Category'] = relationship(
+        lazy='noload',
+        foreign_keys=[old_category_id]
+    )
     deadline: Mapped[datetime] = mapped_column(nullable=True)
     event_date: Mapped[date] = mapped_column(nullable=True)
     voting_result_id: Mapped[str] = mapped_column(

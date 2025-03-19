@@ -22,9 +22,11 @@ class Rule(Base):
     question: Mapped[str] = mapped_column(nullable=False)
     content: Mapped[str] = mapped_column(nullable=False)
     is_extra_options: Mapped[bool] = mapped_column(
-        nullable=False, default=False)
+        nullable=False, default=False
+    )
     is_multi_select: Mapped[bool] = mapped_column(
-        nullable=False, default=False)
+        nullable=False, default=False
+    )
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
@@ -44,7 +46,18 @@ class Rule(Base):
         nullable=False,
         index=True,
     )
-    category: Mapped['Category'] = relationship(lazy='noload')
+    category: Mapped['Category'] = relationship(
+        lazy='noload',
+        foreign_keys=[category_id],
+    )
+    old_category_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.CATEGORY}.id'),
+        nullable=True,
+    )
+    old_category: Mapped['Category'] = relationship(
+        lazy='noload',
+        foreign_keys=[old_category_id]
+    )
     voting_result_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.VOTING_RESULT}.id'),
         nullable=False,

@@ -1,12 +1,16 @@
-from typing import Optional, Union, Tuple
+from typing import Optional, Union, Tuple, List
+
+from sqlalchemy import select
 
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.crud.datastorage import CRUDDataStorage
 from datastorage.decorators import ds_async_with_new_session
+from entities.delegate_settings.model import DelegateSettings
 from entities.initiative.model import Initiative
 from entities.rule.model import Rule
 from entities.user_voting_result.ao.interfaces import Resource, ResourceType
 from entities.user_voting_result.model import UserVotingResult
+from entities.voting_option.model import VotingOption
 from entities.voting_result.model import VotingResult
 
 
@@ -28,6 +32,16 @@ class UserVotingResultDS(
             model=VotingResult,
         )
         resource, resource_type = await self._get_resource(user_voting_result)
+        await self._propagate_vote(
+            user_id=user_voting_result.member_id,
+            community_id=user_voting_result.community_id,
+            category_id=resource.category_id,
+            resource=resource,
+            resource_type=resource_type,
+            vote=user_voting_result.vote,
+            extra_options=user_voting_result.extra_options,
+        )
+
         await self.user_vote_count(
             voting_result=voting_result,
             resource=resource,
@@ -58,3 +72,75 @@ class UserVotingResultDS(
                 f'Пользовательский результат голосования с id: '
                 f'{user_voting_result.id} не имеет связи с источником'
             )
+
+    async def _propagate_vote(
+            self, user_id: str,
+            community_id: str,
+            category_id: str,
+            resource: Resource,
+            resource_type: ResourceType,
+            vote: bool,
+            extra_options: List[VotingOption],
+    ) -> None:
+        """Размножить голос от делегата к доверителям."""
+        delegate_settings = await self._get_delegate_settings(
+            user_id=user_id,
+            community_id=community_id,
+            category_id=category_id,
+        )
+        for delegate_setting in delegate_settings:
+            target_user_id = delegate_setting.user_id
+            filters = [
+                UserVotingResult.member_id == target_user_id,
+                UserVotingResult.community_id == community_id,
+            ]
+            match resource_type:
+                case 'rule':
+                    filters.append(UserVotingResult.rule_id == resource.id)
+                case 'initiative':
+                    filters.append(
+                        UserVotingResult.initiative_id == resource.id
+                    )
+
+            user_voting_result: Optional[UserVotingResult] = (
+                await self._session.scalar(
+                    select(UserVotingResult).where(*filters)
+                )
+            )
+            if (not user_voting_result or
+                    (user_voting_result and
+                     user_voting_result.is_voted_myself)):
+                continue
+
+            user_voting_result.vote = vote
+            if extra_options:
+                user_voting_result.extra_options = extra_options
+            await self._session.flush([user_voting_result])
+
+            await self._propagate_vote(
+                user_id=target_user_id,
+                community_id=community_id,
+                category_id=category_id,
+                resource=resource,
+                resource_type=resource_type,
+                vote=vote,
+                extra_options=extra_options,
+            )
+
+
+    async def _get_delegate_settings(
+            self, user_id: str,
+            community_id: str,
+            category_id,
+    ) -> List[DelegateSettings]:
+        query = (
+            select(DelegateSettings)
+            .where(
+                DelegateSettings.delegate_id == user_id,
+                DelegateSettings.community_id == community_id,
+                DelegateSettings.category_id == category_id,
+            )
+        )
+        delegate_settings = await self._session.scalars(query)
+
+        return list(delegate_settings)

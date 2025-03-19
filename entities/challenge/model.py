@@ -8,9 +8,7 @@ from datastorage.database.models import Base
 from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
-    from datastorage.database.models import (
-        Status, Category, User, Solution
-    )
+    from datastorage.database.models import Status, Category, User, Solution
 
 
 class Challenge(Base):
@@ -37,6 +35,17 @@ class Challenge(Base):
         nullable=False,
         index=True,
     )
-    category: Mapped['Category'] = relationship(lazy='noload')
+    category: Mapped['Category'] = relationship(
+        lazy='noload',
+        foreign_keys=[category_id],
+    )
+    old_category_id: Mapped[str] = mapped_column(
+        ForeignKey(f'{TableName.CATEGORY}.id'),
+        nullable=True,
+    )
+    old_category: Mapped['Category'] = relationship(
+        lazy='noload',
+        foreign_keys=[old_category_id]
+    )
     solutions: Mapped[List['Solution']] = relationship(
         secondary=TableName.RELATION_CHALLENGE_SOLUTIONS, lazy='noload')

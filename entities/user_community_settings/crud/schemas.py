@@ -21,7 +21,6 @@ class UserCsRelations(TypedDict, total=False):
     description: SchemaInstance
     categories: List[SchemaInstance]
     sub_communities_settings: List[SchemaInstance]
-    delegate_settings: List[SchemaInstance]
     adding_members: List[SchemaInstance]
 
 

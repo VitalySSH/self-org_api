@@ -9,8 +9,7 @@ from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Category, User, DelegateSettings, CommunityName, CommunityDescription,
-        RequestMember
+        Category, User, CommunityName, CommunityDescription, RequestMember
     )
 
 
@@ -56,8 +55,6 @@ class UserCommunitySettings(Base):
         secondaryjoin='UserCommunitySettings.id == RelationUserCsUserCs.to_id',
         lazy='noload'
     )
-    delegate_settings: Mapped[List['DelegateSettings']] = relationship(
-        secondary=TableName.RELATION_UCS_DS, lazy='noload')
     is_not_delegate: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_default_add_member: Mapped[bool] = mapped_column(nullable=False, default=False)
     is_blocked: Mapped[bool] = mapped_column(nullable=False, default=False)
