@@ -29,7 +29,6 @@ logger = logging.getLogger(__name__)
 
 
 class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
-
     _model = Community
 
     async def get_community_settings_in_percent(
@@ -46,11 +45,13 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         categories_list = await self._get_categories_by_ids(
             list(category_data.keys())
         )
-        categories = [PercentByName(name=category.name,
-                                    percent=int(
-                                        category_data.get(category.id) /
-                                        modified_data.user_count * 100))
-                      for category in categories_list]
+        categories = [
+            PercentByName(
+                name=category.name,
+                percent=int(category_data.get(category.id) / modified_data.user_count * 100)
+            )
+            for category in categories_list if category.status.code != Code.SYSTEM_CATEGORY
+        ]
 
         child_settings_data = {
             category_id: count
@@ -156,7 +157,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
         communities_ids = await self.get_user_community_ids_data(user_id)
         for user_settings in (community.main_settings
-                              .sub_communities_settings or []):
+                                      .sub_communities_settings or []):
             sub_community = SubCommunityData(
                 id=user_settings.community_id,
                 title=user_settings.name.name,
@@ -191,18 +192,16 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
         community: Community = await self._get_community(community_id)
         community_settings: CommunitySettings = community.main_settings
-        system_category: Optional[Category] = None
-        current_category_ids: List[str] = []
-        for category in community_settings.categories:
-            if category.status.code == Code.SYSTEM_CATEGORY:
-                system_category = category
-                continue
-            current_category_ids.append(category.id)
+        system_categories = list(filter(
+            lambda it: it.status.code == Code.SYSTEM_CATEGORY,
+            community_settings.categories or []))
+        system_category: Optional[Category] = (
+            system_categories[0] if system_categories else None
+        )
 
         other_settings = await self._get_other_community_settings(
             community_id=community_id,
             vote=voting_params.vote,
-            current_category_ids=current_category_ids,
             system_category_id=system_category.id if system_category else None
         )
         community_settings.vote = voting_params.vote
@@ -457,7 +456,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
     async def _get_other_community_settings(
             self, community_id: str,
             vote: int,
-            current_category_ids: List[str],
             system_category_id: Optional[str],
     ) -> OtherCommunitySettings:
         all_category_ids = []
@@ -481,7 +479,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             all_ids=all_category_ids,
             selected_ids=selected_category_ids,
             community_id=community_id,
-            current_category_ids=current_category_ids,
             system_category_id=system_category_id,
         )
         sub_communities_settings = await self._get_selected_sub_user_settings(
@@ -519,7 +516,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             self, all_ids: List[str],
             selected_ids: Dict[str, str],
             community_id: str,
-            current_category_ids: List[str],
             system_category_id: Optional[str],
     ) -> List[Category]:
         categories: List[Category] = []
@@ -536,6 +532,9 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 Code.ON_CONSIDERATION
             )
             for category in list(categories_data):
+                if category.status.code == Code.SYSTEM_CATEGORY:
+                    continue
+
                 if selected_ids.get(category.id):
                     if category.status.code != Code.CATEGORY_SELECTED:
                         category.status = selected_status
