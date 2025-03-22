@@ -2,6 +2,9 @@ from typing import Optional, TypedDict, List
 
 from pydantic import BaseModel
 
+from datastorage.crud.interfaces.base import Include
+from datastorage.crud.interfaces.list import Pagination, Filters, Orders
+
 
 class BaseUser(BaseModel):
     firstname: str
@@ -40,6 +43,14 @@ class UserUpdate(TypedDict, total=False):
     email: str
     about_me: Optional[str]
     foto_id: Optional[str]
+
+
+class ListUsers(TypedDict, total=False):
+    filters: Filters
+    orders: Orders
+    pagination: Pagination
+    include: Include
+    is_delegates: bool
 
 
 class CreateUserResponse(TypedDict, total=False):

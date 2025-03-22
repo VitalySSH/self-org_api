@@ -112,13 +112,13 @@ class UserService:
         """Получить список id пользователей в сообществе."""
         query_filters = [
             UserCommunitySettings.community_id == community_id,
-            UserCommunitySettings.user_id == current_user_id,
             UserCommunitySettings.is_blocked.is_not(True),
         ]
         if is_delegates:
-            query_filters.append(
-                UserCommunitySettings.is_not_delegate.is_not(True)
-            )
+            query_filters += [
+                UserCommunitySettings.is_not_delegate.is_not(True),
+                UserCommunitySettings.user_id != current_user_id,
+            ]
         query = (
             select(UserCommunitySettings.user_id)
             .where(*query_filters)

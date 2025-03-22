@@ -9,7 +9,7 @@ from auth.auth import auth_service
 from auth.dataclasses import CreateUserResult
 from auth.schemas import (
     CurrentUser, UserCreate, UserUpdate, CreateUserResponse, ListUserSchema,
-    ReadUser
+    ReadUser, ListUsers
 )
 from auth.security import decrypt_password, verify_password
 from auth.services.user_service import UserService
@@ -118,15 +118,13 @@ async def list_users(
 )
 async def list_users(
         community_id: str,
-        filters: Filters = None,
-        orders: Orders = None,
-        pagination: Pagination = None,
-        include: Include = None,
-        is_delegates: bool = False,
+        body: ListUsers,
         current_user: User = Depends(auth_service.get_current_user),
         session: AsyncSession = Depends(get_async_session),
 ) -> ListUserSchema:
     user_service: UserService = auth_service.create_user_service(session)
+    is_delegates = body.get('is_delegates') or False
+    filters = body.get('filters') or []
     ds = CRUDDataStorage[User](model=User, session=session)
     user_ids = await user_service.get_user_ids_from_community(
         community_id=community_id,
@@ -138,8 +136,8 @@ async def list_users(
     filters.append(Filter(field='id', op=Operation.IN, val=user_ids))
 
     resp: ListResponse[User] = await ds.list(
-        filters=filters, orders=orders,
-        pagination=pagination, include=include
+        filters=filters, orders=body.get('orders'),
+        pagination=body.get('pagination'), include=body.get('include')
     )
 
     return ListUserSchema(
