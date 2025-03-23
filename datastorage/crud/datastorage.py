@@ -135,7 +135,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
     ) -> ListResponse[Union[T, Any]]:
         if model is None:
             model = self._model
-        filters = self._get_filter_params(filters)
+
+        filters = self._get_filter_params(filters=filters, model=model)
         base_query = select(model).filter(*filters)
 
         total_query = select(func.count()).select_from(base_query.subquery())
@@ -159,12 +160,14 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             self, filters: Optional[Filters] = None,
             orders: Optional[Orders] = None,
             include: Optional[Include] = None,
+            model: Type[T] = None,
     ) -> Optional[T]:
         resp = await self.list(
             filters=filters,
             orders=orders,
-            pagination=PaginationModel(skip=0, limit=1),
+            pagination=PaginationModel(skip=1, limit=1),
             include=include,
+            model=model,
         )
 
         return resp.data[0] if resp.total > 0 else None
@@ -286,7 +289,10 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return options
 
-    def _get_filter_params(self, filters: Filters) -> List:
+    def _get_filter_params(
+            self, filters: Filters,
+            model: Type[T]
+    ) -> List:
         """Формирует список параметров для фильтрации."""
         params = []
         for _filter in filters or []:
@@ -294,7 +300,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             try:
                 parts = _filter.field.split('.')
                 condition = self._build_condition(
-                    model=self._model,
+                    model=model,
                     parts=parts,
                     operation=_filter.op,
                     value=_filter.val,

@@ -10,6 +10,7 @@ from core.dataclasses import PercentByName
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
+from datastorage.crud.interfaces.list import Filters, Operation, Filter
 from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
     RelationUserCsCategories, Category, CommunityName,
@@ -48,9 +49,12 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         categories = [
             PercentByName(
                 name=category.name,
-                percent=int(category_data.get(category.id) / modified_data.user_count * 100)
+                percent=int(
+                    category_data.get(category.id) /
+                    modified_data.user_count * 100
+                )
             )
-            for category in categories_list if category.status.code != Code.SYSTEM_CATEGORY
+            for category in categories_list
         ]
 
         child_settings_data = {
@@ -192,12 +196,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
         community: Community = await self._get_community(community_id)
         community_settings: CommunitySettings = community.main_settings
-        system_categories = list(filter(
-            lambda it: it.status.code == Code.SYSTEM_CATEGORY,
-            community_settings.categories or []))
-        system_category: Optional[Category] = (
-            system_categories[0] if system_categories else None
-        )
+        system_category = await self.get_system_category()
 
         other_settings = await self._get_other_community_settings(
             community_id=community_id,
@@ -218,16 +217,25 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             community_settings.name = name
         if description:
             community_settings.description = description
-        if other_settings.categories:
-            if system_category:
-                other_settings.categories.insert(0, system_category)
-            community_settings.categories = other_settings.categories
-        if other_settings.sub_communities_settings:
-            community_settings.sub_communities_settings = (
-                other_settings.sub_communities_settings
-            )
+        if system_category:
+            other_settings.categories.insert(0, system_category)
+        community_settings.categories = other_settings.categories
+        community_settings.sub_communities_settings = (
+            other_settings.sub_communities_settings
+        )
 
         await self._session.commit()
+
+    async def get_system_category(self) -> Optional[Category]:
+        filters: Filters = [
+            Filter(
+                field='status.code',
+                op=Operation.EQ,
+                val=Code.SYSTEM_CATEGORY
+            ),
+        ]
+        return await self.first(filters=filters, model=Category)
+
 
     async def _get_categories_by_ids(
             self, categories_ids: List[str]
@@ -431,7 +439,14 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         categories_query = (
             select(RelationUserCsCategories.to_id,
                    func.count(RelationUserCsCategories.to_id).label('count'))
-            .where(RelationUserCsCategories.from_id.in_(user_cs_ids))
+            .join(Category,
+                  RelationUserCsCategories.to_id == Category.id)
+            .join(Status,
+                  Category.status_id == Status.id)
+            .where(
+                RelationUserCsCategories.from_id.in_(user_cs_ids),
+                Status.code != Code.SYSTEM_CATEGORY
+            )
             .group_by(RelationUserCsCategories.to_id)
             .order_by(desc('count'))
         )
@@ -532,9 +547,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 Code.ON_CONSIDERATION
             )
             for category in list(categories_data):
-                if category.status.code == Code.SYSTEM_CATEGORY:
-                    continue
-
                 if selected_ids.get(category.id):
                     if category.status.code != Code.CATEGORY_SELECTED:
                         category.status = selected_status
@@ -643,34 +655,51 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             old_category_id: str,
             community_id: str,
     ) -> None:
-        query = text("""
-            WITH updated_rule AS (
-                UPDATE public.rule
-                SET category_id = :new_category_id, old_category_id = :old_category_id
-                WHERE community_id = :community_id
-            ),
-            updated_initiative AS (
-                UPDATE public.initiative
-                SET category_id = :new_category_id, old_category_id = :old_category_id
-                WHERE community_id = :community_id
-            ),
+        query_rule = text("""
+            UPDATE public.rule
+            SET category_id = :new_category_id, old_category_id = :old_category_id
+            WHERE community_id = :community_id
+        """)
+
+        query_initiative = text("""
+            UPDATE public.initiative
+            SET category_id = :new_category_id, old_category_id = :old_category_id
+            WHERE community_id = :community_id
+        """)
+
+        query_challenge = text("""
             UPDATE public.challenge
             SET category_id = :new_category_id, old_category_id = :old_category_id
             WHERE community_id = :community_id
         """)
 
         try:
-            await self._session.begin_nested()
+            async with self._session.begin_nested():
 
-            await self._session.execute(
-                query,
-                {
-                    'new_category_id': new_category_id,
-                    'old_category_id': old_category_id,
-                    'community_id': community_id,
-                }
-            )
-            await self._session.commit()
+                await self._session.execute(
+                    query_rule,
+                    {
+                        'new_category_id': new_category_id,
+                        'old_category_id': old_category_id,
+                        'community_id': community_id,
+                    }
+                )
+                await self._session.execute(
+                    query_initiative,
+                    {
+                        'new_category_id': new_category_id,
+                        'old_category_id': old_category_id,
+                        'community_id': community_id,
+                    }
+                )
+                await self._session.execute(
+                    query_challenge,
+                    {
+                        'new_category_id': new_category_id,
+                        'old_category_id': old_category_id,
+                        'community_id': community_id,
+                    }
+                )
 
         except SQLAlchemyError as e:
             logger.error(
@@ -683,23 +712,25 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             await self._session.rollback()
 
     async def _update_category_from_old_category(self, community_id: str):
-        query = text("""
-            WITH updated_rule AS (
-                UPDATE public.rule
-                SET 
-                    category_id = old_category_id,
-                    old_category_id = NULL
-                WHERE community_id = :community_id
-                  AND old_category_id IS NOT NULL
-            ),
-            updated_initiative AS (
-                UPDATE public.initiative
-                SET 
-                    category_id = old_category_id,
-                    old_category_id = NULL
-                WHERE community_id = :community_id
-                  AND old_category_id IS NOT NULL
-            )
+        query_rule = text("""
+            UPDATE public.rule
+            SET 
+                category_id = old_category_id,
+                old_category_id = NULL
+            WHERE community_id = :community_id
+              AND old_category_id IS NOT NULL
+        """)
+
+        query_initiative = text("""
+            UPDATE public.initiative
+            SET 
+                category_id = old_category_id,
+                old_category_id = NULL
+            WHERE community_id = :community_id
+              AND old_category_id IS NOT NULL
+        """)
+
+        query_challenge = text("""
             UPDATE public.challenge
             SET 
                 category_id = old_category_id,
@@ -709,16 +740,26 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         """)
 
         try:
-            await self._session.begin_nested()
+            async with self._session.begin_nested():
 
-            await self._session.execute(
-                query,
-                {'community_id': community_id}
-            )
+                await self._session.execute(
+                    query_rule,
+                    {'community_id': community_id}
+                )
+                await self._session.execute(
+                    query_initiative,
+                    {'community_id': community_id}
+                )
+                await self._session.execute(
+                    query_challenge,
+                    {'community_id': community_id}
+                )
+
             await self._session.commit()
 
         except SQLAlchemyError as e:
             logger.error(
-                f'Ошибка при обновлении категорий для записей с'
+                f'Ошибка при обновлении категорий для записей с '
                 f'community_id={community_id}: {e}'
             )
+            await self._session.rollback()
