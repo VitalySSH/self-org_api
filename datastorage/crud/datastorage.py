@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import Optional, Type, List, Any, cast, Dict, Union
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, func
+from sqlalchemy import select, func, inspect
 from sqlalchemy.orm import selectinload, Load, RelationshipProperty
 
 from datastorage.base import DataStorage
@@ -48,11 +48,11 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             instance_id=instance_id,
         )
 
-    @staticmethod
-    def get_relation_fields(schema: S) -> List[str]:
-        return [
-            key for key, value in schema.get('relations', {}).items() if value
-        ]
+    def get_relation_fields(self) -> List[str]:
+        inspector = inspect(self._model)
+        attrs = inspector.mapper.attrs
+
+        return [attr.key for attr in attrs if hasattr(attr, 'direction')]
 
     async def get(
             self, instance_id: str,
@@ -95,7 +95,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return instance
 
     async def update(self, instance_id: str, schema: SchemaInstance) -> None:
-        include = self.get_relation_fields(schema)
+        include = self.get_relation_fields()
         instance = await self.get(instance_id=instance_id, include=include)
         if not instance:
             raise CRUDNotFound(f'Объект с id {instance_id} модели '
@@ -203,7 +203,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 setattr(instance, rel_name, related_obj)
 
     async def _fetch_many_to_many(
-            self, rel_values: list, model: Type[T], rel_name: str
+            self, rel_values: List[SchemaInstance],
+            model: Type[T],
+            rel_name: str
     ) -> List[T]:
         objs = []
         for rel_value in rel_values:
@@ -214,8 +216,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return objs
 
     async def _fetch_relation(
-            self, rel_value: dict,
-            model: Type[T], rel_name: str
+            self, rel_value: SchemaInstance,
+            model: Type[T],
+            rel_name: str
     ) -> Optional[T]:
         rel_obj_id = rel_value.get('id')
         if not rel_obj_id:
