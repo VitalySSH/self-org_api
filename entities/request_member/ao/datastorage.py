@@ -133,7 +133,7 @@ class RequestMemberDS(
                 'community.user_settings',
                 'community.main_settings.name',
                 'community.main_settings.description',
-                'community.main_settings.categories',
+                'community.main_settings.categories.status',
                 'community.main_settings.sub_communities_settings',
             ]
         )
@@ -265,7 +265,9 @@ class RequestMemberDS(
         user_settings.is_minority_not_participate = (
             community.main_settings.is_minority_not_participate
         )
-        user_settings.categories = community.main_settings.categories
+        user_settings.categories = list(filter(
+            lambda it: it.status.code != Code.SYSTEM_CATEGORY,
+            community.main_settings.categories))
         user_settings.sub_communities_settings = (
             community.main_settings.sub_communities_settings
         )
