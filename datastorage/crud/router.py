@@ -140,10 +140,12 @@ def get_crud_router(
                 background_tasks=background_tasks
             )
             instance_to_add: model = await ds.schema_to_model(schema=body)
-            relation_fields: List[str] = ds.get_relation_fields(body)
+            relation_fields: List[str] = ds.get_relation_fields()
             try:
                 new_instance = await ds.create(
-                    instance=instance_to_add, relation_fields=relation_fields)
+                    instance=instance_to_add,
+                    include=relation_fields
+                )
 
                 if post_processing_data:
                     pp_data, include = build_post_processing_data(

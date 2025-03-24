@@ -3,7 +3,7 @@ from datetime import datetime, date
 from typing import Optional, Type, List, Any, cast, Dict, Union
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, func, inspect
+from sqlalchemy import select, func, inspect, JSON
 from sqlalchemy.orm import selectinload, Load, RelationshipProperty
 
 from datastorage.base import DataStorage
@@ -52,7 +52,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         inspector = inspect(self._model)
         attrs = inspector.mapper.attrs
 
-        return [attr.key for attr in attrs if hasattr(attr, 'direction')]
+        return [attr.key for attr in attrs
+                if isinstance(attr, RelationshipProperty)]
 
     async def get(
             self, instance_id: str,
@@ -75,10 +76,10 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
     async def create(
             self, instance: T,
-            relation_fields: Optional[List[str]] = None
+            include: Include = None
     ) -> T:
         relation_data = {
-            rel_field: value for rel_field in relation_fields or []
+            rel_field: value for rel_field in include or []
             if (value := getattr(instance, rel_field, None))
         }
         try:
@@ -95,6 +96,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return instance
 
     async def update(self, instance_id: str, schema: SchemaInstance) -> None:
+        # FIXME: переделать, не вытаскивать все связи записей каждый раз
+        #  После того, как на фронте будет сделано хранение изменений полей
         include = self.get_relation_fields()
         instance = await self.get(instance_id=instance_id, include=include)
         if not instance:
@@ -180,12 +183,21 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
         return instance
 
-    @staticmethod
-    def _update_attributes(instance: T, attributes: Dict[str, Any]) -> None:
+    def _update_attributes(
+            self, instance: T,
+            attributes: Dict[str, Any]
+    ) -> None:
         for attr_name, attr_value in attributes.items():
             if hasattr(instance, attr_name):
-                # TODO: сделать обработку поля типа JSON,
-                #  конвертировать строку в dict
+                if (self._is_json_field(instance, attr_name) and
+                        isinstance(attr_value, str)):
+                    try:
+                        attr_value = json.loads(attr_value)
+                    except json.JSONDecodeError as e:
+                        raise ValueError(
+                            f"Поле {attr_name} должно быть валидным JSON: {e}"
+                        )
+
                 setattr(instance, attr_name, attr_value)
 
     async def _update_relations(
@@ -248,6 +260,13 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 f'Аттрибут {field_name} модели {model.__name__}'
                 f' не является типом Relationship: {e}'
             )
+
+    @staticmethod
+    def _is_json_field(instance: T, field: str) -> bool:
+        """Проверяет, является ли поле модели JSON-полем."""
+        field_type = inspect(instance.__class__).columns[field].type
+
+        return isinstance(field_type, JSON)
 
     def _build_options(self, include: List[str], model: Type[T]) -> List[Load]:
         """Создаёт опции для загрузки связанных сущностей."""
