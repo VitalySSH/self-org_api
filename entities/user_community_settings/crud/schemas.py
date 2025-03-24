@@ -13,6 +13,7 @@ class UserCsAttributes(TypedDict, total=False):
     is_minority_not_participate: Optional[bool]
     is_not_delegate: Optional[bool]
     is_default_add_member: Optional[bool]
+    is_blocked: bool
 
 
 class UserCsRelations(TypedDict, total=False):
