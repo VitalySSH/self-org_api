@@ -1,8 +1,8 @@
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Dict, Any
 
 from sqlalchemy.orm import DeclarativeBase, Mapped
 
-from datastorage.crud.interfaces.schema import SchemaInstance
+from datastorage.crud.interfaces.schema import SchemaInstance, Relations
 
 S = TypeVar('S')
 
@@ -29,9 +29,9 @@ class Base(DeclarativeBase):
         if instance is None:
             instance = self
 
-        read_obj = {'id': instance.id}
-        attributes = {}
-        relations = {}
+        read_obj: SchemaInstance = {'id': instance.id}
+        attributes: Dict[str, Any] = {}
+        relations: Relations = {}
 
         for field_name, value in instance.__class__.__annotations__.items():
             field = getattr(instance.__class__, field_name)

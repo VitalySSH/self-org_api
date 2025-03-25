@@ -50,9 +50,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
 
     @staticmethod
     def get_relation_fields(schema: S) -> List[str]:
-        return [
-            key for key, value in schema.get('relations', {}).items() if value
-        ]
+        return [key for key, value in schema.get('relations', {}).items()]
 
     async def get(
             self, instance_id: str,

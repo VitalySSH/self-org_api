@@ -1,6 +1,7 @@
 from typing import Optional, Union, Tuple, List
 
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.crud.datastorage import CRUDDataStorage
@@ -104,7 +105,9 @@ class UserVotingResultDS(
 
             user_voting_result: Optional[UserVotingResult] = (
                 await self._session.scalar(
-                    select(UserVotingResult).where(*filters)
+                    select(UserVotingResult)
+                    .where(*filters)
+                    .options(selectinload(UserVotingResult.extra_options))
                 )
             )
             if (not user_voting_result or

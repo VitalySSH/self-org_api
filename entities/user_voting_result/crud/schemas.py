@@ -5,6 +5,7 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 
 class UserVRAttributes(TypedDict):
     vote: Optional[bool]
+    is_voted_myself: Optional[bool]
     member_id: str
     initiative_id: Optional[str]
 

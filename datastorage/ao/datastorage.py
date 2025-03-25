@@ -106,7 +106,7 @@ class AODataStorage(DataStorage[T], AO):
     ) -> None:
         """Подсчет голосов."""
         last_vote = voting_result.vote
-        last_status_code = resource.status.code
+        last_status = resource.status
         is_significant_minority = voting_result.is_significant_minority
         community_voting_params = await self.calculate_voting_params(
             resource.community_id
@@ -157,7 +157,7 @@ class AODataStorage(DataStorage[T], AO):
         await self._update_status_in_resource(
             resource=resource,
             resource_type=resource_type,
-            last_status_code=last_status_code,
+            last_status=last_status,
             is_selected_options=is_selected_options,
             is_significant_minority=is_significant_minority,
             is_quorum=is_quorum,
@@ -167,7 +167,7 @@ class AODataStorage(DataStorage[T], AO):
     async def _update_status_in_resource(
             self, resource: Resource,
             resource_type: ResourceType,
-            last_status_code: str,
+            last_status: Status,
             is_selected_options: bool,
             is_significant_minority: bool,
             is_quorum: bool,
@@ -176,7 +176,7 @@ class AODataStorage(DataStorage[T], AO):
         status = resource.status
         match resource_type:
             case 'rule':
-                if (last_status_code == Code.RULE_APPROVED and
+                if (last_status.code == Code.RULE_APPROVED and
                         (not is_quorum or not is_decision or
                          (resource.is_extra_options and
                           not is_selected_options))):
@@ -193,16 +193,21 @@ class AODataStorage(DataStorage[T], AO):
                             Code.RULE_APPROVED
                         )
                 elif (is_quorum and is_decision and
-                      (resource.is_extra_options and not is_selected_options)):
+                      (resource.is_extra_options and
+                       not is_selected_options) and
+                      last_status.code != Code.INITIATIVE_REVOKED):
                     status = await self.get_status_by_code(
                         Code.PRINCIPAL_AGREEMENT
                     )
                 else:
-                    status = await self.get_status_by_code(
-                        Code.ON_CONSIDERATION
-                    )
+                    if last_status.code == Code.INITIATIVE_REVOKED:
+                        status = last_status
+                    else:
+                        status = await self.get_status_by_code(
+                            Code.ON_CONSIDERATION
+                        )
             case 'initiative':
-                if (last_status_code == Code.INITIATIVE_APPROVED and
+                if (last_status.code == Code.INITIATIVE_APPROVED and
                         (not is_quorum or not is_decision or
                          (resource.is_extra_options and
                           not is_selected_options))):
@@ -221,14 +226,19 @@ class AODataStorage(DataStorage[T], AO):
                             Code.INITIATIVE_APPROVED
                         )
                 elif (is_quorum and is_decision and
-                      (resource.is_extra_options and not is_selected_options)):
+                      (resource.is_extra_options and
+                       not is_selected_options) and
+                      last_status.code != Code.INITIATIVE_REVOKED):
                     status = await self.get_status_by_code(
                         Code.PRINCIPAL_AGREEMENT
                     )
                 else:
-                    status = await self.get_status_by_code(
-                        Code.ON_CONSIDERATION
-                    )
+                    if last_status.code == Code.INITIATIVE_REVOKED:
+                        status = last_status
+                    else:
+                        status = await self.get_status_by_code(
+                            Code.ON_CONSIDERATION
+                        )
 
         resource.status = status
 
@@ -291,7 +301,7 @@ class AODataStorage(DataStorage[T], AO):
             option = VotingOptionData(
                 number=idx,
                 value=voting_option.content,
-                percent=str(int(count / total_count) * 100),
+                percent=str(int(count / total_count * 100)),
             )
             if count >= min_count:
                 options[voting_option.id] = option
