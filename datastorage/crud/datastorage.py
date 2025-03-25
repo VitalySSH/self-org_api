@@ -48,12 +48,11 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             instance_id=instance_id,
         )
 
-    def get_relation_fields(self) -> List[str]:
-        inspector = inspect(self._model)
-        attrs = inspector.mapper.attrs
-
-        return [attr.key for attr in attrs
-                if isinstance(attr, RelationshipProperty)]
+    @staticmethod
+    def get_relation_fields(schema: S) -> List[str]:
+        return [
+            key for key, value in schema.get('relations', {}).items() if value
+        ]
 
     async def get(
             self, instance_id: str,
@@ -96,9 +95,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return instance
 
     async def update(self, instance_id: str, schema: SchemaInstance) -> None:
-        # FIXME: переделать, не вытаскивать все связи записей каждый раз
-        #  После того, как на фронте будет сделано хранение изменений полей
-        include = self.get_relation_fields()
+        include = self.get_relation_fields(schema)
         instance = await self.get(instance_id=instance_id, include=include)
         if not instance:
             raise CRUDNotFound(f'Объект с id {instance_id} модели '

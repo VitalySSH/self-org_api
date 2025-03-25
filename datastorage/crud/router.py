@@ -140,7 +140,7 @@ def get_crud_router(
                 background_tasks=background_tasks
             )
             instance_to_add: model = await ds.schema_to_model(schema=body)
-            relation_fields: List[str] = ds.get_relation_fields()
+            relation_fields: List[str] = ds.get_relation_fields(body)
             try:
                 new_instance = await ds.create(
                     instance=instance_to_add,
