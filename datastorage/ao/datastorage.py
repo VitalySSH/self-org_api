@@ -137,6 +137,7 @@ class AODataStorage(DataStorage[T], AO):
                     voting_result.is_significant_minority = (
                         is_significant_minority
                     )
+                    voting_result.minority_options = minority_options
 
             else:
                 voting_result.vote = False
