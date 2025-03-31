@@ -1,20 +1,25 @@
-from typing import Optional, Tuple, Dict
+import logging
+from typing import Optional, Tuple, Dict, Sequence, List, cast
 
-from sqlalchemy import text, select, func, case
+from sqlalchemy import text, select, func, case, Row
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from core.dataclasses import BaseVotingParams, SimpleVoteResult
-from entities.voting_option.dataclasses import VotingOptionData
+from datastorage.database.models import (
+    Initiative, Rule, RequestMember, UserCommunitySettings, UserVotingResult,
+    VotingOption, VotingResult, Status
+)
 from datastorage.ao.interfaces import AO
 from datastorage.base import DataStorage
 from datastorage.consts import Code
 from datastorage.database.models import RelationUserVrVo
 from datastorage.interfaces import T
-from entities.status.model import Status
 from entities.user_voting_result.ao.interfaces import Resource, ResourceType
-from entities.user_voting_result.model import UserVotingResult
-from entities.voting_option.model import VotingOption
-from entities.voting_result.model import VotingResult
+from entities.voting_option.dataclasses import VotingOptionData
+
+logger = logging.getLogger(__name__)
 
 
 class AODataStorage(DataStorage[T], AO):
@@ -64,6 +69,33 @@ class AODataStorage(DataStorage[T], AO):
             significant_minority=int(minority_median),
         )
 
+    async def recount_of_all_votes(
+            self,
+            community_id: str,
+            voting_params: BaseVotingParams,
+    ) -> None:
+        """Пересчет всех голосов."""
+        try:
+            await self._session.begin_nested()
+
+            await self._recount_of_votes_by_requests_member(
+                community_id=community_id,
+                voting_params=voting_params
+            )
+            await self._recount_community_vote(
+                community_id=community_id,
+                voting_params=voting_params,
+            )
+
+            await self._session.commit()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при пересчете всех голосов:\n {e.__str__()}'
+                f'Параметры: community_id={community_id}'
+            )
+            await self._session.rollback()
+
+
     async def get_status_by_code(self, code: str) -> Optional[Status]:
         """Получить статус по коду."""
         status_query = select(Status).where(Status.code == code)
@@ -99,25 +131,78 @@ class AODataStorage(DataStorage[T], AO):
 
         return SimpleVoteResult(yes=int(yes), no=int(no), abstain=int(abstain))
 
+    async def update_vote_in_parent_requests_member(
+            self,
+            request_member: RequestMember,
+            voting_params: Optional[BaseVotingParams] = None,
+    ) -> None:
+        """Обновление состояния основного запроса на членство
+        через пересчёт голосов по дочерним запросам.
+        """
+        if voting_params is None:
+            voting_params = await self.calculate_voting_params(
+            request_member.community_id
+        )
+        last_vote = request_member.vote
+        last_status: Status = request_member.status
+        vote_in_percent = await self.get_vote_stats_by_requests_member(
+            request_member
+        )
+        is_quorum = (
+                (vote_in_percent.yes + vote_in_percent.no) >=
+                voting_params.quorum
+        )
+        is_decision = vote_in_percent.yes >= voting_params.vote
+        new_vote = is_quorum and is_decision
+        request_member.vote = new_vote
+
+        if last_vote and not request_member.vote:
+            if last_status.code == Code.COMMUNITY_MEMBER:
+                request_member.status = await self.get_status_by_code(
+                    Code.MEMBER_EXCLUDED
+                )
+                await self._block_user_settings(request_member)
+            elif last_status.code == Code.REQUEST_SUCCESSFUL:
+                request_member.status = await self.get_status_by_code(
+                    Code.REQUEST_DENIED
+                )
+        elif not last_vote and request_member.vote:
+            if last_status.code == Code.ON_CONSIDERATION:
+                request_member.status = await self.get_status_by_code(
+                    Code.REQUEST_SUCCESSFUL
+                )
+            elif last_status.code == Code.MEMBER_EXCLUDED:
+                request_member.status = await self.get_status_by_code(
+                    Code.COMMUNITY_MEMBER
+                )
+                await self._unblock_user_settings(request_member)
+            elif last_status.code == Code.REQUEST_DENIED:
+                request_member.status = await self.get_status_by_code(
+                    Code.REQUEST_SUCCESSFUL
+                )
+
     async def user_vote_count(
             self, voting_result: VotingResult,
             resource: Resource,
             resource_type: ResourceType,
+            voting_params: Optional[BaseVotingParams] = None,
     ) -> None:
         """Подсчет голосов."""
+        if voting_params is None:
+            voting_params = await self.calculate_voting_params(
+            cast(str, resource.community_id)
+        )
+
         last_vote = voting_result.vote
         last_status = resource.status
         is_significant_minority = voting_result.is_significant_minority
-        community_voting_params = await self.calculate_voting_params(
-            resource.community_id
-        )
         vote_in_percent = await self.get_vote_in_percent(voting_result.id)
         is_selected_options = False
         is_quorum = (
                 (vote_in_percent.yes + vote_in_percent.no) >=
-                community_voting_params.quorum
+                voting_params.quorum
         )
-        is_decision = vote_in_percent.yes >= community_voting_params.vote
+        is_decision = vote_in_percent.yes >= voting_params.vote
         if is_quorum:
 
             if is_decision:
@@ -128,7 +213,7 @@ class AODataStorage(DataStorage[T], AO):
                         await self._get_new_selected_options(
                             resource=resource,
                             resource_type=resource_type,
-                            voting_params=community_voting_params
+                            voting_params=voting_params
                         )
                     )
                     is_significant_minority = bool(minority_options)
@@ -158,7 +243,7 @@ class AODataStorage(DataStorage[T], AO):
         await self._update_status_in_resource(
             resource=resource,
             resource_type=resource_type,
-            last_status=last_status,
+            last_status=cast(Status, last_status),
             is_selected_options=is_selected_options,
             is_significant_minority=is_significant_minority,
             is_quorum=is_quorum,
@@ -310,3 +395,225 @@ class AODataStorage(DataStorage[T], AO):
                 minority_options[voting_option.id] = option
 
         return options, minority_options
+
+    async def _block_user_settings(
+            self, request_member: RequestMember
+    ) -> None:
+        query = (
+            select(UserCommunitySettings)
+            .where(
+                UserCommunitySettings.community_id ==
+                request_member.community_id,
+                UserCommunitySettings.user_id == request_member.member_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
+        )
+        user_settings = await self._session.scalar(query)
+        if user_settings:
+            user_settings.is_blocked = True
+        #  Блокируем голосования пользователя.
+        await self._update_user_voting_results(
+            member_id=request_member.member_id,
+            value=True
+        )
+        #  Пересчитываем голоса в голосованиях.
+        await self._recount_community_vote(request_member.community_id)
+
+    async def _unblock_user_settings(
+            self, request_member: RequestMember
+    ) -> None:
+        query = (
+            select(UserCommunitySettings)
+            .where(
+                UserCommunitySettings.community_id ==
+                request_member.community_id,
+                UserCommunitySettings.user_id == request_member.member_id,
+                UserCommunitySettings.is_blocked.is_(True),
+            )
+        )
+        user_settings = await self._session.scalar(query)
+        if user_settings:
+            user_settings.is_blocked = False
+        #  Разблокируем голосования пользователя.
+        await self._update_user_voting_results(
+            member_id=request_member.member_id,
+            value=False
+        )
+        #  Пересчитываем голоса в голосованиях.
+        await self._recount_community_vote(request_member.community_id)
+
+    async def get_vote_stats_by_requests_member(
+            self,
+            request_member: RequestMember
+    ) -> SimpleVoteResult:
+        vote_true = func.sum(case(
+            (RequestMember.vote.is_(True), 1), else_=0)
+        )
+        vote_false = func.sum(case(
+            (RequestMember.vote.is_(False), 1), else_=0)
+        )
+        vote_null = func.sum(case(
+            (RequestMember.vote.is_(None), 1), else_=0)
+        )
+        total_count = func.count(RequestMember.id)
+
+        query = (
+            select(
+                vote_true.label('yes_count'),
+                vote_false.label('no_count'),
+                vote_null.label('abstain_count'),
+                total_count.label('total')
+            )
+            .where(
+                RequestMember.parent_id == request_member.parent_id,
+            )
+        )
+
+        result = await self._session.execute(query)
+        row = result.first()
+
+        if not row or row.total == 0:
+            return SimpleVoteResult(yes=0, no=0, abstain=0)
+
+        yes = int((row.yes_count / row.total) * 100)
+        no = int((row.no_count / row.total) * 100)
+        abstain = int((row.abstain_count / row.total) * 100)
+
+        return SimpleVoteResult(yes=yes, no=no, abstain=abstain)
+
+    async def _update_user_voting_results(
+            self, member_id: str,
+            value: bool
+    ) -> None:
+        query = text("""
+            UPDATE public.user_voting_result
+            SET is_blocked = :is_blocked
+            WHERE member_id = :member_id
+        """)
+        try:
+            await self._session.begin_nested()
+
+            await self._session.execute(
+                query,
+                {'member_id': member_id, 'value': value}
+            )
+            await self._session.commit()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при обновлении пользовательских '
+                f'результатов голосований: {e.__str__()}.\n'
+                f'Параметры: member_id={member_id}, value={str(value)}'
+            )
+            await self._session.rollback()
+
+    async def _delete_user_voting_results(self, member_id: str) -> None:
+        query = text("""
+            DELETE FROM public.user_voting_result
+            WHERE member_id = :member_id
+        """)
+        try:
+            await self._session.begin_nested()
+
+            await self._session.execute(
+                query, {'member_id': member_id}
+            )
+            await self._session.commit()
+        except SQLAlchemyError as e:
+            logger.error(
+                f'Ошибка при удалении пользовательских '
+                f'результатов голосований: {e.__str__()}.\n'
+                f'Параметры: member_id={member_id}'
+            )
+            await self._session.rollback()
+
+    async def _recount_community_vote(
+            self,
+            community_id: str,
+            voting_params: Optional[BaseVotingParams] = None,
+    ) -> None:
+        """Пересчёт голосов по всем голосованиям сообщества."""
+        if voting_params is None:
+            voting_params = await self.calculate_voting_params(community_id)
+
+        rules: List[Rule] = await self._get_community_rules(community_id)
+        for rule in rules:
+            await self.user_vote_count(
+                voting_result=rule.voting_result,
+                resource=rule,
+                resource_type='rule',
+                voting_params=voting_params,
+            )
+
+        initiatives: List[Initiative] = (
+            await self._get_community_initiatives(community_id)
+        )
+        for initiative in initiatives:
+            await self.user_vote_count(
+                voting_result=initiative.voting_result,
+                resource=initiative,
+                resource_type='initiative',
+                voting_params=voting_params,
+            )
+
+    async def _get_community_rules(self, community_id: str) -> List[Rule]:
+        query = (
+            select(Rule)
+            .options(
+                selectinload(Rule.status),
+                selectinload(Rule.voting_result),
+            )
+            .where(Rule.community_id == community_id)
+        )
+        rows = await self._session.scalars(query)
+
+        return list(rows)
+
+    async def _get_community_initiatives(
+            self,
+            community_id: str
+    ) -> List[Initiative]:
+        query = (
+            select(Initiative)
+            .options(
+                selectinload(Initiative.status),
+                selectinload(Initiative.voting_result),
+            )
+            .where(Initiative.community_id == community_id)
+        )
+        rows = await self._session.scalars(query)
+
+        return list(rows)
+
+    async def _get_community_requests_member(
+            self,
+            community_id: str,
+    ) -> List[RequestMember]:
+        query = (
+            select(RequestMember)
+            .options(
+                selectinload(RequestMember.member),
+                selectinload(RequestMember.community),
+                selectinload(RequestMember.status),
+            )
+            .where(
+                RequestMember.community_id == community_id,
+                RequestMember.parent_id.is_(None),
+            )
+        )
+        rows = await self._session.scalars(query)
+
+        return list(rows)
+
+    async def _recount_of_votes_by_requests_member(
+            self,
+            community_id: str,
+            voting_params: BaseVotingParams
+    ) -> None:
+        requests: List[RequestMember] = (
+            await self._get_community_requests_member(community_id)
+        )
+        for _request in requests:
+            await self.update_vote_in_parent_requests_member(
+                request_member=_request,
+                voting_params=voting_params,
+            )

@@ -17,7 +17,7 @@ async def create_statuses():
             await ds.create(status)
         print('Статусы добавлены')
     except Exception as e:
-        print(f'Не удалось добавить статусы: {e}')
+        print(f'Не удалось добавить статусы: {e.__str__()}')
     finally:
         await session.invalidate()
         print('Сессия закрыта')

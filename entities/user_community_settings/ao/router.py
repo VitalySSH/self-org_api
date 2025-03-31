@@ -44,7 +44,7 @@ async def create_new_community(
             f'Ошибка входных данных, параметр settings не содержит поля {key}'
         )
     except Exception as e:
-        raise Exception(f'Ошибка создания сообщества: {e}')
+        raise Exception(f'Ошибка создания сообщества: {e.__str__()}')
 
 
 @router.post(
@@ -81,4 +81,4 @@ async def create_child_settings(
         raise Exception(f'Ошибка входных данных, параметр settings не содержит поля {key}')
     except Exception as e:
         raise Exception(f'Ошибка создания пользовательских настроек'
-                        f' для внутреннего сообщества: {e}')
+                        f' для внутреннего сообщества: {e.__str__()}')

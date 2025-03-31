@@ -68,7 +68,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         except Exception as e:
             raise CRUDException(
                 f'Не удалось получить объект с id {instance_id} '
-                f'модели {model.__name__}: {e}'
+                f'модели {model.__name__}: {e.__str__()}'
             )
 
     async def create(
@@ -85,7 +85,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             await self._session.refresh(instance)
         except IntegrityError as e:
             raise CRUDConflict(f'Объект модели {self._model.__name__} '
-                               f'не может быть создан: {e}')
+                               f'не может быть создан: {e.__str__()}')
 
         for field, value in relation_data.items():
             setattr(instance, field, value)
@@ -109,7 +109,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             await self._session.rollback()
             raise CRUDConflict(
                 f'Ошибка обновления объекта с id {instance_id} '
-                f'модели {self._model.__name__}: {e}'
+                f'модели {self._model.__name__}: {e.__str__()}'
             )
 
     async def delete(self, instance_id: str) -> None:
@@ -121,8 +121,10 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             await self._session.commit()
         except Exception as e:
             await self._session.rollback()
-            raise CRUDConflict(f'Объект с id {instance_id} '
-                               f'не может быть удалён: {e}')
+            raise CRUDConflict(
+            f'Объект с id {instance_id} не '
+            f'может быть удалён: {e.__str__()}'
+            )
 
     async def list(
             self, filters: Optional[Filters] = None,
@@ -190,7 +192,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                         attr_value = json.loads(attr_value)
                     except json.JSONDecodeError as e:
                         raise ValueError(
-                            f"Поле {attr_name} должно быть валидным JSON: {e}"
+                            f"Поле {attr_name} должно "
+                            f"быть валидным JSON: {e.__str__()}"
                         )
 
                 setattr(instance, attr_name, attr_value)
@@ -253,7 +256,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         except Exception as e:
             raise Exception(
                 f'Аттрибут {field_name} модели {model.__name__}'
-                f' не является типом Relationship: {e}'
+                f' не является типом Relationship: {e.__str__()}'
             )
 
     @staticmethod
@@ -322,7 +325,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 params.append(condition)
             except AttributeError as e:
                 raise CRUDException(
-                    f'Неверное поле фильтра {_filter.field}: {e}'
+                    f'Неверное поле фильтра '
+                    f'{_filter.field}: {e.__str__()}'
                 )
 
         return params

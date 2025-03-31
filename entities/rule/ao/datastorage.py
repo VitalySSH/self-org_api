@@ -59,7 +59,7 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
             )
             await self._session.commit()
         except Exception as e:
-            raise Exception(f'Не удалось создать правило: {e}')
+            raise Exception(f'Не удалось создать правило: {e.__str__()}')
 
     async def get_status_by_code(self, code: str) -> Optional[Status]:
         status_query = select(Status).where(Status.code == code)
@@ -83,7 +83,9 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
                 self._session.add(option)
                 options.append(option)
             except Exception as e:
-                raise Exception(f'Не удалось создать опцию для правила: {e}')
+                raise Exception(
+                    f'Не удалось создать опцию для правила: {e.__str__()}'
+                )
 
         await self._session.flush(options)
 
@@ -97,7 +99,9 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
             await self._session.refresh(voting_result)
         except Exception as e:
             raise Exception(
-                f'Не удалось создать результат голосования для правила: {e}')
+                    f'Не удалось создать результат '
+                    f'голосования для правила: {e.__str__()}'
+                )
 
         return voting_result
 

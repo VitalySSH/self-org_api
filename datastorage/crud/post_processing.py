@@ -42,7 +42,9 @@ class CRUDPostProcessing(PostProcessing):
             try:
                 await func_data.func(**func_data.kwargs)
             except Exception as e:
-                logger.error(f'POST_PROCESSING EXECUTE ERROR: {e}')
+                logger.error(
+                    f'POST_PROCESSING EXECUTE ERROR: {e.__str__()}'
+                )
 
     def _build_func_data_from_instance(self) -> List[TaskFuncData]:
         funcs_data: List[TaskFuncData] = []

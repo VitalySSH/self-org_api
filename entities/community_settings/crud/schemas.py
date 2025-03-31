@@ -3,6 +3,12 @@ from typing import List, TypedDict, Optional
 from datastorage.crud.interfaces.schema import SchemaInstance
 
 
+class LastVotingParams(TypedDict, total=False):
+    vote: int
+    quorum: int
+    significant_minority: int
+
+
 class CSAttributes(TypedDict, total=False):
     quorum: Optional[int]
     vote: Optional[int]

@@ -54,7 +54,7 @@ class FileStorageApp(DataStorage[T], FileStorage):
             await self._session.commit()
             await self._session.refresh(file_metadata)
         except Exception as e:
-            raise Exception(f'Файл не может быть сохранён: {e}')
+            raise Exception(f'Файл не может быть сохранён: {e.__str__()}')
 
         return file_metadata
 
@@ -81,7 +81,10 @@ class FileStorageApp(DataStorage[T], FileStorage):
         try:
             await self._session.commit()
         except Exception as e:
-            raise Exception(f'Ошибка обновления метаданных файла с id {file_id}: {e}')
+            raise Exception(
+                f'Ошибка обновления метаданных '
+                f'файла с id {file_id}: {e.__str__()}'
+            )
 
     async def delete_file(self, file_id: str) -> None:
         file_metadata = await self.get_file_metadata(file_id)
@@ -96,14 +99,17 @@ class FileStorageApp(DataStorage[T], FileStorage):
             await self._session.commit()
         except Exception as e:
             await self._session.rollback()
-            raise Exception(f'Метаданные файла с id {file_id} не могут быть удалены: {e}')
+            raise Exception(
+                f'Метаданные файла с id {file_id}'
+                f' не могут быть удалены: {e}'
+            )
 
     @staticmethod
     def _delete_file_by_path(path: str) -> None:
         try:
             os.remove(path)
         except OSError as e:
-            logger.exception(e)
+            logger.exception(e.__str__())
             raise Exception('Файл не найден')
 
     @staticmethod

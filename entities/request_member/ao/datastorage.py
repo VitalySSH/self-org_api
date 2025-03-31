@@ -1,17 +1,15 @@
 import logging
 from datetime import datetime
-from typing import Optional, List, cast, Sequence
+from typing import Optional, List, cast
 
-from sqlalchemy import select, insert, func, Row, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import select, insert, func
 from sqlalchemy.orm import selectinload, joinedload
 
 from auth.models.user import User
-from core.dataclasses import BaseVotingParams, PercentByName
+from core.dataclasses import PercentByName, SimpleVoteResult
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
-from datastorage.crud.interfaces.list import Operation, Filter
 from datastorage.database.models import (
     RequestMember, CommunitySettings,
     RelationUserCsRequestMember, UserCommunitySettings
@@ -20,9 +18,7 @@ from datastorage.decorators import ds_async_with_new_session
 from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 from entities.community.model import Community
-from entities.initiative.model import Initiative
 from entities.request_member.ao.dataclasses import MyMemberRequest
-from entities.rule.model import Rule
 from entities.status.model import Status
 from entities.user_voting_result.model import UserVotingResult
 from entities.voting_option.model import VotingOption
@@ -41,22 +37,19 @@ class RequestMemberDS(
             self, request_member_id: str
     ) -> List[PercentByName]:
         """Вернёт статистику по голосам запроса на членство в сообществе."""
-        child_request_members = await self._get_child_request_members(
-            request_member_id=request_member_id)
-        total_count: int = len(child_request_members)
-        allowed_count: int = len(list(filter(lambda it: it.vote is True,
-                                             child_request_members)))
-        banned_count: int = len(list(filter(lambda it: it.vote is False,
-                                            child_request_members)))
-        abstain: int = total_count - (allowed_count + banned_count)
+        request_member = await self._get_request_member(
+            request_member_id=request_member_id,
+            with_options=False,
+        )
+        vote_in_percent: SimpleVoteResult = (
+            await self.get_vote_stats_by_requests_member(request_member)
+        )
 
         return [
-            PercentByName(name='За',
-                          percent=int(allowed_count / total_count * 100)),
-            PercentByName(name='Против',
-                          percent=int(banned_count / total_count * 100)),
+            PercentByName(name='За', percent=vote_in_percent.yes),
+            PercentByName(name='Против', percent=vote_in_percent.no),
             PercentByName(name='Воздержалось',
-                          percent=int(abstain / total_count * 100)),
+                          percent=vote_in_percent.abstain),
         ]
 
     @ds_async_with_new_session
@@ -70,20 +63,22 @@ class RequestMemberDS(
         Создание и добавление дочерних запросов в пользовательские настройки.
         Пересчёт голосов по дочерним запросам.
         """
-        request_member = await self._get_request_member(request_member_id)
+        request_member = await self._get_request_member(
+            request_member_id=request_member_id,
+        )
         if not request_member:
             return
 
         if request_member.parent_id:
             parent_request_member = await self._get_request_member(
-                cast(str, request_member.parent_id)
+                request_member_id=cast(str, request_member.parent_id)
             )
-            await self._update_vote_in_parent_requests_member(
+            await self.update_vote_in_parent_requests_member(
                 parent_request_member
             )
         else:
             await self._add_request_member_to_settings(request_member)
-            await self._update_vote_in_parent_requests_member(request_member)
+            await self.update_vote_in_parent_requests_member(request_member)
 
         await self._session.commit()
 
@@ -94,13 +89,16 @@ class RequestMemberDS(
         """Обновление состояния основного запроса
          на добавление в сообщество, после изменений голосов дочерних запросов.
          """
-        request_member = await self._get_request_member(request_member_id)
+        request_member = await self._get_request_member(
+            request_member_id=request_member_id,
+            with_options=False
+        )
         if request_member and request_member.parent_id:
             parent_request_member = await self._get_request_member(
-                request_member.parent_id
+                request_member_id=cast(str, request_member.parent_id)
             )
             if parent_request_member:
-                await self._update_vote_in_parent_requests_member(
+                await self.update_vote_in_parent_requests_member(
                     parent_request_member
                 )
                 await self._session.commit()
@@ -162,9 +160,9 @@ class RequestMemberDS(
                 joinedload(self._model.community)
                 .joinedload(Community.main_settings)
                 .joinedload(CommunitySettings.name),
-                # joinedload(self._model.community)
-                # .joinedload(Community.main_settings)
-                # .joinedload(CommunitySettings.description),
+                joinedload(self._model.community)
+                .joinedload(Community.main_settings)
+                .joinedload(CommunitySettings.description),
             )
             .where(
                 RequestMember.member_id == member_id,
@@ -181,12 +179,11 @@ class RequestMemberDS(
                 key=req.id,
                 communityId=req.community.id,
                 communityName=req.community.main_settings.name.name,
-                # communityDescription=req.community.main_settings.description.value,
+                communityDescription=req.community.main_settings.description.value,
                 status=req.status.name,
                 statusCode=req.status.code,
                 reason=req.reason,
                 created=req.created.strftime('%d.%m.%Y %H:%M'),
-                # solution='Да' if req.vote else 'Нет',
                 children=[],
             )
             request_map[req.community.id] = req_data
@@ -206,7 +203,8 @@ class RequestMemberDS(
     ) -> None:
         community_id, user_id = None, None
         child_request_members = await self._get_child_request_members(
-            request_member_id=request_member_id, is_active=False)
+            request_member_id
+        )
 
         for child_request_member in child_request_members:
             if not community_id:
@@ -218,7 +216,8 @@ class RequestMemberDS(
 
         if community_id and user_id:
             await self._check_and_delete_user_settings(
-                community_id=community_id, user_id=user_id)
+                community_id=community_id, user_id=user_id
+            )
 
             child_community_id = await self._get_child_community_id(
                 community_id
@@ -242,7 +241,7 @@ class RequestMemberDS(
             await self._session.delete(request_member)
         except Exception as e:
             logger.error(f'Не удалось удались запрос на членство '
-                         f'с id: {request_member.id}: {e}')
+                         f'с id: {request_member.id}: {e.__str__()}')
 
     async def _create_user_settings(
             self, community: Community,
@@ -279,7 +278,7 @@ class RequestMemberDS(
             await self._session.refresh(user_settings)
         except Exception as e:
             raise Exception(f'Не удалось создать '
-                            f'пользовательские настройки: {e}')
+                            f'пользовательские настройки: {e.__str__()}')
 
         return user_settings
 
@@ -327,7 +326,7 @@ class RequestMemberDS(
             except Exception as e:
                 logger.error(f'Дочерний запрос на добавление члена сообщества '
                              f'(родителя с id {request_member.id}) не может '
-                             f'быть создан: {e}')
+                             f'быть создан: {e.__str__()}')
                 continue
 
             data_to_add.append(
@@ -358,8 +357,10 @@ class RequestMemberDS(
             try:
                 await self._session.delete(user_settings)
             except Exception as e:
-                logger.error(f'Не удалось удались пользовательские настройки '
-                             f'сообщества с id: {user_settings.id}: {e}')
+                logger.error(
+                f'Не удалось удались пользовательские настройки '
+                f'сообщества с id: {user_settings.id}: {e.__str__()}'
+                )
 
     async def _add_request_member_to_settings(
             self, request_member: RequestMember
@@ -384,15 +385,19 @@ class RequestMemberDS(
             await self._add_rm_to_user_community_settings(request_member)
 
     async def _get_request_member(
-            self, request_member_id: str
+            self,
+            request_member_id: str,
+            with_options: bool = True,
     ) -> Optional[RequestMember]:
+        options = [
+            selectinload(RequestMember.member),
+            selectinload(RequestMember.community),
+            selectinload(RequestMember.status),
+        ] if with_options else []
+
         query = (
             select(RequestMember)
-            .options(
-                selectinload(RequestMember.member),
-                selectinload(RequestMember.community),
-                selectinload(RequestMember.status),
-            )
+            .options(*options)
             .where(RequestMember.id == request_member_id)
         )
         return await self._session.scalar(query)
@@ -407,13 +412,12 @@ class RequestMemberDS(
         return row[0] if row else None
 
     async def _get_child_request_members(
-            self, request_member_id: str,
-            is_active: bool = True
+            self,
+            request_member_id: str,
     ) -> List[RequestMember]:
-        filters = [RequestMember.parent_id == request_member_id]
-        if is_active:
-            filters.append(RequestMember.is_blocked.is_not(True))
-        query = select(RequestMember).where(*filters)
+        query = select(RequestMember).where(
+            RequestMember.parent_id == request_member_id
+        )
         child_request_members = await self._session.scalars(query)
 
         return list(child_request_members)
@@ -439,7 +443,6 @@ class RequestMemberDS(
                 UserCommunitySettings.id,
                 UserCommunitySettings.is_default_add_member,
                 UserCommunitySettings.user_id,
-                UserCommunitySettings.is_blocked,
             ).where(
                 UserCommunitySettings.community_id ==
                 request_member.community_id
@@ -449,7 +452,7 @@ class RequestMemberDS(
         user_cs_list = user_cs_data.all()
 
         data_to_add: List[RelationRow] = []
-        for id_, is_default_add_member, user_id, is_blocked in user_cs_list:
+        for id_, is_default_add_member, user_id in user_cs_list:
             child_request_member = self._create_copy_request_member(
                 request_member
             )
@@ -459,14 +462,12 @@ class RequestMemberDS(
                 status = await self._session.scalar(status_query)
                 child_request_member.vote = True
                 child_request_member.status = status
-            if is_blocked:
-                child_request_member.is_blocked = True
             try:
                 self._session.add(child_request_member)
             except Exception as e:
                 logger.error(f'Дочерний запрос на добавление члена сообщества '
                              f'(родителя с id {request_member.id}) не может '
-                             f'быть создан: {e}')
+                             f'быть создан: {e.__str__()}')
                 continue
 
             data_to_add.append(
@@ -495,180 +496,6 @@ class RequestMemberDS(
                 setattr(new_request_member, key, value)
 
         return new_request_member
-
-    async def _update_vote_in_parent_requests_member(
-            self, request_member: RequestMember
-    ) -> None:
-        """Обновление состояния основного запроса на членство
-        через пересчёт голосов по дочерним запросам.
-        """
-        last_vote = request_member.vote
-        last_status: Status = request_member.status
-        voting_params: BaseVotingParams = await self.calculate_voting_params(
-            request_member.community_id)
-        voted = await self._get_voted_by_requests_member(request_member)
-        users_count = await self._get_count_users_in_community(
-            request_member.community_id
-        )
-        len_voted = len(voted)
-        voted_count = (
-            int(len_voted / users_count * 100) if len_voted > 0 else 0
-        )
-        if voted_count >= voting_params.quorum:
-            allowed_count: int = len(list(
-                filter(lambda it: it[0] is True, voted)
-            ))
-            percentage_yes = int(allowed_count / len_voted * 100)
-            percentage_no: int = 100 - percentage_yes
-            if voting_params.vote <= percentage_yes:
-                request_member.vote = True
-            elif voting_params.vote <= percentage_no:
-                request_member.vote = False
-
-            if last_vote and not request_member.vote:
-                if last_status.code == Code.COMMUNITY_MEMBER:
-                    request_member.status = await self.get_status_by_code(
-                        Code.MEMBER_EXCLUDED
-                    )
-                    await self._block_user_settings(request_member)
-                elif last_status.code == Code.REQUEST_SUCCESSFUL:
-                    request_member.status = await self.get_status_by_code(
-                        Code.REQUEST_DENIED
-                    )
-            elif not last_vote and request_member.vote:
-                if last_status.code == Code.ON_CONSIDERATION:
-                    request_member.status = await self.get_status_by_code(
-                        Code.REQUEST_SUCCESSFUL
-                    )
-                elif last_status.code == Code.MEMBER_EXCLUDED:
-                    request_member.status = await self.get_status_by_code(
-                        Code.COMMUNITY_MEMBER
-                    )
-                    await self._unblock_user_settings(request_member)
-                elif last_status.code == Code.REQUEST_DENIED:
-                    request_member.status = await self.get_status_by_code(
-                        Code.REQUEST_SUCCESSFUL
-                    )
-
-    async def _get_voted_by_requests_member(
-            self, request_member: RequestMember
-    ) -> Sequence[Row]:
-        query = (
-            select(RequestMember.vote)
-            .where(
-                RequestMember.vote.is_not(None),
-                RequestMember.is_blocked.is_not(True),
-                RequestMember.community_id == request_member.community_id,
-                RequestMember.member_id == request_member.member_id,
-                RequestMember.parent_id.is_not(None),
-            )
-        )
-        voted_data = await self._session.execute(query)
-
-        return voted_data.all()
-
-    async def _block_user_settings(
-            self, request_member: RequestMember
-    ) -> None:
-        query = (
-            select(UserCommunitySettings)
-            .where(
-                UserCommunitySettings.community_id ==
-                request_member.community_id,
-                UserCommunitySettings.user_id == request_member.member_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
-        )
-        user_settings = await self._session.scalar(query)
-        if user_settings:
-            user_settings.is_blocked = True
-        #  Блокируем голосования пользователя.
-        await self._update_user_voting_results(
-            member_id=request_member.member_id,
-            value=True
-        )
-        #  Пересчитываем голоса в голосованиях.
-        await self._recount_community_vote(request_member.community_id)
-
-    async def _unblock_user_settings(
-            self, request_member: RequestMember
-    ) -> None:
-        query = (
-            select(UserCommunitySettings)
-            .where(
-                UserCommunitySettings.community_id ==
-                request_member.community_id,
-                UserCommunitySettings.user_id == request_member.member_id,
-                UserCommunitySettings.is_blocked.is_(True),
-            )
-        )
-        user_settings = await self._session.scalar(query)
-        if user_settings:
-            user_settings.is_blocked = False
-        #  Разблокируем голосования пользователя.
-        await self._update_user_voting_results(
-            member_id=request_member.member_id,
-            value=False
-        )
-        #  Пересчитываем голоса в голосованиях.
-        await self._recount_community_vote(request_member.community_id)
-
-    async def _update_user_voting_results(
-            self, member_id: str,
-            value: bool
-    ) -> None:
-        query = text("""
-            UPDATE public.user_voting_result
-            SET is_blocked = :is_blocked
-            WHERE member_id = :member_id
-        """)
-        try:
-            await self._session.begin_nested()
-
-            await self._session.execute(
-                query,
-                {'member_id': member_id, 'value': value}
-            )
-            await self._session.commit()
-        except SQLAlchemyError as e:
-            logger.error(
-                f'Ошибка при обновлении пользовательских '
-                f'результатов голосований: {e}.\n'
-                f'Параметры: member_id={member_id}, value={str(value)}'
-            )
-            await self._session.rollback()
-
-    async def _delete_user_voting_results(self, member_id: str) -> None:
-        query = text("""
-            DELETE FROM public.user_voting_result
-            WHERE member_id = :member_id
-        """)
-        try:
-            await self._session.begin_nested()
-
-            await self._session.execute(
-                query, {'member_id': member_id}
-            )
-            await self._session.commit()
-        except SQLAlchemyError as e:
-            logger.error(
-                f'Ошибка при удалении пользовательских '
-                f'результатов голосований: {e}.\n'
-                f'Параметры: member_id={member_id}'
-            )
-            await self._session.rollback()
-
-    async def _get_count_users_in_community(self, community_id: str) -> int:
-        query = (
-            select(func.count()).select_from(UserCommunitySettings)
-            .where(
-                UserCommunitySettings.community_id == community_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
-        )
-        row = await self._session.scalar(query)
-
-        return int(row) if row else 0
 
     async def _create_new_voting_results(
             self, request_member: RequestMember
@@ -723,8 +550,10 @@ class RequestMemberDS(
             try:
                 self._session.add(user_voting_result)
             except Exception as e:
-                raise Exception(f'Не удалось создать '
-                                f'пользовательский результат голосования: {e}')
+                raise Exception(
+                    f'Не удалось создать пользовательский '
+                    f'результат голосования: {e.__str__()}'
+                )
 
     async def _get_options_by_ids(self, ids: List[str]) -> List[VotingOption]:
         query = (
@@ -734,39 +563,3 @@ class RequestMemberDS(
         result = await self._session.scalars(query)
 
         return list(result)
-
-    async def _recount_community_vote(self, community_id: str) -> None:
-        """Пересчёт голосов по всем голосованиям сообщества."""
-        rule_data = await self.list(
-            filters=[Filter(
-                field='community_id',
-                op=Operation.EQ,
-                val=community_id
-            )],
-            include=['status', 'voting_result'],
-            model=Rule
-        )
-        rules: List[Rule] = rule_data.data
-        for rule in rules:
-            await self.user_vote_count(
-                voting_result=rule.voting_result,
-                resource=rule,
-                resource_type='rule',
-            )
-
-        initiative_data = await self.list(
-            filters=[Filter(
-                field='community_id',
-                op=Operation.EQ,
-                val=community_id
-            )],
-            include=['status', 'voting_result'],
-            model=Initiative
-        )
-        initiatives: List[Initiative] = initiative_data.data
-        for initiative in initiatives:
-            await self.user_vote_count(
-                voting_result=initiative.voting_result,
-                resource=initiative,
-                resource_type='initiative',
-            )

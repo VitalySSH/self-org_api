@@ -63,7 +63,8 @@ class UserService:
 
             return CreateUserResult(
                 status_code=500,
-                message=f'Произошла ошибка при добавлении пользователя: {e}'
+                message=(f'Произошла ошибка '
+                         f'при добавлении пользователя: {e.__str__()}')
             )
         password = decrypt_password(user_data.secret_password)
         hashed_password = hash_password(password)
@@ -83,7 +84,8 @@ class UserService:
 
             return CreateUserResult(
                 status_code=500,
-                message=f'Произошла ошибка при авторизации пользователя: {e}'
+                message=(f'Произошла ошибка '
+                         f'при авторизации пользователя: {e.__str__()}')
             )
 
     async def update_user(self, user_id: str, user_data: UserUpdate) -> None:
@@ -101,7 +103,7 @@ class UserService:
             await self._session.commit()
         except Exception as e:
             raise Exception(
-                f'Ошибка обновления пользователя с id {user_id}: {e}'
+                f'Ошибка обновления пользователя с id {user_id}: {e.__str__()}'
             )
 
     async def get_user_ids_from_community(

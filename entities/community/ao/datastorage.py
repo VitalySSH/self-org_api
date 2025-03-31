@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime
 
 from typing import List, Optional, Tuple, cast, Dict
 
@@ -131,7 +132,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
         while parent_community:
             parent_data.append(ParentCommunity(
-                id=parent_community.id,
+                id=cast(str, parent_community.id),
                 name=parent_community.main_settings.name.name
             ))
             parent_community = (
@@ -180,6 +181,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
     @ds_async_with_new_session
     async def change_community_settings(self, community_id: str) -> None:
+        start_time = datetime.now()
         voting_params = await self.calculate_voting_params(community_id)
         name: Optional[CommunityName] = None
         description: Optional[CommunityDescription] = None
@@ -196,6 +198,11 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
         community: Community = await self._get_community(community_id)
         community_settings: CommunitySettings = community.main_settings
+        is_changed_voting_params = (
+                voting_params.__dict__ ==
+                (community_settings.last_voting_params or {})
+        )
+        community_settings.last_voting_params = voting_params.__dict__
         system_category = await self.get_system_category()
 
         other_settings = await self._get_other_community_settings(
@@ -223,8 +230,17 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         community_settings.sub_communities_settings = (
             other_settings.sub_communities_settings
         )
-
+        if is_changed_voting_params:
+            await self.recount_of_all_votes(
+                community_id=community_id,
+                voting_params=voting_params,
+            )
         await self._session.commit()
+        result_time = datetime.now() - start_time
+        print(
+            f'Время обновления настроек сообщества: '
+            f'{str(int(result_time.microseconds / 1000))} мс.'
+        )
 
     async def get_system_category(self) -> Optional[Category]:
         filters: Filters = [
@@ -704,7 +720,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         except SQLAlchemyError as e:
             logger.error(
                 f'Ошибка при обновлении пользовательских'
-                f' результатов голосований: {e}.\n'
+                f' результатов голосований: {e.__str__()}.\n'
                 f'Параметры: new_category_id={new_category_id}, '
                 f'old_category_id={old_category_id}, '
                 f'community_id={community_id}'
@@ -760,6 +776,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         except SQLAlchemyError as e:
             logger.error(
                 f'Ошибка при обновлении категорий для записей с '
-                f'community_id={community_id}: {e}'
+                f'community_id={community_id}: {e.__str__()}'
             )
             await self._session.rollback()
