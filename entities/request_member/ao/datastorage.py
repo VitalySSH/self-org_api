@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import Optional, List, cast
+from typing import Optional, List, cast, Dict, Set
 
 from sqlalchemy import select, insert, func
 from sqlalchemy.orm import selectinload, joinedload
@@ -151,50 +151,98 @@ class RequestMemberDS(
         """Вернёт список заявок на добавление
         в сообщества для текущего пользователя.
         """
-        result = await self._session.execute(
-            select(RequestMember)
+        stmt = (
+            select(self._model)
+            .where(
+                self._model.member_id == member_id,
+                self._model.parent_id.is_(None),
+            )
             .options(
                 joinedload(self._model.status),
-                joinedload(self._model.community)
-                .joinedload(Community.parent),
                 joinedload(self._model.community)
                 .joinedload(Community.main_settings)
                 .joinedload(CommunitySettings.name),
                 joinedload(self._model.community)
                 .joinedload(Community.main_settings)
                 .joinedload(CommunitySettings.description),
-            )
-            .where(
-                RequestMember.member_id == member_id,
-                RequestMember.parent_id.is_(None),
+                joinedload(self._model.community)
+                .joinedload(Community.parent),
             )
         )
-        request_members = result.scalars().all()
 
-        request_map = {}
-        root_requests: List[MyMemberRequest] = []
+        result = await self._session.execute(stmt)
+        request_members: List[RequestMember] = list(result.scalars())
+
+        all_requests: Dict[str, MyMemberRequest] = {}
+        communities_in_requests: Set[str] = set()
 
         for req in request_members:
+            community: Community = req.community
+            settings: Optional[CommunitySettings] = community.main_settings
+
+            # FIXME: разобраться, почему иногда не срабатывает joinedload
+            if settings is None and community.main_settings_id:
+                settings = await self.get(
+                    instance_id=community.main_settings_id,
+                    include=['name', 'description'],
+                    model=CommunitySettings,
+                )
+
             req_data = MyMemberRequest(
                 key=req.id,
-                communityId=req.community.id,
-                communityName=req.community.main_settings.name.name,
-                communityDescription=req.community.main_settings.description.value,
+                communityId=community.id,
+                communityName=settings.name.name,
+                communityDescription=settings.description.value,
                 status=req.status.name,
                 statusCode=req.status.code,
                 reason=req.reason,
                 created=req.created.strftime('%d.%m.%Y %H:%M'),
                 children=[],
             )
-            request_map[req.community.id] = req_data
 
-            if (req.community.parent_id and
-                    req.community.parent_id in request_map):
-                request_map[req.community.parent_id]['children'].append(
-                    req_data
-                )
-            else:
+            all_requests[community.id] = req_data
+            communities_in_requests.add(community.id)
+
+            if community.parent_id:
+                communities_in_requests.add(community.parent_id)
+
+        root_requests: List[MyMemberRequest] = []
+
+        for req in request_members:
+            community: Community = req.community
+            req_data: MyMemberRequest = all_requests[community.id]
+
+            if (not community.parent_id or
+                    community.parent_id not in all_requests):
                 root_requests.append(req_data)
+
+        for req in request_members:
+            community: Community = req.community
+            if community.parent_id and community.parent_id in all_requests:
+                parent_data: MyMemberRequest = all_requests[
+                    community.parent_id
+                ]
+                parent_data['children'].append(all_requests[community.id])
+
+        def sort_key(r_: MyMemberRequest) -> tuple:
+            """Ключ для сортировки:
+            сначала корневые, затем по дате (новые выше).
+            """
+            try:
+                dt = datetime.strptime(
+                    r_.get('created'), '%d.%m.%Y %H:%M'
+                )
+                return (
+                    0 if not r_.get('children') else 1,
+                    -dt.timestamp()
+                )
+            except ValueError:
+                return 0, 0
+
+        root_requests.sort(key=sort_key)
+        for r in root_requests:
+            if r.get('children'):
+                r['children'].sort(key=sort_key)
 
         return root_requests
 
