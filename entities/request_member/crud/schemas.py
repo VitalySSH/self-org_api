@@ -7,6 +7,7 @@ from datastorage.crud.interfaces.schema import SchemaInstance
 class RequestMemberAttributes(TypedDict, total=False):
     vote: Optional[bool]
     reason: Optional[str]
+    creator_id: Optional[str]
     parent_id: Optional[str]
     created: Optional[datetime]
     updated: Optional[datetime]

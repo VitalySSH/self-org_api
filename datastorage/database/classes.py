@@ -26,6 +26,4 @@ class TableName:
     RELATION_UCS_UCS = 'relation_user_community_settings_user_cs'
     RELATION_COMMUNITY_UCS = 'relation_community_user_community_settings'
     RELATION_USER_VR_VO = 'relation_user_voting_result_voting_options'
-    RELATION_UCS_REQUEST_MEMBER = 'relation_user_cs_request_member'
-    RELATION_CS_REQUEST_MEMBER = 'relation_cs_request_member'
     RELATION_CHALLENGE_SOLUTIONS = 'relation_challenge_solutions'

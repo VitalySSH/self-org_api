@@ -465,7 +465,7 @@ class AODataStorage(DataStorage[T], AO):
                 total_count.label('total')
             )
             .where(
-                RequestMember.parent_id == request_member.parent_id,
+                RequestMember.parent_id == request_member.id,
             )
         )
 
@@ -495,7 +495,7 @@ class AODataStorage(DataStorage[T], AO):
 
             await self._session.execute(
                 query,
-                {'member_id': member_id, 'value': value}
+                {'member_id': member_id, 'is_blocked': value}
             )
             await self._session.commit()
         except SQLAlchemyError as e:

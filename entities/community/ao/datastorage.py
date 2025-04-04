@@ -595,7 +595,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                     selectinload(UserCommunitySettings.name),
                     selectinload(UserCommunitySettings.description),
                     selectinload(UserCommunitySettings.categories),
-                    selectinload(UserCommunitySettings.adding_members),
                 ).filter(UserCommunitySettings.id.in_(ids)))
             sub_user_settings_data = await self._session.scalars(query)
             all_sub_user_settings = list(sub_user_settings_data)

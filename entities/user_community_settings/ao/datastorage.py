@@ -39,7 +39,8 @@ class UserCommunitySettingsDS(
         await self._create_community_name(data_to_create)
         await self._create_community_description(data_to_create)
         await self._create_categories(
-            data_to_create=data_to_create, is_selected=True)
+            data_to_create=data_to_create, is_selected=True
+        )
         user_settings = await self._create_user_settings(data_to_create)
         main_settings = await self._create_main_settings(data_to_create)
 
@@ -54,14 +55,13 @@ class UserCommunitySettingsDS(
         await self._session.refresh(community)
 
         request_member = await self._create_request_member(
-            community=community, user=data_to_create.user)
-        main_settings.adding_members.append(request_member)
-        child_request_member = await self._create_child_request_member(
+            community=community, user=data_to_create.user
+        )
+        await self._create_child_request_member(
             community=community,
             user=data_to_create.user,
             request_member=request_member
         )
-        user_settings.adding_members.append(child_request_member)
         await self._session.commit()
 
     async def create_child_settings(
@@ -96,20 +96,20 @@ class UserCommunitySettingsDS(
         parent_community_id: Optional[str] = user_settings.parent_community_id
         if parent_community_id:
             community.parent = await self._session.get(
-                Community, parent_community_id)
+                Community, parent_community_id
+            )
         self._session.add(community)
         await self._session.flush([community])
         await self._session.refresh(community)
 
         request_member = await self._create_request_member(
-            community=community, user=user_settings.user)
-        main_settings.adding_members.append(request_member)
-        child_request_member = await self._create_child_request_member(
+            community=community, user=user_settings.user
+        )
+        await self._create_child_request_member(
             community=community,
             user=user_settings.user,
             request_member=request_member
         )
-        user_settings.adding_members.append(child_request_member)
 
         return community
 
@@ -267,6 +267,7 @@ class UserCommunitySettingsDS(
     ) -> RequestMember:
         request_member = RequestMember()
         request_member.member = user
+        request_member.creator_id = user.id
         request_member.community = community
         request_member.status = (
             await self.get_status_by_code(Code.COMMUNITY_MEMBER)
@@ -279,10 +280,11 @@ class UserCommunitySettingsDS(
         return request_member
 
     async def _create_child_request_member(
-            self, community: Community,
+            self,
+            community: Community,
             user: User,
             request_member: RequestMember
-    ) -> RequestMember:
+    ) -> None:
         child_request_member = self._create_copy_request_member(request_member)
         child_request_member.parent_id = request_member.id
         status = await self.get_status_by_code(Code.VOTED)
@@ -291,8 +293,6 @@ class UserCommunitySettingsDS(
         child_request_member.status = status
         self._session.add(child_request_member)
         await self._session.flush([child_request_member])
-
-        return child_request_member
 
     async def get_community(self, community_id: str) -> Optional[Community]:
         query = select(Community).where(Community.id == community_id)

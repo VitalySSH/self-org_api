@@ -23,7 +23,6 @@ class CSRelations(TypedDict, total=False):
     description: Optional[SchemaInstance]
     categories: List[SchemaInstance]
     sub_communities_settings: List[SchemaInstance]
-    adding_members: List[SchemaInstance]
 
 
 class ReadComSettings(TypedDict):

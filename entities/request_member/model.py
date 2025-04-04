@@ -16,7 +16,7 @@ class RequestMember(Base):
     __tablename__ = TableName.REQUEST_MEMBER
     __table_args__ = (
         UniqueConstraint(
-            'member_id', 'community_id', 'parent_id',
+            'member_id', 'community_id', 'parent_id', 'creator_id',
             name='idx_unique_request_member'
         ),
     )
@@ -46,6 +46,7 @@ class RequestMember(Base):
     vote: Mapped[bool] = mapped_column(nullable=True)
     reason: Mapped[str] = mapped_column(nullable=True)
     parent_id: Mapped[str] = mapped_column(nullable=True)
+    creator_id: Mapped[str] = mapped_column(nullable=False, index=True)
     created: Mapped[datetime] = mapped_column(
         nullable=False, default=datetime.now
     )

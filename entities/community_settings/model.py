@@ -10,8 +10,7 @@ from entities.community_settings.crud.schemas import LastVotingParams
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Category, CommunityName, CommunityDescription, RequestMember,
-        UserCommunitySettings
+        Category, CommunityName, CommunityDescription, UserCommunitySettings
     )
 
 
@@ -44,7 +43,6 @@ class CommunitySettings(Base):
     #
     categories: Mapped[List['Category']] = relationship(
         secondary=TableName.RELATION_CS_CATEGORIES, lazy='noload')
-    sub_communities_settings: Mapped[List['UserCommunitySettings']] = relationship(
-        secondary=TableName.RELATION_CS_UCS, lazy='noload')
-    adding_members: Mapped[List['RequestMember']] = relationship(
-        secondary=TableName.RELATION_CS_REQUEST_MEMBER, lazy='noload')
+    sub_communities_settings: Mapped[List['UserCommunitySettings']] = (
+        relationship(secondary=TableName.RELATION_CS_UCS, lazy='noload')
+    )

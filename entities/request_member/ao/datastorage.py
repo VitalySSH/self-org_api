@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
-from typing import Optional, List, cast, Dict, Set
+from typing import Optional, List, cast, Dict, Set, Tuple
 
-from sqlalchemy import select, insert, func
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload, joinedload
 
 from auth.models.user import User
@@ -10,12 +10,11 @@ from core.dataclasses import PercentByName, SimpleVoteResult
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.consts import Code
 from datastorage.crud.datastorage import CRUDDataStorage
+from datastorage.crud.interfaces.list import Filters, Filter, Operation
 from datastorage.database.models import (
-    RequestMember, CommunitySettings,
-    RelationUserCsRequestMember, UserCommunitySettings
+    RequestMember, CommunitySettings, UserCommunitySettings
 )
 from datastorage.decorators import ds_async_with_new_session
-from datastorage.interfaces import RelationRow
 from datastorage.utils import build_uuid
 from entities.community.model import Community
 from entities.request_member.ao.dataclasses import MyMemberRequest
@@ -53,14 +52,14 @@ class RequestMemberDS(
         ]
 
     @ds_async_with_new_session
-    async def add_request_member_to_settings(
-            self, request_member_id: str
+    async def update_request_member_data(
+            self,
+            request_member_id: str,
     ) -> None:
         """Обновление данных после создания
         основного запроса на добавление в сообщество.
 
-        Добавление основного запроса в настройки сообщества.
-        Создание и добавление дочерних запросов в пользовательские настройки.
+        Создание дочерних запросов.
         Пересчёт голосов по дочерним запросам.
         """
         request_member = await self._get_request_member(
@@ -77,14 +76,15 @@ class RequestMemberDS(
                 parent_request_member
             )
         else:
-            await self._add_request_member_to_settings(request_member)
+            await self._create_child_request_members_after_main(request_member)
             await self.update_vote_in_parent_requests_member(request_member)
 
         await self._session.commit()
 
     @ds_async_with_new_session
     async def update_parent_request_member(
-            self, request_member_id: str
+            self,
+            request_member_id: str
     ) -> None:
         """Обновление состояния основного запроса
          на добавление в сообщество, после изменений голосов дочерних запросов.
@@ -114,7 +114,8 @@ class RequestMemberDS(
         await self._session.commit()
 
     async def add_new_member(
-            self, request_member_id: str,
+            self,
+            request_member_id: str,
             current_user: User
     ) -> None:
         """Добавление нового члена сообщества по утверждённой заявке.
@@ -136,14 +137,13 @@ class RequestMemberDS(
             ]
         )
         community: Community = request_member.community
-        user_settings = await self._create_user_settings(
-            community=community, current_user=current_user)
-        community.user_settings.append(user_settings)
-        await self._update_parent_request_member(request_member)
-        await self._create_child_request_members(
-            parent_request_member=request_member,
-            user_settings_id=user_settings.id
+        user_settings, is_new = await self._create_user_settings(
+            community=community, current_user=current_user
         )
+        if is_new:
+            community.user_settings.append(user_settings)
+        await self._update_parent_request_member(request_member)
+        await self._create_child_request_members(request_member)
         await self._create_new_voting_results(request_member)
         await self._session.commit()
 
@@ -294,7 +294,17 @@ class RequestMemberDS(
     async def _create_user_settings(
             self, community: Community,
             current_user: User
-    ) -> UserCommunitySettings:
+    ) -> Tuple[UserCommunitySettings, bool]:
+        filters: Filters = [
+            Filter(field='community_id', op=Operation.EQ, val=community.id),
+            Filter(field='user_id', op=Operation.EQ, val=current_user.id),
+        ]
+        current_user_settings = await self.list(
+            filters=filters, model=UserCommunitySettings
+        )
+        if current_user_settings.total:
+            return current_user_settings.data[0], False
+
         user_settings = UserCommunitySettings()
         user_settings.user = current_user
         user_settings.community_id = community.id
@@ -328,7 +338,7 @@ class RequestMemberDS(
             raise Exception(f'Не удалось создать '
                             f'пользовательские настройки: {e.__str__()}')
 
-        return user_settings
+        return user_settings, True
 
     async def _update_parent_request_member(
             self, request_member: RequestMember
@@ -340,8 +350,8 @@ class RequestMemberDS(
         await self._session.flush([request_member])
 
     async def _create_child_request_members(
-            self, parent_request_member: RequestMember,
-            user_settings_id: str
+            self,
+            parent_request_member: RequestMember,
     ) -> None:
         query = (
             select(RequestMember)
@@ -358,11 +368,11 @@ class RequestMemberDS(
         )
         request_members = await self._session.scalars(query)
 
-        data_to_add: List[RelationRow] = []
         for request_member in list(request_members):
             child_request_member = self._create_copy_request_member(
                 request_member
             )
+            child_request_member.creator_id = parent_request_member.creator_id
             child_request_member.parent_id = request_member.id
             if request_member.id == parent_request_member.id:
                 status = await self.get_status_by_code(Code.VOTED)
@@ -376,18 +386,6 @@ class RequestMemberDS(
                              f'(родителя с id {request_member.id}) не может '
                              f'быть создан: {e.__str__()}')
                 continue
-
-            data_to_add.append(
-                RelationRow(
-                    id=build_uuid(),
-                    from_id=user_settings_id,
-                    to_id=child_request_member.id,
-                )
-            )
-        if data_to_add:
-            stmt = insert(RelationUserCsRequestMember).values(data_to_add)
-            stmt.compile()
-            await self._session.execute(stmt)
 
     async def _check_and_delete_user_settings(
             self, community_id: str,
@@ -409,28 +407,6 @@ class RequestMemberDS(
                 f'Не удалось удались пользовательские настройки '
                 f'сообщества с id: {user_settings.id}: {e.__str__()}'
                 )
-
-    async def _add_request_member_to_settings(
-            self, request_member: RequestMember
-    ) -> None:
-        main_settings_id = (request_member.community.main_settings_id if
-                            request_member.community else None)
-        if main_settings_id:
-            query = (
-                select(CommunitySettings)
-                .options(selectinload(CommunitySettings.adding_members))
-                .where(CommunitySettings.id == main_settings_id)
-            )
-            main_settings = await self._session.scalar(query)
-
-            if main_settings and isinstance(
-                    main_settings.adding_members, list):
-                filtered = list(filter(lambda it: it.id == request_member.id,
-                                       main_settings.adding_members))
-                if not filtered:
-                    main_settings.adding_members.append(request_member)
-
-            await self._add_rm_to_user_community_settings(request_member)
 
     async def _get_request_member(
             self,
@@ -480,11 +456,12 @@ class RequestMemberDS(
 
         return await self._session.scalar(query)
 
-    async def _add_rm_to_user_community_settings(
-            self, request_member: RequestMember
+    async def _create_child_request_members_after_main(
+            self,
+            request_member: RequestMember
     ) -> None:
-        """Добавление дочерних запросов на членство в
-        пользовательские настройки после создания основного запроса.
+        """Создание дочерних запросов на членство,
+         после создания основного запроса.
         """
         user_cs_query = (
             select(
@@ -499,12 +476,12 @@ class RequestMemberDS(
         user_cs_data = await self._session.execute(user_cs_query)
         user_cs_list = user_cs_data.all()
 
-        data_to_add: List[RelationRow] = []
         for id_, is_default_add_member, user_id in user_cs_list:
             child_request_member = self._create_copy_request_member(
                 request_member
             )
             child_request_member.parent_id = request_member.id
+            child_request_member.creator_id = user_id
             if is_default_add_member or request_member.member.id == user_id:
                 status_query = select(Status).where(Status.code == Code.VOTED)
                 status = await self._session.scalar(status_query)
@@ -517,18 +494,6 @@ class RequestMemberDS(
                              f'(родителя с id {request_member.id}) не может '
                              f'быть создан: {e.__str__()}')
                 continue
-
-            data_to_add.append(
-                RelationRow(
-                    id=build_uuid(),
-                    from_id=id_,
-                    to_id=child_request_member.id,
-                )
-            )
-        if data_to_add:
-            stmt = insert(RelationUserCsRequestMember).values(data_to_add)
-            stmt.compile()
-            await self._session.execute(stmt)
 
     @staticmethod
     def _create_copy_request_member(
