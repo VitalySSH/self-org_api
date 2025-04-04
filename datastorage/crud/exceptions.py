@@ -6,11 +6,16 @@ class CRUDBaseException(Exception):
 
 class CRUDException(CRUDBaseException):
     status_code: int = 500
-    title: str = 'Неизвестная ошибка'
+    title: str = 'Неизвестная ошибка CRUD-операции'
     description: str
 
     def __init__(self, description: str = ''):
         self.description = description
+
+
+class CRUDOperationError(CRUDException):
+    status_code: int = 400
+    title: str = 'Ошибка обработки запроса CRUD-операции'
 
 
 class CRUDNotFound(CRUDException):

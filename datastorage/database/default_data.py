@@ -18,6 +18,10 @@ STATUSES = [
         'code': Code.VOTED,
     },
     {
+        'name': 'Голос не отдан',
+        'code': Code.ABSTAINED,
+    },
+    {
         'name': 'Заявка одобрена',
         'code': Code.REQUEST_SUCCESSFUL,
     },

@@ -9,7 +9,7 @@ from sqlalchemy.orm import selectinload, Load, RelationshipProperty
 from datastorage.base import DataStorage
 from datastorage.crud.dataclasses import ListResponse
 from datastorage.crud.exceptions import (
-    CRUDNotFound, CRUDConflict, CRUDException
+    CRUDNotFound, CRUDConflict, CRUDException, CRUDOperationError
 )
 from datastorage.crud.interfaces.base import CRUD, Include
 from datastorage.crud.interfaces.list import (
@@ -122,12 +122,13 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         except Exception as e:
             await self._session.rollback()
             raise CRUDConflict(
-            f'Объект с id {instance_id} не '
-            f'может быть удалён: {e.__str__()}'
+                f'Объект с id {instance_id} не '
+                f'может быть удалён: {e.__str__()}'
             )
 
     async def list(
-            self, filters: Optional[Filters] = None,
+            self,
+            filters: Optional[Filters] = None,
             orders: Optional[Orders] = None,
             pagination: Optional[Pagination] = None,
             include: Optional[Include] = None,
@@ -139,8 +140,17 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         filters = self._get_filter_params(filters=filters, model=model)
         base_query = select(model).filter(*filters)
 
-        total_query = select(func.count()).select_from(base_query.subquery())
-        total = await self._session.scalar(total_query)
+        try:
+            total_query = (
+                select(func.count())
+                .select_from(base_query.subquery())
+            )
+            total = await self._session.scalar(total_query)
+        except Exception as e:
+            raise CRUDOperationError(
+                f'Ошибка фильтрации при получения списка объектов '
+                f'модели {self._model.__name__}: {e.__str__()}'
+            )
 
         orders = self._get_order_params(orders)
         limit = pagination.limit if pagination else self.MAX_PAGE_SIZE
@@ -384,7 +394,13 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             is_date: bool = False,
     ) -> Any:
         if is_date:
-            value = datetime.fromisoformat(value)
+            try:
+                value = list(map(
+                    lambda it: datetime.fromisoformat(it),
+                    json.loads(value),
+                ))
+            except json.JSONDecodeError:
+                value = datetime.fromisoformat(value)
 
         if operation == Operation.EQ:
             return field == value
@@ -415,7 +431,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         elif operation == Operation.NULL:
             return field.is_(None) if value else field.isnot(None)
         elif operation == Operation.BETWEEN:
-            return field.between(*json.loads(value))
+            return field.between(*value)
         else:
             raise CRUDException(f'Неподдерживаемая операция {operation}')
 

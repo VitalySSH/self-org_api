@@ -3,6 +3,7 @@ class Code:
     CATEGORY_SELECTED = 'category_selected'
     ON_CONSIDERATION = 'on_consideration'
     VOTED = 'voted'
+    ABSTAINED = 'abstained'
     REQUEST_SUCCESSFUL = 'request_successful'
     REQUEST_DENIED = 'request_denied'
     MEMBER_EXCLUDED = 'member_excluded'
