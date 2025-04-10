@@ -31,7 +31,7 @@ COOKIE_TOKEN_NAME=
 * Создать чистую БД PostgreSQL
 * Перейдите в репозиторий app `cd app`
 * Если в папке migrations/versions отсутствует файл с конфигурацией БД, то создайте его командой `alembic revision --autogenerate -m "init commit"`
-* Создать таблицы в БД `alembic upgrade fecc40d12c2f` (или другой uuid конфигурации)
+* Создать таблицы в БД `alembic upgrade 8f7dd0780f0b` (или другой uuid конфигурации)
 * Наполнить БД предустановленными значениями командой `python3.12 init_db_data.py`
 * Запустить API командой `python3.12 main.py`
 

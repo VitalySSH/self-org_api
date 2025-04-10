@@ -13,5 +13,6 @@ class Code:
     COMPROMISE = 'compromise'
     RULE_APPROVED = 'rule_approved'
     RULE_REVOKED = 'rule_revoked'
+    NONCOMPLIANCE = 'noncompliance'
     INITIATIVE_APPROVED = 'initiative_approved'
     INITIATIVE_REVOKED = 'initiative_revoked'

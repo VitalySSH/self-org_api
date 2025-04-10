@@ -1,12 +1,12 @@
 import logging
-from typing import Optional, Tuple, Dict, Sequence, List, cast
+from typing import Optional, Tuple, Dict, List, cast
 
-from sqlalchemy import text, select, func, case, Row
+from sqlalchemy import text, select, func, case
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from core.dataclasses import BaseVotingParams, SimpleVoteResult
+from core.dataclasses import BaseVotingParams, SimpleVoteResult, BaseTimeParams
 from datastorage.database.models import (
     Initiative, Rule, RequestMember, UserCommunitySettings, UserVotingResult,
     VotingOption, VotingResult, Status
@@ -34,29 +34,46 @@ class AODataStorage(DataStorage[T], AO):
         """Вычислит основные параметры голосований
         для сообщества на текущий момент."""
         query = text("""
-            WITH sorted_data AS (
+            WITH filtered_data AS (
                 SELECT 
                     quorum,
                     vote,
                     significant_minority,
-                    ROW_NUMBER() OVER (PARTITION BY community_id ORDER BY quorum) AS row_num_quorum,
-                    ROW_NUMBER() OVER (PARTITION BY community_id ORDER BY vote) AS row_num_vote,
-                    ROW_NUMBER() OVER (PARTITION BY community_id ORDER BY significant_minority) AS row_num_minority,
-                    COUNT(*) OVER (PARTITION BY community_id) AS total_count
+                    COUNT(*) OVER () AS total_count
                 FROM public.user_community_settings
-                WHERE community_id = :community_id AND is_blocked IS NOT TRUE
+                WHERE community_id = :community_id 
+                  AND is_blocked IS NOT TRUE
+            ),
+            ranked_data AS (
+                SELECT 
+                    quorum,
+                    vote,
+                    significant_minority,
+                    ROW_NUMBER() OVER (ORDER BY quorum) AS row_num_quorum,
+                    ROW_NUMBER() OVER (ORDER BY vote) AS row_num_vote,
+                    ROW_NUMBER() OVER (ORDER BY significant_minority) AS row_num_minority,
+                    total_count
+                FROM filtered_data
+            ),
+            median_values AS (
+                SELECT 
+                    AVG(CASE WHEN row_num_quorum IN ((total_count + 1) / 2, (total_count + 2) / 2) 
+                        THEN quorum ELSE NULL END) AS quorum_median,
+                    AVG(CASE WHEN row_num_vote IN ((total_count + 1) / 2, (total_count + 2) / 2) 
+                        THEN vote ELSE NULL END) AS vote_median,
+                    AVG(CASE WHEN row_num_minority IN ((total_count + 1) / 2, (total_count + 2) / 2) 
+                        THEN significant_minority ELSE NULL END) AS minority_median
+                FROM ranked_data
+                WHERE 
+                    row_num_quorum IN ((total_count + 1) / 2, (total_count + 2) / 2) OR
+                    row_num_vote IN ((total_count + 1) / 2, (total_count + 2) / 2) OR
+                    row_num_minority IN ((total_count + 1) / 2, (total_count + 2) / 2)
             )
             SELECT 
-                ROUND(AVG(quorum)) AS quorum_median,
-                ROUND(AVG(vote)) AS vote_median,
-                ROUND(AVG(significant_minority)) AS minority_median
-            FROM sorted_data
-            WHERE 
-                row_num_quorum IN ((total_count + 1) / 2, (total_count + 2) / 2)
-                OR
-                row_num_vote IN ((total_count + 1) / 2, (total_count + 2) / 2)
-                OR
-                row_num_minority IN ((total_count + 1) / 2, (total_count + 2) / 2);
+                ROUND(COALESCE(quorum_median, 0)) AS quorum_median,
+                ROUND(COALESCE(vote_median, 0)) AS vote_median,
+                ROUND(COALESCE(minority_median, 0)) AS minority_median
+            FROM median_values;
         """)
 
         data = await self._session.execute(
@@ -67,6 +84,43 @@ class AODataStorage(DataStorage[T], AO):
             vote=int(vote_median),
             quorum=int(quorum_median),
             significant_minority=int(minority_median),
+        )
+
+    async def calculate_time_params(self, community_id: str) -> BaseTimeParams:
+        """Вычисляет медианные значения для сроков сообщества."""
+        query = text("""
+            WITH filtered_data AS (
+                SELECT 
+                    decision_delay,
+                    dispute_time_limit,
+                    COUNT(*) FILTER (WHERE decision_delay IS NOT NULL) OVER () AS delay_count,
+                    COUNT(*) FILTER (WHERE dispute_time_limit IS NOT NULL) OVER () AS dispute_count
+                FROM public.user_community_settings
+                WHERE community_id = :community_id 
+                  AND is_blocked IS NOT TRUE
+            ),
+            ranked_data AS (
+                SELECT 
+                    decision_delay,
+                    dispute_time_limit,
+                    ROW_NUMBER() OVER (ORDER BY decision_delay) AS delay_rank,
+                    ROW_NUMBER() OVER (ORDER BY dispute_time_limit) AS dispute_rank
+                FROM filtered_data
+                WHERE decision_delay IS NOT NULL OR dispute_time_limit IS NOT NULL
+            )
+            SELECT 
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY decision_delay) AS median_delay,
+                PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY dispute_time_limit) AS median_dispute
+            FROM ranked_data;
+        """)
+
+        result = await self._session.execute(
+            query, {'community_id': community_id})
+        median_delay, median_dispute = result.fetchone()
+
+        return BaseTimeParams(
+            decision_delay=int(median_delay or 0),
+            dispute_time_limit=int(median_dispute or 0),
         )
 
     async def recount_of_all_votes(

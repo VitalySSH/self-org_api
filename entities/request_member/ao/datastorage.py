@@ -308,8 +308,8 @@ class RequestMemberDS(
         user_settings = UserCommunitySettings()
         user_settings.user = current_user
         user_settings.community_id = community.id
-        user_settings.name = community.main_settings.name
-        user_settings.description = community.main_settings.description
+        user_settings.names = [community.main_settings.name]
+        user_settings.descriptions = [community.main_settings.description]
         user_settings.quorum = community.main_settings.quorum
         user_settings.vote = community.main_settings.vote
         user_settings.significant_minority = (

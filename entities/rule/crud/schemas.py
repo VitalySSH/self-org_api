@@ -12,6 +12,7 @@ class RuleAttributes(TypedDict):
     is_extra_options: bool
     is_multi_select: bool
     community_id: str
+    start_time: Optional[datetime]
     created: Optional[datetime]
 
 

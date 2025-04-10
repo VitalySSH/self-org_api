@@ -8,7 +8,9 @@ from datastorage.database.models import Base
 from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
-    from datastorage.database.models import VotingOption, VotingResult
+    from datastorage.database.models import (
+        VotingOption, VotingResult, Noncompliance
+    )
 
 
 class UserVotingResult(Base):
@@ -18,6 +20,9 @@ class UserVotingResult(Base):
     vote: Mapped[bool] = mapped_column(nullable=True)
     extra_options: Mapped[List['VotingOption']] = relationship(
         secondary=TableName.RELATION_USER_VR_VO, lazy='noload'
+    )
+    noncompliance: Mapped[List['Noncompliance']] = relationship(
+        secondary=TableName.RELATION_USER_VR_NONCOMPLIANCE, lazy='noload'
     )
     is_voted_myself: Mapped[bool] = mapped_column(
         nullable=False, default=False

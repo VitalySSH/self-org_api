@@ -16,6 +16,12 @@ class SimpleVoteResult:
     abstain: int
 
 
+@dataclass(kw_only=True)
+class BaseTimeParams:
+    decision_delay: int
+    dispute_time_limit: int
+
+
 class PercentByName(TypedDict):
     percent: int
     name: str

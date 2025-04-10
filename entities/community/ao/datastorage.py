@@ -3,7 +3,7 @@ from datetime import datetime
 
 from typing import List, Optional, Tuple, cast, Dict
 
-from sqlalchemy import select, func, desc, distinct, text
+from sqlalchemy import select, func, desc, distinct, text, label
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
@@ -15,13 +15,14 @@ from datastorage.crud.interfaces.list import Filters, Operation, Filter
 from datastorage.database.models import (
     Community, UserCommunitySettings, CommunitySettings,
     RelationUserCsCategories, Category, CommunityName,
-    CommunityDescription, RelationUserCsUserCs
+    CommunityDescription, RelationUserCsUserCs, RelationUserCsResponsibilities
 )
 from datastorage.decorators import ds_async_with_new_session
 from entities.community.ao.dataclasses import (
     OtherCommunitySettings, CsByPercent, UserSettingsModifiedData,
     CommunityNameData, ParentCommunity, SubCommunityData
 )
+from entities.responsibility.model import Responsibility
 from entities.status.model import Status
 from entities.user_community_settings.ao.datastorage import (
     UserCommunitySettingsDS
@@ -59,8 +60,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         ]
 
         child_settings_data = {
-            category_id: count
-            for category_id, count in modified_data.child_settings_data
+            settings_id: count
+            for settings_id, count in modified_data.child_settings_data
         }
         child_settings = await self._get_user_settings_by_ids(
             list(child_settings_data.keys())
@@ -71,6 +72,20 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 percent=int(child_settings_data.get(settings.id) /
                             modified_data.user_count * 100)
             ) for settings in child_settings]
+
+        responsibility_data = {
+            responsibility_id: count
+            for responsibility_id, count in modified_data.responsibility_data
+        }
+        responsibility_list = await self._get_responsibility_by_ids(
+            list(responsibility_data.keys())
+        )
+        responsibilities = [
+            PercentByName(
+                name=responsibility.name,
+                percent=int(responsibility_data.get(responsibility.id) /
+                            modified_data.user_count * 100)
+            ) for responsibility in responsibility_list]
 
         is_secret_ballot_count = await self._get_is_secret_ballot_count(
             community_id
@@ -107,10 +122,15 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         ]
 
         return CsByPercent(
-            names=await self._get_voting_data_by_names(community_id),
-            descriptions=await self._get_voting_data_by_desc(community_id),
+            names=await self._get_voting_data_by_names(
+                community_id=community_id, total_users=modified_data.user_count
+            ),
+            descriptions=await self._get_voting_data_by_desc(
+                community_id=community_id, total_users=modified_data.user_count
+            ),
             categories=categories,
             sub_communities=sub_communities,
+            responsibilities=responsibilities,
             secret_ballot=secret_ballot,
             minority_not_participate=minority_not_participate,
             can_offer=can_offer,
@@ -149,31 +169,45 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
 
     async def get_sub_community_data(
-            self, community_id: str, user_id: str) -> List[SubCommunityData]:
+            self,
+            community_id: str,
+            user_id: str,
+    ) -> List[SubCommunityData]:
         """Вернёт данные внутренних сообществ."""
         sub_community_data: List[SubCommunityData] = []
-        community: Community = await self.get(
-            instance_id=community_id,
-            include=[
-                'main_settings.sub_communities_settings.user',
-                'main_settings.sub_communities_settings.name',
-                'main_settings.sub_communities_settings.description',
-            ]
-        )
+        filters: Filters = [
+            Filter(
+                field='parent_id',
+                op=Operation.EQ,
+                val=community_id,
+            ),
+            Filter(
+                field='is_blocked',
+                op=Operation.EQ,
+                val=False,
+            ),
+        ]
+        communities: List[Community] = (
+            await self.list(
+                filters=filters,
+                include=[
+                    'main_settings.user',
+                    'main_settings.name',
+                    'main_settings.description'
+                ],
+            )
+        ).data
+
         communities_ids = await self.get_user_community_ids_data(user_id)
-        for user_settings in (community.main_settings
-                                      .sub_communities_settings or []):
+        for community in communities:
+            user_settings = community.main_settings
             sub_community = SubCommunityData(
-                id=user_settings.community_id,
+                id=community.id,
                 title=user_settings.name.name,
                 description=user_settings.description.value,
-                members=await self._get_total_count_users(
-                    user_settings.community_id
-                ),
-                isMyCommunity=bool(communities_ids.get(
-                    user_settings.community_id)
-                ),
-                isBlocked=user_settings.is_blocked,
+                members=await self._get_total_count_users(community.id),
+                isMyCommunity=bool(communities_ids.get(community.id)),
+                isBlocked=False,
             )
             sub_community_data.append(sub_community)
 
@@ -183,18 +217,20 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
     async def change_community_settings(self, community_id: str) -> None:
         start_time = datetime.now()
         voting_params = await self.calculate_voting_params(community_id)
-        name: Optional[CommunityName] = None
-        description: Optional[CommunityDescription] = None
-        names_data = await self._get_first_community_name(community_id)
-        if names_data:
-            name_vote = names_data[1]
-            if name_vote >= voting_params.vote:
-                name = names_data[0]
-        desc_data = await self._get_first_community_desc(community_id)
-        if desc_data:
-            desc_vote = desc_data[1]
-            if desc_vote >= voting_params.vote:
-                description = desc_data[0]
+        time_params = await self.calculate_time_params(community_id)
+        total_users = await self._get_total_count_users(community_id)
+        name, name_percentage = await self._get_most_popular_name(
+            community_id=community_id, total_users=total_users
+        )
+        if name and name_percentage < voting_params.vote:
+            name = None
+        description, description_percentage = (
+            await self.get_most_popular_description(
+                community_id=community_id, total_users=total_users
+            )
+        )
+        if description and description_percentage < voting_params.vote:
+            description = None
 
         community: Community = await self._get_community(community_id)
         community_settings: CommunitySettings = community.main_settings
@@ -215,6 +251,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         community_settings.significant_minority = (
             voting_params.significant_minority
         )
+        community_settings.decision_delay = time_params.decision_delay
+        community_settings.dispute_time_limit = time_params.dispute_time_limit
         community_settings.is_secret_ballot = other_settings.is_secret_ballot
         community_settings.is_can_offer = other_settings.is_can_offer
         community_settings.is_minority_not_participate = (
@@ -230,6 +268,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         community_settings.sub_communities_settings = (
             other_settings.sub_communities_settings
         )
+        community_settings.responsibilities = other_settings.responsibilities
         if is_changed_voting_params:
             await self.recount_of_all_votes(
                 community_id=community_id,
@@ -269,14 +308,25 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         query = (
             select(UserCommunitySettings).options(
                 selectinload(UserCommunitySettings.user),
-                selectinload(UserCommunitySettings.name),
-                selectinload(UserCommunitySettings.description),
+                selectinload(UserCommunitySettings.names),
+                selectinload(UserCommunitySettings.descriptions),
                 selectinload(UserCommunitySettings.categories),
             ).filter(UserCommunitySettings.id.in_(settings_ids))
         )
         settings_result = await self._session.scalars(query)
 
         return list(settings_result)
+
+    async def _get_responsibility_by_ids(
+            self, responsibility_ids: List[str]
+    ) -> List[Responsibility]:
+        query = (
+            select(Responsibility)
+            .filter(Responsibility.id.in_(responsibility_ids))
+        )
+        responsibility_result = await self._session.scalars(query)
+
+        return list(responsibility_result)
 
     async def _get_community(self, community_id: str) -> Optional[Community]:
         query = (
@@ -350,60 +400,109 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
         return {row[0]: row[0] for row in community_ids.all()}
 
-    async def _get_first_community_name(
-            self, community_id: str) -> Optional[Tuple[CommunityName, int]]:
-        total_count = await self._get_total_count_users(community_id)
-        name_data_query = (
-            select(CommunityName,
-                   func.count(CommunityName.name).label('count'))
-            .select_from(UserCommunitySettings, CommunityName)
-            .join(CommunityName)
-            .where(
-                UserCommunitySettings.community_id == community_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
-            .group_by(CommunityName.name, CommunityName)
-            .order_by(desc('count'))
+    async def _get_most_popular_name(
+            self,
+            community_id: str,
+            total_users: int,
+    ) -> Tuple[CommunityName | None, int | None]:
+        """Возвращает наиболее популярное наименование сообщества
+        и процент пользователей, выбравших его.
+
+        Если есть несколько одинаково популярных вариантов
+        или нет данных - возвращает (None, None).
+        """
+        if not total_users:
+            return None, None
+
+        query = select(
+            CommunityName.id,
+            label('count', func.count(CommunityName.id)),
+            label('percentage', func.round(
+                100 * func.count(CommunityName.id) / total_users)),
+            func.rank().over(
+                order_by=func.count(CommunityName.id).desc()
+            ).label('rnk')
+        ).join(
+            UserCommunitySettings.names
+        ).where(
+            UserCommunitySettings.community_id == community_id,
+            UserCommunitySettings.is_blocked.is_not(True),
+        ).group_by(CommunityName.id)
+
+        result = await self._session.execute(query)
+        records = result.all()
+
+        if not records or records[0].rnk > 1:
+            return None, None
+
+        if len(records) > 1 and records[0].count == records[1].count:
+            return None, None
+
+        community_name = await self._session.get(CommunityName, records[0].id)
+
+        return community_name, int(records[0].percentage)
+
+    async def get_most_popular_description(
+            self,
+            community_id: str,
+            total_users: int,
+    ) -> tuple[CommunityDescription | None, int | None]:
+        """Возвращает наиболее популярное описание сообщества и
+        процент пользователей, выбравших его.
+
+        Если есть несколько одинаково популярных вариантов или нет данных -
+        возвращает (None, None).
+        """
+        if not total_users:
+            return None, None
+
+        query = select(
+            CommunityDescription.id,
+            label('count', func.count(CommunityDescription.id)),
+            label('percentage', func.round(
+                100 * func.count(CommunityDescription.id) / total_users)),
+            # Убрано 100.0 и .2
+            func.rank().over(
+                order_by=func.count(CommunityDescription.id).desc()).label(
+                'rnk')
+        ).join(
+            UserCommunitySettings.descriptions
+        ).where(
+            UserCommunitySettings.community_id == community_id,
+            UserCommunitySettings.is_blocked == False
+        ).group_by(CommunityDescription.id)
+
+        result = await self._session.execute(query)
+        records = result.all()
+
+        if not records or records[0].rnk > 1:
+            return None, None
+
+        if len(records) > 1 and records[0].count == records[1].count:
+            return None, None
+
+        community_desc = await self._session.get(
+            CommunityDescription,records[0].id
         )
-        name_data = await self._session.execute(name_data_query)
-        names = name_data.all()
-        if names:
-            return names[0][0], int((names[0][1] / total_count) * 100)
-
-        return None
-
-    async def _get_first_community_desc(
-            self, community_id: str
-    ) -> Optional[Tuple[CommunityDescription, int]]:
-        total_count = await self._get_total_count_users(community_id)
-        name_data_query = (
-            select(CommunityDescription,
-                   func.count(CommunityDescription.value).label('count'))
-            .select_from(UserCommunitySettings, CommunityDescription)
-            .join(CommunityDescription)
-            .where(
-                UserCommunitySettings.community_id == community_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
-            .group_by(CommunityDescription.value, CommunityDescription)
-            .order_by(desc('count'))
-        )
-        name_data = await self._session.execute(name_data_query)
-        names = name_data.all()
-        if names:
-            return names[0][0], int((names[0][1] / total_count) * 100)
-
-        return None
+        return community_desc, int(records[0].percentage)
 
     async def _get_voting_data_by_names(
-            self, community_id: str
+            self,
+            community_id: str,
+            total_users: int,
     ) -> List[PercentByName]:
-        total_count = await self._get_total_count_users(community_id)
+        if not total_users:
+            return []
+
         name_data_query = (
-            select(CommunityName.name,
-                   func.count(CommunityName.name).label('count'))
-            .select_from(UserCommunitySettings, CommunityName)
-            .join(CommunityName)
+            select(
+                CommunityName.name,
+                func.count(distinct(UserCommunitySettings.id)).label('count')
+            )
+            .select_from(UserCommunitySettings)
+            .join(
+                UserCommunitySettings.names
+            )
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.is_blocked.is_not(True),
@@ -411,21 +510,31 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             .group_by(CommunityName.name)
             .order_by(desc('count'))
         )
+
         name_data = await self._session.execute(name_data_query)
 
         return [
-            PercentByName(name=name, percent=int((count / total_count) * 100))
-            for name, count in name_data.all()]
+            PercentByName(name=name, percent=int((count / total_users) * 100))
+            for name, count in name_data.all()
+        ]
 
     async def _get_voting_data_by_desc(
-            self, community_id: str
+            self,
+            community_id: str,
+            total_users: int,
     ) -> List[PercentByName]:
-        total_count = await self._get_total_count_users(community_id)
+        if not total_users:
+            return []
+
         desc_data_query = (
-            select(CommunityDescription.value,
-                   func.count(CommunityDescription.value).label('count'))
-            .select_from(UserCommunitySettings, CommunityDescription)
-            .join(CommunityDescription)
+            select(
+                CommunityDescription.value,
+                func.count(distinct(UserCommunitySettings.id)).label('count')
+            )
+            .select_from(UserCommunitySettings)
+            .join(
+                UserCommunitySettings.descriptions
+            )
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.is_blocked.is_not(True),
@@ -433,11 +542,13 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             .group_by(CommunityDescription.value)
             .order_by(desc('count'))
         )
+
         desc_data = await self._session.execute(desc_data_query)
 
         return [
-            PercentByName(name=desc_, percent=int((count / total_count) * 100))
-            for desc_, count in desc_data.all()]
+            PercentByName(name=desc_, percent=int((count / total_users) * 100))
+            for desc_, count in desc_data.all()
+        ]
 
     async def _get_user_settings_modified_data(
             self, community_id: str) -> UserSettingsModifiedData:
@@ -477,11 +588,24 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
         child_settings = await self._session.execute(child_settings_query)
 
+        responsibility_query = (
+            select(RelationUserCsResponsibilities.to_id,
+                   func.count(
+                       RelationUserCsResponsibilities.to_id
+                   ).label('count'))
+            .where(RelationUserCsResponsibilities.from_id.in_(user_cs_ids))
+            .group_by(RelationUserCsResponsibilities.to_id)
+            .order_by(desc('count'))
+        )
+        responsibilities = await self._session.execute(responsibility_query)
+
         return UserSettingsModifiedData(
             user_count=user_count,
             categories_data=cast(List[Tuple[str, int]], categories.all()),
             child_settings_data=cast(List[Tuple[str, int]],
                                      child_settings.all()),
+            responsibility_data=cast(List[Tuple[str, int]],
+                                     responsibilities.all()),
         )
 
     async def _get_other_community_settings(
@@ -493,6 +617,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         selected_category_ids: Dict[str, str] = {}
         all_user_settings_ids = []
         selected_user_settings_ids: Dict[str, str] = {}
+        selected_responsibility_ids = []
         modified_data = await self._get_user_settings_modified_data(
             community_id
         )
@@ -506,6 +631,10 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             if int(count / modified_data.user_count * 100) >= vote:
                 selected_user_settings_ids[settings_id] = settings_id
 
+        for responsibility_id, count in modified_data.responsibility_data:
+            if int(count / modified_data.user_count * 100) >= vote:
+                selected_responsibility_ids.append(responsibility_id)
+
         categories = await self._get_selected_categories(
             all_ids=all_category_ids,
             selected_ids=selected_category_ids,
@@ -513,7 +642,11 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             system_category_id=system_category_id,
         )
         sub_communities_settings = await self._get_selected_sub_user_settings(
-            ids=all_user_settings_ids, selected_ids=selected_user_settings_ids
+            ids=all_user_settings_ids,
+            selected_ids=selected_user_settings_ids,
+        )
+        responsibilities = await self._get_responsibility_by_ids(
+            selected_responsibility_ids
         )
 
         is_secret_ballot_count = await self._get_is_secret_ballot_count(
@@ -538,6 +671,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         return OtherCommunitySettings(
             categories=categories,
             sub_communities_settings=sub_communities_settings,
+            responsibilities=responsibilities,
             is_secret_ballot=is_secret_ballot,
             is_minority_not_participate=is_minority_not_participate,
             is_can_offer=is_can_offer,
@@ -592,8 +726,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 select(UserCommunitySettings)
                 .options(
                     selectinload(UserCommunitySettings.user),
-                    selectinload(UserCommunitySettings.name),
-                    selectinload(UserCommunitySettings.description),
+                    selectinload(UserCommunitySettings.names),
+                    selectinload(UserCommunitySettings.descriptions),
                     selectinload(UserCommunitySettings.categories),
                 ).filter(UserCommunitySettings.id.in_(ids)))
             sub_user_settings_data = await self._session.scalars(query)
@@ -621,14 +755,12 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         return await self._session.scalar(status_query)
 
     async def _get_total_count_users(self, community_id: str) -> int:
-        count_query = (
-            select(func.count()).select_from(UserCommunitySettings)
-            .where(
-                UserCommunitySettings.community_id == community_id,
-                UserCommunitySettings.is_blocked.is_not(True),
-            )
+        total_query = select(func.count()).where(
+            UserCommunitySettings.community_id == community_id,
+            UserCommunitySettings.is_blocked.is_not(True),
         )
-        return await self._session.scalar(count_query)
+
+        return await self._session.scalar(total_query)
 
     async def _get_is_secret_ballot_count(self, community_id: str) -> int:
         count_query = (

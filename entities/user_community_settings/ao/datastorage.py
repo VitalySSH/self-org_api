@@ -209,8 +209,8 @@ class UserCommunitySettingsDS(
             self, user_settings: UserCommunitySettings
     ) -> CommunitySettings:
         settings = CommunitySettings()
-        settings.name = user_settings.name
-        settings.description = user_settings.description
+        settings.name = user_settings.names[0]
+        settings.description = user_settings.descriptions[0]
         settings.quorum = user_settings.quorum
         settings.vote = user_settings.vote
         settings.significant_minority = user_settings.significant_minority
@@ -233,12 +233,16 @@ class UserCommunitySettingsDS(
         settings = UserCommunitySettings()
         settings.user = data_to_create.user
         settings.community_id = data_to_create.community_id
-        settings.name = data_to_create.name_obj
-        settings.description = data_to_create.description_obj
+        settings.names = [data_to_create.name_obj]
+        settings.descriptions = [data_to_create.description_obj]
         settings.quorum = data_to_create.settings.get('quorum')
         settings.vote = data_to_create.settings.get('vote')
         settings.significant_minority = (
             data_to_create.settings.get('significant_minority')
+        )
+        settings.decision_delay = data_to_create.settings.get('decision_delay')
+        settings.dispute_time_limit = (
+            data_to_create.settings.get('dispute_time_limit')
         )
         settings.is_secret_ballot = (
             data_to_create.settings.get('is_secret_ballot')

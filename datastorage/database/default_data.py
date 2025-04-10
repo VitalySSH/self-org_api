@@ -58,6 +58,10 @@ STATUSES = [
         'code': Code.RULE_REVOKED,
     },
     {
+        'name': 'Выбор последствий несоблюдения правила',
+        'code': Code.NONCOMPLIANCE,
+    },
+    {
         'name': 'Инициатива одобрена',
         'code': Code.INITIATIVE_APPROVED,
     },

@@ -14,6 +14,7 @@ class InitiativeAttributes(TypedDict):
     community_id: str
     created: Optional[datetime]
     deadline: Optional[datetime]
+    start_time: Optional[datetime]
     event_date: Optional[date]
     extra_question: Optional[str]
 

@@ -6,6 +6,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 from datastorage.database.classes import TableName
 from datastorage.database.models import Base
 from datastorage.utils import build_uuid
+from entities.noncompliance.crud.dataclasses import NoncomplianceData
 from entities.voting_option.dataclasses import VotingOptionData
 
 
@@ -21,5 +22,8 @@ class VotingResult(Base):
         JSON, default=dict
     )
     minority_options: Mapped[Dict[str, VotingOptionData]] = mapped_column(
+        JSON, default=dict
+    )
+    noncompliance: Mapped[Dict[str, NoncomplianceData]] = mapped_column(
         JSON, default=dict
     )

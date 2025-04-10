@@ -6,6 +6,7 @@ class VResultAttributes(TypedDict):
     is_significant_minority: Optional[bool]
     options: str
     minority_options: str
+    noncompliance: str
 
 
 class VResultRead(TypedDict):

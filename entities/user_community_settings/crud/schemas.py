@@ -8,6 +8,8 @@ class UserCsAttributes(TypedDict, total=False):
     quorum: int
     vote: int
     significant_minority: int
+    decision_delay: int
+    dispute_time_limit: int
     is_secret_ballot: Optional[bool]
     is_can_offer: Optional[bool]
     is_minority_not_participate: Optional[bool]
@@ -18,10 +20,11 @@ class UserCsAttributes(TypedDict, total=False):
 
 class UserCsRelations(TypedDict, total=False):
     user: SchemaInstance
-    name: SchemaInstance
-    description: SchemaInstance
+    names: List[SchemaInstance]
+    descriptions: List[SchemaInstance]
     categories: List[SchemaInstance]
     sub_communities_settings: List[SchemaInstance]
+    responsibilities: List[SchemaInstance]
 
 
 class UserCsRead(TypedDict):

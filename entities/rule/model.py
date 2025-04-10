@@ -1,11 +1,12 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, select, func, event
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
-from datastorage.database.models import Base
+from datastorage.database.models import Base, Community
 from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
@@ -58,6 +59,7 @@ class Rule(Base):
         lazy='noload',
         foreign_keys=[old_category_id]
     )
+    start_time: Mapped[datetime] = mapped_column(nullable=True)
     voting_result_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.VOTING_RESULT}.id'),
         nullable=False,
@@ -67,3 +69,43 @@ class Rule(Base):
         uselist=False, lazy='noload'
     )
     extra_question: Mapped[str] = mapped_column(nullable=True)
+    tracker: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
+
+    @classmethod
+    async def generate_tracker(
+            cls,
+            community_id: str,
+            session: AsyncSession
+    ) -> str:
+        """Генерирует трекер для правила."""
+        community = await session.get(Community, community_id)
+
+        if community.parent_id is None:
+            count = await session.scalar(
+                select(func.count(cls.id))
+                .where(cls.community_id == community_id)
+            )
+        else:
+            count = await session.scalar(
+                select(func.count(cls.id))
+                .join(Community, cls.community_id == Community.id)
+                .where(Community.parent_id == community.parent_id)
+            )
+
+        return f'{community.tracker}-П-{count + 1}'
+
+
+@event.listens_for(Rule, 'before_insert')
+def before_insert_listener(mapper, connection, target):
+    if target.tracker is None:
+        connection.run_sync(
+            lambda sync_conn: _async_before_insert(sync_conn, target)
+        )
+
+
+async def _async_before_insert(sync_conn, target):
+    async with AsyncSession(bind=sync_conn, expire_on_commit=False) as session:
+        target.tracker = await Rule.generate_tracker(
+            community_id=target.community_id,
+            session=session,
+        )
