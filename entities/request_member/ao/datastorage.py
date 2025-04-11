@@ -14,7 +14,6 @@ from datastorage.crud.interfaces.list import Filters, Filter, Operation
 from datastorage.database.models import (
     RequestMember, CommunitySettings, UserCommunitySettings
 )
-from datastorage.decorators import ds_async_with_new_session
 from datastorage.utils import build_uuid
 from entities.community.model import Community
 from entities.request_member.ao.dataclasses import MyMemberRequest
@@ -51,7 +50,6 @@ class RequestMemberDS(
                           percent=vote_in_percent.abstain),
         ]
 
-    @ds_async_with_new_session
     async def update_request_member_data(
             self,
             request_member_id: str,
@@ -62,26 +60,28 @@ class RequestMemberDS(
         Создание дочерних запросов.
         Пересчёт голосов по дочерним запросам.
         """
-        request_member = await self._get_request_member(
-            request_member_id=request_member_id,
-        )
-        if not request_member:
-            return
-
-        if request_member.parent_id:
-            parent_request_member = await self._get_request_member(
-                request_member_id=cast(str, request_member.parent_id)
+        async with self.session_scope():
+            request_member = await self._get_request_member(
+                request_member_id=request_member_id,
             )
-            await self.update_vote_in_parent_requests_member(
-                parent_request_member
-            )
-        else:
-            await self._create_child_request_members_after_main(request_member)
-            await self.update_vote_in_parent_requests_member(request_member)
+            if not request_member:
+                return
 
-        await self._session.commit()
+            if request_member.parent_id:
+                parent_request_member = await self._get_request_member(
+                    request_member_id=cast(str, request_member.parent_id)
+                )
+                await self.update_vote_in_parent_requests_member(
+                    parent_request_member
+                )
+            else:
+                await self._create_child_request_members_after_main(
+                    request_member
+                )
+                await self.update_vote_in_parent_requests_member(
+                    request_member
+                )
 
-    @ds_async_with_new_session
     async def update_parent_request_member(
             self,
             request_member_id: str
@@ -89,29 +89,28 @@ class RequestMemberDS(
         """Обновление состояния основного запроса
          на добавление в сообщество, после изменений голосов дочерних запросов.
          """
-        request_member = await self._get_request_member(
-            request_member_id=request_member_id,
-            with_options=False
-        )
-        if request_member and request_member.parent_id:
-            parent_request_member = await self._get_request_member(
-                request_member_id=cast(str, request_member.parent_id)
+        async with self.session_scope():
+            request_member = await self._get_request_member(
+                request_member_id=request_member_id,
+                with_options=False
             )
-            if parent_request_member:
-                await self.update_vote_in_parent_requests_member(
-                    parent_request_member
+            if request_member and request_member.parent_id:
+                parent_request_member = await self._get_request_member(
+                    request_member_id=cast(str, request_member.parent_id)
                 )
-                await self._session.commit()
+                if parent_request_member:
+                    await self.update_vote_in_parent_requests_member(
+                        parent_request_member
+                    )
 
-    @ds_async_with_new_session
     async def delete_child_request_members(
             self, request_member_id: str
     ) -> None:
         """Удаление дочерних запросов на добавление
          в сообщество, после удаления основного.
          """
-        await self._delete_child_request_members(request_member_id)
-        await self._session.commit()
+        async with self.session_scope():
+            await self._delete_child_request_members(request_member_id)
 
     async def add_new_member(
             self,
@@ -145,7 +144,6 @@ class RequestMemberDS(
         await self._update_parent_request_member(request_member)
         await self._create_child_request_members(request_member)
         await self._create_new_voting_results(request_member)
-        await self._session.commit()
 
     async def my_list(self, member_id: str) -> List[MyMemberRequest]:
         """Вернёт список заявок на добавление

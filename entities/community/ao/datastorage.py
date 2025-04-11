@@ -17,7 +17,6 @@ from datastorage.database.models import (
     RelationUserCsCategories, Category, CommunityName,
     CommunityDescription, RelationUserCsUserCs, RelationUserCsResponsibilities
 )
-from datastorage.decorators import ds_async_with_new_session
 from entities.community.ao.dataclasses import (
     OtherCommunitySettings, CsByPercent, UserSettingsModifiedData,
     CommunityNameData, ParentCommunity, SubCommunityData
@@ -213,69 +212,75 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
 
         return sub_community_data
 
-    @ds_async_with_new_session
     async def change_community_settings(self, community_id: str) -> None:
         start_time = datetime.now()
-        voting_params = await self.calculate_voting_params(community_id)
-        time_params = await self.calculate_time_params(community_id)
-        total_users = await self._get_total_count_users(community_id)
-        name, name_percentage = await self._get_most_popular_name(
-            community_id=community_id, total_users=total_users
-        )
-        if name and name_percentage < voting_params.vote:
-            name = None
-        description, description_percentage = (
-            await self.get_most_popular_description(
+        async with self.session_scope():
+            voting_params = await self.calculate_voting_params(community_id)
+            time_params = await self.calculate_time_params(community_id)
+            total_users = await self._get_total_count_users(community_id)
+            name, name_percentage = await self._get_most_popular_name(
                 community_id=community_id, total_users=total_users
             )
-        )
-        if description and description_percentage < voting_params.vote:
-            description = None
-
-        community: Community = await self._get_community(community_id)
-        community_settings: CommunitySettings = community.main_settings
-        is_changed_voting_params = (
-                voting_params.__dict__ ==
-                (community_settings.last_voting_params or {})
-        )
-        community_settings.last_voting_params = voting_params.__dict__
-        system_category = await self.get_system_category()
-
-        other_settings = await self._get_other_community_settings(
-            community_id=community_id,
-            vote=voting_params.vote,
-            system_category_id=system_category.id if system_category else None
-        )
-        community_settings.vote = voting_params.vote
-        community_settings.quorum = voting_params.quorum
-        community_settings.significant_minority = (
-            voting_params.significant_minority
-        )
-        community_settings.decision_delay = time_params.decision_delay
-        community_settings.dispute_time_limit = time_params.dispute_time_limit
-        community_settings.is_secret_ballot = other_settings.is_secret_ballot
-        community_settings.is_can_offer = other_settings.is_can_offer
-        community_settings.is_minority_not_participate = (
-            other_settings.is_minority_not_participate
-        )
-        if name:
-            community_settings.name = name
-        if description:
-            community_settings.description = description
-        if system_category:
-            other_settings.categories.insert(0, system_category)
-        community_settings.categories = other_settings.categories
-        community_settings.sub_communities_settings = (
-            other_settings.sub_communities_settings
-        )
-        community_settings.responsibilities = other_settings.responsibilities
-        if is_changed_voting_params:
-            await self.recount_of_all_votes(
-                community_id=community_id,
-                voting_params=voting_params,
+            if name and name_percentage < voting_params.vote:
+                name = None
+            description, description_percentage = (
+                await self.get_most_popular_description(
+                    community_id=community_id, total_users=total_users
+                )
             )
-        await self._session.commit()
-        result_time = datetime.now() - start_time
+            if description and description_percentage < voting_params.vote:
+                description = None
+
+            community: Community = await self._get_community(community_id)
+            community_settings: CommunitySettings = community.main_settings
+            is_changed_voting_params = (
+                    voting_params.__dict__ ==
+                    (community_settings.last_voting_params or {})
+            )
+            community_settings.last_voting_params = voting_params.__dict__
+            system_category = await self.get_system_category()
+
+            other_settings = await self._get_other_community_settings(
+                community_id=community_id,
+                vote=voting_params.vote,
+                system_category_id=(system_category.id
+                                    if system_category else None)
+            )
+            community_settings.vote = voting_params.vote
+            community_settings.quorum = voting_params.quorum
+            community_settings.significant_minority = (
+                voting_params.significant_minority
+            )
+            community_settings.decision_delay = time_params.decision_delay
+            community_settings.dispute_time_limit = (
+                time_params.dispute_time_limit
+            )
+            community_settings.is_secret_ballot = (
+                other_settings.is_secret_ballot
+            )
+            community_settings.is_can_offer = other_settings.is_can_offer
+            community_settings.is_minority_not_participate = (
+                other_settings.is_minority_not_participate
+            )
+            if name:
+                community_settings.name = name
+            if description:
+                community_settings.description = description
+            if system_category:
+                other_settings.categories.insert(0, system_category)
+            community_settings.categories = other_settings.categories
+            community_settings.sub_communities_settings = (
+                other_settings.sub_communities_settings
+            )
+            community_settings.responsibilities = (
+                other_settings.responsibilities
+            )
+            if is_changed_voting_params:
+                await self.recount_of_all_votes(
+                    community_id=community_id,
+                    voting_params=voting_params,
+                )
+            result_time = datetime.now() - start_time
         print(
             f'Время обновления настроек сообщества: '
             f'{str(int(result_time.microseconds / 1000))} мс.'
@@ -732,7 +737,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 ).filter(UserCommunitySettings.id.in_(ids)))
             sub_user_settings_data = await self._session.scalars(query)
             all_sub_user_settings = list(sub_user_settings_data)
-            ucs_ds = UserCommunitySettingsDS(self._session)
+            ucs_ds = UserCommunitySettingsDS(session=self._session)
             for user_settings in all_sub_user_settings:
                 if selected_ids.get(user_settings.id):
                     community = await ucs_ds.get_or_create_child_community(
@@ -856,7 +861,6 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 f'old_category_id={old_category_id}, '
                 f'community_id={community_id}'
             )
-            await self._session.rollback()
 
     async def _update_category_from_old_category(self, community_id: str):
         query_rule = text("""
@@ -902,11 +906,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                     {'community_id': community_id}
                 )
 
-            await self._session.commit()
-
         except SQLAlchemyError as e:
             logger.error(
                 f'Ошибка при обновлении категорий для записей с '
                 f'community_id={community_id}: {e.__str__()}'
             )
-            await self._session.rollback()

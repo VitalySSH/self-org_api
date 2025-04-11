@@ -34,7 +34,9 @@ class CRUDPostProcessing(PostProcessing):
             self._instance_id = instance_id
             self.post_processing_data = post_processing_data
             funcs_data = self._build_func_data_from_instance()
-            self._background_tasks.add_task(self._execute_functions, *funcs_data)
+            self._background_tasks.add_task(
+                self._execute_functions, *funcs_data
+            )
 
     @staticmethod
     async def _execute_functions(*funcs_data):
@@ -53,7 +55,9 @@ class CRUDPostProcessing(PostProcessing):
             func = getattr(ds, post_processing.func_name)
             if self._instance:
                 if post_processing.instance_attr:
-                    attr_value = getattr(self._instance, post_processing.instance_attr)
+                    attr_value = getattr(
+                        self._instance, post_processing.instance_attr
+                    )
                 else:
                     attr_value = self._instance
             else:

@@ -62,7 +62,6 @@ class UserCommunitySettingsDS(
             user=data_to_create.user,
             request_member=request_member
         )
-        await self._session.commit()
 
     async def create_child_settings(
             self, data_to_create: CreatingCommunity
@@ -73,7 +72,6 @@ class UserCommunitySettingsDS(
         await self._create_community_descriptions(data_to_create)
         await self._create_categories(data_to_create=data_to_create)
         settings = await self._create_user_settings(data_to_create)
-        await self._session.commit()
 
         return settings
 
@@ -95,9 +93,10 @@ class UserCommunitySettingsDS(
         community.creator = user_settings.user
         parent_community_id: Optional[str] = user_settings.parent_community_id
         if parent_community_id:
-            community.parent = await self._session.get(
+            parent_community: Optional[Community] = await self._session.get(
                 Community, parent_community_id
             )
+            community.parent = parent_community
         self._session.add(community)
         await self._session.flush([community])
         await self._session.refresh(community)

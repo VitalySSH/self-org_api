@@ -27,29 +27,32 @@ auth_router = APIRouter()
 
 @auth_router.post('/login', status_code=204)
 async def login_for_access_token(
-        email: EmailStr = Form(), secret_password: str = Form(),
-        session: AsyncSession = Depends(get_async_session),
+        email: EmailStr = Form(),
+        secret_password: str = Form(),
 ):
-    user_service: UserService = auth_service.create_user_service(session)
-    user: Optional[User] = await user_service.get_user_by_email(email)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f'Пользователь с email: {email} не найден',
-        )
+    user_service: UserService = UserService(User)
+    async with user_service.session_scope(read_only=True):
+        user: Optional[User] = await user_service.get_user_by_email(email)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Пользователь с email: {email} не найден',
+            )
 
-    user_data: UserData = await user_service.get_user_data_by_user_id(user.id)
-    password = decrypt_password(secret_password)
-    if not verify_password(
-            password=password, 
-            hashed_password=user_data.hashed_password
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Введён некорректный email или пароль',
+        user_data: UserData = await user_service.get_user_data_by_user_id(
+            user.id
         )
+        password = decrypt_password(secret_password)
+        if not verify_password(
+                password=password,
+                hashed_password=user_data.hashed_password
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Введён некорректный email или пароль',
+            )
 
-    return await auth_service.access_token(user.id)
+        return await auth_service.access_token(user.id)
 
 
 @auth_router.post('/logout', status_code=204)
@@ -87,28 +90,28 @@ async def list_users(
         orders: Orders = None,
         pagination: Pagination = None,
         include: Include = None,
-        session: AsyncSession = Depends(get_async_session),
 ) -> ListUserSchema:
-    ds = CRUDDataStorage[User](model=User, session=session)
-    resp: ListResponse[User] = await ds.list(
-        filters=filters, orders=orders,
-        pagination=pagination, include=include
-    )
+    ds = CRUDDataStorage[User](model=User)
+    async with ds.session_scope(read_only=True):
+        resp: ListResponse[User] = await ds.list(
+            filters=filters, orders=orders,
+            pagination=pagination, include=include
+        )
 
-    return ListUserSchema(
-        items=[
-            ReadUser(
-                id=user.id,
-                fullname=user.fullname,
-                firstname=user.firstname,
-                surname=user.surname,
-                about_me=user.about_me,
-                foto_id=user.foto_id,
-            )
-            for user in resp.data
-        ],
-        total=resp.total
-    )
+        return ListUserSchema(
+            items=[
+                ReadUser(
+                    id=user.id,
+                    fullname=user.fullname,
+                    firstname=user.firstname,
+                    surname=user.surname,
+                    about_me=user.about_me,
+                    foto_id=user.foto_id,
+                )
+                for user in resp.data
+            ],
+            total=resp.total
+        )
 
 
 @auth_router.post(
@@ -116,60 +119,59 @@ async def list_users(
     response_model=ListUserSchema,
     status_code=200,
 )
-async def list_users(
+async def list_community_users(
         community_id: str,
         body: ListUsers,
         current_user: User = Depends(auth_service.get_current_user),
-        session: AsyncSession = Depends(get_async_session),
 ) -> ListUserSchema:
-    user_service: UserService = auth_service.create_user_service(session)
     is_delegates = body.get('is_delegates') or False
     filters = body.get('filters') or []
-    ds = CRUDDataStorage[User](model=User, session=session)
-    user_ids = await user_service.get_user_ids_from_community(
-        community_id=community_id,
-        is_delegates=is_delegates,
-        current_user_id=current_user.id,
-    )
-    if filters is None:
-        filters = []
-    filters.append(Filter(field='id', op=Operation.IN, val=user_ids))
+    ds = CRUDDataStorage[User](model=User)
+    async with ds.session_scope(read_only=True):
+        user_ids = await ds.get_user_ids_from_community(
+            community_id=community_id,
+            is_delegates=is_delegates,
+            current_user_id=current_user.id,
+        )
+        if filters is None:
+            filters = []
+        filters.append(Filter(field='id', op=Operation.IN, val=user_ids))
 
-    resp: ListResponse[User] = await ds.list(
-        filters=filters, orders=body.get('orders'),
-        pagination=body.get('pagination'), include=body.get('include')
-    )
+        resp: ListResponse[User] = await ds.list(
+            filters=filters, orders=body.get('orders'),
+            pagination=body.get('pagination'), include=body.get('include')
+        )
 
-    return ListUserSchema(
-        items=[
-            ReadUser(
-                id=user.id,
-                fullname=user.fullname,
-                firstname=user.firstname,
-                surname=user.surname,
-                about_me=user.about_me,
-                foto_id=user.foto_id,
-            )
-            for user in resp.data
-        ],
-        total=resp.total
-    )
+        return ListUserSchema(
+            items=[
+                ReadUser(
+                    id=user.id,
+                    fullname=user.fullname,
+                    firstname=user.firstname,
+                    surname=user.surname,
+                    about_me=user.about_me,
+                    foto_id=user.foto_id,
+                )
+                for user in resp.data
+            ],
+            total=resp.total
+        )
 
 
 @auth_router.post('/user')
 async def create_user(
         user_data: UserCreate,
-        session: AsyncSession = Depends(get_async_session),
 ) -> CreateUserResponse:
-    user_service: UserService = auth_service.create_user_service(session)
-    result: CreateUserResult = await user_service.create_user(user_data)
-    match result.status_code:
-        case 201:
-            return {'ok': result.message}
-        case 409:
-            return {'error': result.message}
-        case 500:
-            return {'error': result.message}
+    user_service: UserService = UserService(User)
+    async with user_service.session_scope(read_only=True):
+        result: CreateUserResult = await user_service.create_user(user_data)
+        match result.status_code:
+            case 201:
+                return {'ok': result.message}
+            case 409:
+                return {'error': result.message}
+            case 500:
+                return {'error': result.message}
 
 
 @auth_router.patch(
@@ -179,7 +181,7 @@ async def create_user(
 async def update_user(
         user_id: str,
         user_data: UserUpdate,
-        session: AsyncSession = Depends(get_async_session),
-):
-    user_service: UserService = auth_service.create_user_service(session)
-    await user_service.update_user(user_id=user_id, user_data=user_data)
+) -> None:
+    user_service: UserService = UserService(User)
+    async with user_service.session_scope():
+        await user_service.update_user(user_id=user_id, user_data=user_data)

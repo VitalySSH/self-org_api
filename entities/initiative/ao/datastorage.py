@@ -70,7 +70,6 @@ class InitiativeDS(AODataStorage[Initiative], CRUDDataStorage):
                 extra_options=extra_options,
                 creator_id=creator.id,
             )
-            await self._session.commit()
         except Exception as e:
             raise Exception(f'Не удалось создать правило: {e.__str__()}')
 

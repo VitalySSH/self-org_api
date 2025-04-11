@@ -6,7 +6,9 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from core.dataclasses import BaseVotingParams, SimpleVoteResult, BaseTimeParams
+from core.dataclasses import (
+    BaseVotingParams, SimpleVoteResult, BaseTimeParams
+)
 from datastorage.database.models import (
     Initiative, Rule, RequestMember, UserCommunitySettings, UserVotingResult,
     VotingOption, VotingResult, Status
@@ -25,7 +27,10 @@ logger = logging.getLogger(__name__)
 class AODataStorage(DataStorage[T], AO):
     """Дополнительная бизнес-логика для модели."""
 
-    def __init__(self, session: Optional[AsyncSession] = None):
+    def __init__(
+            self,
+            session: Optional[AsyncSession] = None,
+    ) -> None:
         super().__init__(model=self.__class__._model, session=session)
 
     async def calculate_voting_params(
@@ -130,25 +135,22 @@ class AODataStorage(DataStorage[T], AO):
     ) -> None:
         """Пересчет всех голосов."""
         try:
-            await self._session.begin_nested()
+            async with self._session.begin_nested():
 
-            await self._recount_of_votes_by_requests_member(
-                community_id=community_id,
-                voting_params=voting_params
-            )
-            await self._recount_community_vote(
-                community_id=community_id,
-                voting_params=voting_params,
-            )
+                await self._recount_of_votes_by_requests_member(
+                    community_id=community_id,
+                    voting_params=voting_params
+                )
+                await self._recount_community_vote(
+                    community_id=community_id,
+                    voting_params=voting_params,
+                )
 
-            await self._session.commit()
         except SQLAlchemyError as e:
             logger.error(
                 f'Ошибка при пересчете всех голосов:\n {e.__str__()}'
                 f'Параметры: community_id={community_id}'
             )
-            await self._session.rollback()
-
 
     async def get_status_by_code(self, code: str) -> Optional[Status]:
         """Получить статус по коду."""
@@ -545,20 +547,19 @@ class AODataStorage(DataStorage[T], AO):
             WHERE member_id = :member_id
         """)
         try:
-            await self._session.begin_nested()
+            async with self._session.begin_nested():
 
-            await self._session.execute(
-                query,
-                {'member_id': member_id, 'is_blocked': value}
-            )
-            await self._session.commit()
+                await self._session.execute(
+                    query,
+                    {'member_id': member_id, 'is_blocked': value}
+                )
+
         except SQLAlchemyError as e:
             logger.error(
                 f'Ошибка при обновлении пользовательских '
                 f'результатов голосований: {e.__str__()}.\n'
                 f'Параметры: member_id={member_id}, value={str(value)}'
             )
-            await self._session.rollback()
 
     async def _delete_user_voting_results(self, member_id: str) -> None:
         query = text("""
@@ -566,19 +567,18 @@ class AODataStorage(DataStorage[T], AO):
             WHERE member_id = :member_id
         """)
         try:
-            await self._session.begin_nested()
+            async with self._session.begin_nested():
 
-            await self._session.execute(
-                query, {'member_id': member_id}
-            )
-            await self._session.commit()
+                await self._session.execute(
+                    query, {'member_id': member_id}
+                )
+
         except SQLAlchemyError as e:
             logger.error(
                 f'Ошибка при удалении пользовательских '
                 f'результатов голосований: {e.__str__()}.\n'
                 f'Параметры: member_id={member_id}'
             )
-            await self._session.rollback()
 
     async def _recount_community_vote(
             self,

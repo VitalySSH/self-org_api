@@ -57,7 +57,7 @@ class RuleDS(AODataStorage[Rule], CRUDDataStorage):
                 extra_options=extra_options,
                 creator_id=creator.id,
             )
-            await self._session.commit()
+            await self._session.flush([rule])
         except Exception as e:
             raise Exception(f'Не удалось создать правило: {e.__str__()}')
 

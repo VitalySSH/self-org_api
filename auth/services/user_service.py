@@ -2,22 +2,17 @@ from typing import Optional, List
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dataclasses import CreateUserResult
 from auth.schemas import UserCreate, UserUpdate
 from auth.security import decrypt_password, hash_password
+from datastorage.base import DataStorage
 from datastorage.database.models import User, UserData
 from entities.user_community_settings.model import UserCommunitySettings
 
 
-class UserService:
+class UserService(DataStorage[User]):
     """Сервис для работы с пользователем."""
-
-    _session: AsyncSession
-
-    def __init__(self, session: AsyncSession):
-        self._session = session
 
     async def get_user_by_id(self, user_id: str) -> Optional[User]:
         """Получить пользователя по идентификатору."""
@@ -52,14 +47,12 @@ class UserService:
             await self._session.flush([user])
             await self._session.refresh(user)
         except IntegrityError:
-            await self._session.rollback()
 
             return CreateUserResult(
                 status_code=409,
                 message='Пользователь с таким email уже существует'
             )
         except Exception as e:
-            await self._session.rollback()
 
             return CreateUserResult(
                 status_code=500,
@@ -73,14 +66,12 @@ class UserService:
         user_data.hashed_password = hashed_password
         try:
             self._session.add(user_data)
-            await self._session.commit()
 
             return CreateUserResult(
                 status_code=201,
                 message='Пользователь успешно добавлен'
             )
         except Exception as e:
-            await self._session.rollback()
 
             return CreateUserResult(
                 status_code=500,
@@ -100,31 +91,8 @@ class UserService:
         user.fullname = f'{user.firstname} {user.surname}'
 
         try:
-            await self._session.commit()
+            await self._session.flush([user])
         except Exception as e:
             raise Exception(
                 f'Ошибка обновления пользователя с id {user_id}: {e.__str__()}'
             )
-
-    async def get_user_ids_from_community(
-            self, community_id: str,
-            is_delegates: bool,
-            current_user_id: str,
-    ) -> List[str]:
-        """Получить список id пользователей в сообществе."""
-        query_filters = [
-            UserCommunitySettings.community_id == community_id,
-            UserCommunitySettings.is_blocked.is_not(True),
-        ]
-        if is_delegates:
-            query_filters += [
-                UserCommunitySettings.is_not_delegate.is_not(True),
-                UserCommunitySettings.user_id != current_user_id,
-            ]
-        query = (
-            select(UserCommunitySettings.user_id)
-            .where(*query_filters)
-        )
-        user_cs_data = await self._session.execute(query)
-
-        return [it[0] for it in user_cs_data.all()]

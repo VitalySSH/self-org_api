@@ -19,6 +19,7 @@ from datastorage.crud.interfaces.schema import SchemaInstance, S, Relations
 from datastorage.crud.post_processing import CRUDPostProcessing
 from datastorage.interfaces import T
 from datastorage.crud.dataclasses import PostProcessingData
+from entities.user_community_settings.model import UserCommunitySettings
 
 
 class CRUDDataStorage(DataStorage[T], CRUD):
@@ -81,7 +82,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         }
         try:
             self._session.add(instance)
-            await self._session.commit()
+            await self._session.flush([instance])
             await self._session.refresh(instance)
         except IntegrityError as e:
             raise CRUDConflict(f'Объект модели {self._model.__name__} '
@@ -104,9 +105,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 instance=instance,
                 schema=schema
             )
-            await self._session.commit()
+            await self._session.flush([instance])
         except Exception as e:
-            await self._session.rollback()
             raise CRUDConflict(
                 f'Ошибка обновления объекта с id {instance_id} '
                 f'модели {self._model.__name__}: {e.__str__()}'
@@ -118,9 +118,7 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             raise CRUDNotFound(f'Объект с id {instance_id} не найден')
         try:
             await self._session.delete(instance)
-            await self._session.commit()
         except Exception as e:
-            await self._session.rollback()
             raise CRUDConflict(
                 f'Объект с id {instance_id} не '
                 f'может быть удалён: {e.__str__()}'
@@ -181,6 +179,31 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         )
 
         return resp.data[0] if resp.total > 0 else None
+
+    async def get_user_ids_from_community(
+            self,
+            community_id: str,
+            is_delegates: bool,
+            current_user_id: str,
+    ) -> List[str]:
+        """Получить список id пользователей в сообществе."""
+        # FIXME: вынести этот метод в другое место
+        query_filters = [
+            UserCommunitySettings.community_id == community_id,
+            UserCommunitySettings.is_blocked.is_not(True),
+        ]
+        if is_delegates:
+            query_filters += [
+                UserCommunitySettings.is_not_delegate.is_not(True),
+                UserCommunitySettings.user_id != current_user_id,
+            ]
+        query = (
+            select(UserCommunitySettings.user_id)
+            .where(*query_filters)
+        )
+        user_cs_data = await self._session.execute(query)
+
+        return [it[0] for it in user_cs_data.all()]
 
     async def _update_instance_from_schema(
             self, instance: T, schema: SchemaInstance

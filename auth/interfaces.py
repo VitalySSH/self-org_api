@@ -1,9 +1,5 @@
 import abc
-from fastapi import Response, Request, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from auth.services.user_service import UserService
-from datastorage.database.base import get_async_session
+from fastapi import Response, Request
 from datastorage.database.models import User
 
 
@@ -35,10 +31,6 @@ class AuthService(abc.ABC):
     """Аутентификация."""
 
     @abc.abstractmethod
-    def create_user_service(self, session: AsyncSession) -> UserService:
-        raise NotImplementedError
-
-    @abc.abstractmethod
     async def access_token(self, user_id: str) -> Response:
         raise NotImplementedError
 
@@ -51,7 +43,5 @@ class AuthService(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    async def get_current_user(
-            self, request: Request,
-            session: AsyncSession = Depends(get_async_session)) -> User:
+    async def get_current_user(self, request: Request) -> User:
         raise NotImplementedError

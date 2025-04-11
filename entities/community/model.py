@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 
 from sqlalchemy import ForeignKey, event, select, func
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
@@ -46,33 +45,12 @@ class Community(Base):
     created: Mapped[datetime] = mapped_column(default=datetime.now)
     tracker: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
 
-    @classmethod
-    async def generate_tracker(
-            cls,
-            parent: 'Community',
-            session: AsyncSession
-    ) -> Optional[str]:
-        """Генерирует трекер для нового подсообщества."""
-        if not parent:
-            return None
-
-        count = await session.scalar(
-            select(func.count(cls.id))
-            .where(cls.parent_id == parent.id)
-        )
-        return f'ПС-{count + 1}'
-
 
 @event.listens_for(Community, 'before_insert')
 def before_insert_listener(mapper, connection, target):
     if target.parent is not None and target.tracker is None:
-        connection.run_sync(
-            lambda sync_conn: _async_before_insert(sync_conn, target)
+        count = connection.scalar(
+            select(func.count(Community.id))
+            .where(Community.parent_id == target.parent.id)
         )
-
-
-async def _async_before_insert(sync_conn, target):
-    async with AsyncSession(bind=sync_conn, expire_on_commit=False) as session:
-        target.tracker = await Community.generate_tracker(
-            parent=target.parent, session=session
-        )
+        target.tracker = f'ПС-{count + 1}'

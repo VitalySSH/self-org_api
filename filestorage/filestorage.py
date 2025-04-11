@@ -31,7 +31,12 @@ class FileStorageApp(DataStorage[T], FileStorage):
     @staticmethod
     def get_file_path(file_metadata: FileMetaData) -> str:
         return os.path.abspath(
-            os.path.join(UPLOADED_FILES_PATH, file_metadata.path, file_metadata.name))
+            os.path.join(
+                UPLOADED_FILES_PATH,
+                file_metadata.path,
+                file_metadata.name,
+            )
+        )
 
     async def create_file(self, file: UploadFile, user_id: str) -> T:
         mimetype = filetype.guess(file.file).mime
@@ -51,7 +56,7 @@ class FileStorageApp(DataStorage[T], FileStorage):
 
         try:
             self._session.add(file_metadata)
-            await self._session.commit()
+            await self._session.flush([file_metadata])
             await self._session.refresh(file_metadata)
         except Exception as e:
             raise Exception(f'Файл не может быть сохранён: {e.__str__()}')
@@ -63,14 +68,24 @@ class FileStorageApp(DataStorage[T], FileStorage):
         if not file_metadata:
             raise Exception(f'Метаданные файла с id {file_id} не найдены')
         full_path = os.path.abspath(
-            os.path.join(UPLOADED_FILES_PATH, file_metadata.path, file_metadata.name))
+            os.path.join(
+                UPLOADED_FILES_PATH,
+                file_metadata.path,
+                file_metadata.name,
+            )
+        )
         self._delete_file_by_path(full_path)
 
         mimetype = filetype.guess(file.file).mime
         temp_file = create_file(
             file=file.file.read(), file_name=file.filename)
         full_path = os.path.abspath(
-            os.path.join(UPLOADED_FILES_PATH, file_metadata.path, file.filename))
+            os.path.join(
+                UPLOADED_FILES_PATH,
+                file_metadata.path,
+                file.filename,
+            )
+        )
         self._get_directory(full_path)
         shutil.move(temp_file.name, full_path)
 
@@ -79,7 +94,7 @@ class FileStorageApp(DataStorage[T], FileStorage):
         file_metadata.updated = datetime.now()
 
         try:
-            await self._session.commit()
+            await self._session.flush([file_metadata])
         except Exception as e:
             raise Exception(
                 f'Ошибка обновления метаданных '
@@ -91,14 +106,17 @@ class FileStorageApp(DataStorage[T], FileStorage):
         if not file_metadata:
             raise Exception(f'Метаданные файла с id {file_id} не найдены')
         full_path = os.path.abspath(
-            os.path.join(UPLOADED_FILES_PATH, file_metadata.path, file_metadata.name))
+            os.path.join(
+                UPLOADED_FILES_PATH,
+                file_metadata.path,
+                file_metadata.name,
+            )
+        )
         self._delete_file_by_path(full_path)
 
         try:
             await self._session.delete(file_metadata)
-            await self._session.commit()
         except Exception as e:
-            await self._session.rollback()
             raise Exception(
                 f'Метаданные файла с id {file_id}'
                 f' не могут быть удалены: {e}'

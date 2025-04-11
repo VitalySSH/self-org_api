@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy import ForeignKey, select, func, event
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from datastorage.database.classes import TableName
@@ -71,41 +70,26 @@ class Rule(Base):
     extra_question: Mapped[str] = mapped_column(nullable=True)
     tracker: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
 
-    @classmethod
-    async def generate_tracker(
-            cls,
-            community_id: str,
-            session: AsyncSession
-    ) -> str:
-        """Генерирует трекер для правила."""
-        community = await session.get(Community, community_id)
-
-        if community.parent_id is None:
-            count = await session.scalar(
-                select(func.count(cls.id))
-                .where(cls.community_id == community_id)
-            )
-        else:
-            count = await session.scalar(
-                select(func.count(cls.id))
-                .join(Community, cls.community_id == Community.id)
-                .where(Community.parent_id == community.parent_id)
-            )
-
-        return f'{community.tracker}-П-{count + 1}'
-
 
 @event.listens_for(Rule, 'before_insert')
 def before_insert_listener(mapper, connection, target):
     if target.tracker is None:
-        connection.run_sync(
-            lambda sync_conn: _async_before_insert(sync_conn, target)
-        )
 
+        if target.community_id:
+            community = connection.execute(
+                select(Community).where(Community.id == target.community_id)
+            ).scalar_one()
 
-async def _async_before_insert(sync_conn, target):
-    async with AsyncSession(bind=sync_conn, expire_on_commit=False) as session:
-        target.tracker = await Rule.generate_tracker(
-            community_id=target.community_id,
-            session=session,
-        )
+            if community.parent_id is None:
+                count = connection.execute(
+                    select(func.count(Rule.id))
+                    .where(Rule.community_id == target.community_id)
+                ).scalar()
+            else:
+                count = connection.execute(
+                    select(func.count(Rule.id))
+                    .join(Community, Rule.community_id == Community.id)
+                    .where(Community.parent_id == community.parent_id)
+                ).scalar()
+
+            target.tracker = f'{community.tracker}-П-{count + 1}'
