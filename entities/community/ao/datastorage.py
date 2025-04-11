@@ -68,7 +68,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
         sub_communities = [
             PercentByName(
-                name=settings.name.name,
+                name=settings.names[0].name,
                 percent=int(child_settings_data.get(settings.id) /
                             modified_data.user_count * 100)
             ) for settings in child_settings]

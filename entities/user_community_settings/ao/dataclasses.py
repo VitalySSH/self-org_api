@@ -10,13 +10,13 @@ from entities.user_community_settings.crud.schemas import UserCsAttributes
 
 @dataclass(kw_only=True)
 class CreatingCommunity:
-    name: str
-    description: str
+    names: List[str]
+    descriptions: List[str]
     category_names: List[str]
     settings: UserCsAttributes
     user: User
     community_id: Optional[str] = None
     parent_community_id: Optional[str] = None
-    name_obj: Optional[CommunityName] = None
-    description_obj: Optional[CommunityDescription] = None
+    name_objs: Optional[List[CommunityName]] = None
+    description_objs: Optional[List[CommunityDescription]] = None
     categories_objs: Optional[List[Category]] = None

@@ -36,8 +36,8 @@ class UserCommunitySettingsDS(
         на основе пользовательских настроек.
         """
         data_to_create.community_id = build_uuid()
-        await self._create_community_name(data_to_create)
-        await self._create_community_description(data_to_create)
+        await self._create_community_names(data_to_create)
+        await self._create_community_descriptions(data_to_create)
         await self._create_categories(
             data_to_create=data_to_create, is_selected=True
         )
@@ -69,8 +69,8 @@ class UserCommunitySettingsDS(
     ) -> UserCommunitySettings:
         """Создание пользовательских настроек для внутренних сообществ."""
         data_to_create.community_id = build_uuid()
-        await self._create_community_name(data_to_create)
-        await self._create_community_description(data_to_create)
+        await self._create_community_names(data_to_create)
+        await self._create_community_descriptions(data_to_create)
         await self._create_categories(data_to_create=data_to_create)
         settings = await self._create_user_settings(data_to_create)
         await self._session.commit()
@@ -113,29 +113,37 @@ class UserCommunitySettingsDS(
 
         return community
 
-    async def _create_community_name(
+    async def _create_community_names(
             self, data_to_create: CreatingCommunity
     ) -> None:
-        community_name = CommunityName()
-        community_name.name = data_to_create.name
-        community_name.community_id = data_to_create.community_id
-        community_name.creator_id = data_to_create.user.id
-        community_name.is_readonly = True
-        self._session.add(community_name)
-        await self._session.flush([community_name])
-        data_to_create.name_obj = community_name
+        new_names: List[CommunityName] = []
+        for name in data_to_create.names:
+            community_name = CommunityName()
+            community_name.name = name
+            community_name.community_id = data_to_create.community_id
+            community_name.creator_id = data_to_create.user.id
+            community_name.is_readonly = True
+            self._session.add(community_name)
+            await self._session.flush([community_name])
+            new_names.append(community_name)
 
-    async def _create_community_description(
+        data_to_create.name_objs = new_names
+
+    async def _create_community_descriptions(
             self, data_to_create: CreatingCommunity
     ) -> None:
-        description = CommunityDescription()
-        description.value = data_to_create.description
-        description.community_id = data_to_create.community_id
-        description.creator_id = data_to_create.user.id
-        description.is_readonly = True
-        self._session.add(description)
-        await self._session.flush([description])
-        data_to_create.description_obj = description
+        new_descriptions: List[CommunityDescription] = []
+        for value in data_to_create.descriptions:
+            description = CommunityDescription()
+            description.value = value
+            description.community_id = data_to_create.community_id
+            description.creator_id = data_to_create.user.id
+            description.is_readonly = True
+            self._session.add(description)
+            await self._session.flush([description])
+            new_descriptions.append(description)
+
+        data_to_create.description_objs = new_descriptions
 
     async def _create_categories(
             self, data_to_create: CreatingCommunity,
@@ -179,8 +187,8 @@ class UserCommunitySettingsDS(
             self, data_to_create: CreatingCommunity
     ) -> CommunitySettings:
         settings = CommunitySettings()
-        settings.name = data_to_create.name_obj
-        settings.description = data_to_create.description_obj
+        settings.name = data_to_create.name_objs[0]
+        settings.description = data_to_create.description_objs[0]
         settings.quorum = data_to_create.settings.get('quorum')
         settings.vote = data_to_create.settings.get('vote')
         settings.significant_minority = (
@@ -233,8 +241,8 @@ class UserCommunitySettingsDS(
         settings = UserCommunitySettings()
         settings.user = data_to_create.user
         settings.community_id = data_to_create.community_id
-        settings.names = [data_to_create.name_obj]
-        settings.descriptions = [data_to_create.description_obj]
+        settings.names = data_to_create.name_objs
+        settings.descriptions = data_to_create.description_objs
         settings.quorum = data_to_create.settings.get('quorum')
         settings.vote = data_to_create.settings.get('vote')
         settings.significant_minority = (

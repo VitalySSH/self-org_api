@@ -315,6 +315,10 @@ class RequestMemberDS(
         user_settings.significant_minority = (
             community.main_settings.significant_minority
         )
+        user_settings.decision_delay = community.main_settings.decision_delay
+        user_settings.dispute_time_limit = (
+            community.main_settings.dispute_time_limit
+        )
         user_settings.is_secret_ballot = (
             community.main_settings.is_secret_ballot
         )

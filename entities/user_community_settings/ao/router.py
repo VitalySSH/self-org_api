@@ -59,16 +59,16 @@ async def create_child_settings(
 ) -> UserCsRead:
     ds = UserCommunitySettingsDS(session)
     try:
-        name = settings.pop('name')
-        description = settings.pop('description')
+        names = settings.pop('names')
+        descriptions = settings.pop('descriptions')
         parent_community_id = settings.pop('parent_community_id')
         category_names = []
         if settings.get('categories'):
             categories = settings.pop('categories')
             category_names = list(map(lambda it: it.get('name'), categories))
         data_to_create = CreatingCommunity(
-            name=name,
-            description=description,
+            names=names,
+            descriptions=descriptions,
             category_names=category_names,
             settings=UserCsAttributes(**settings),
             user=user,

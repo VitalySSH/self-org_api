@@ -6,8 +6,8 @@ class InitCategoryData(TypedDict):
 
 
 class SettingDataToCreate(TypedDict, total=False):
-    name: str
-    description: str
+    names: List[str]
+    descriptions: List[str]
     categories: List[InitCategoryData]
     quorum: int
     vote: int
