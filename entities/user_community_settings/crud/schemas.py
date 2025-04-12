@@ -20,6 +20,7 @@ class UserCsAttributes(TypedDict, total=False):
 
 class UserCsRelations(TypedDict, total=False):
     user: SchemaInstance
+    community: SchemaInstance
     names: List[SchemaInstance]
     descriptions: List[SchemaInstance]
     categories: List[SchemaInstance]

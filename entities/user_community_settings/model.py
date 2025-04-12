@@ -9,7 +9,8 @@ from datastorage.utils import build_uuid
 
 if TYPE_CHECKING:
     from datastorage.database.models import (
-        Category, User, CommunityName, CommunityDescription, Responsibility
+        Category, User, CommunityName, CommunityDescription, Responsibility,
+        Community
     )
 
 
@@ -28,6 +29,14 @@ class UserCommunitySettings(Base):
     user: Mapped['User'] = relationship(lazy='noload')
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     parent_community_id: Mapped[str] = mapped_column(nullable=True, index=True)
+    community: Mapped['Community'] = relationship(
+        foreign_keys=[community_id],
+        primaryjoin='UserCommunitySettings.community_id == Community.id',
+        lazy='noload',
+        back_populates='user_settings',
+        # innerjoin=True,
+        viewonly=True,
+    )
     names: Mapped[List['CommunityName']] = relationship(
         secondary=TableName.RELATION_UCS_NAMES,
         lazy='noload'

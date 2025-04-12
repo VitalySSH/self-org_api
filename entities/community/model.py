@@ -28,7 +28,10 @@ class Community(Base):
         foreign_keys=f'{TableName.COMMUNITY}.c.main_settings_id'
     )
     user_settings: Mapped[List['UserCommunitySettings']] = relationship(
-        secondary=TableName.RELATION_COMMUNITY_UCS, lazy='noload')
+        secondary=TableName.RELATION_COMMUNITY_UCS,
+        lazy='noload',
+        back_populates='community',
+    )
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
         nullable=False,
