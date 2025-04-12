@@ -49,6 +49,7 @@ async def create_file(
 ) -> FileMetaRead:
     fs = FileStorageApp[FileMetaData](model=FileMetaData)
     async with fs.session_scope():
+        current_user = await fs.merge_into_session(current_user)
         file_metadata = await fs.create_file(
             file=file,
             user_id=current_user.id

@@ -18,4 +18,5 @@ async def create_initiative(
 ) -> None:
     ds = InitiativeDS()
     async with ds.session_scope():
+        current_user = await ds.merge_into_session(current_user)
         await ds.create_initiative(data=payload, creator=current_user)

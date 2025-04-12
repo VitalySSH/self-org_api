@@ -18,4 +18,5 @@ async def create_rule(
 ) -> None:
     ds = RuleDS()
     async with ds.session_scope():
+        current_user = await ds.merge_into_session(current_user)
         await ds.create_rule(data=payload, creator=current_user)

@@ -2,9 +2,9 @@ import logging
 import traceback
 
 from contextlib import asynccontextmanager
-from typing import Generic, Type, Optional
+from typing import Generic, Type, Optional, Any
 
-from fastapi import BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from datastorage.database.base import async_session_maker
@@ -49,8 +49,15 @@ class DataStorage(Generic[T]):
                 if not read_only:
                     await session.commit()
 
+            except HTTPException as http_e:
+                if not read_only:
+                    await session.rollback()
+
+                raise http_e
+
             except Exception as original_e:
-                await session.rollback()
+                if not read_only:
+                    await session.rollback()
 
                 tb_str = traceback.format_exc()
                 msg = (
@@ -65,3 +72,13 @@ class DataStorage(Generic[T]):
 
             finally:
                 self._session = None
+
+    async def merge_into_session(self, obj: Any) -> Any:
+        """Безопасно переносит объект из другой сессии в текущую."""
+        if not self._session:
+            raise ValueError('Сессия не инициализирована')
+
+        if obj in self._session:
+            return obj
+
+        return await self._session.merge(obj)

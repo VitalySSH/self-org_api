@@ -27,6 +27,9 @@ class UserVotingResult(Base):
     is_voted_myself: Mapped[bool] = mapped_column(
         nullable=False, default=False
     )
+    is_voted_by_default: Mapped[bool] = mapped_column(
+        nullable=True, default=False
+    )
     member_id: Mapped[str] = mapped_column(nullable=True, index=True)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     voting_result_id: Mapped[str] = mapped_column(

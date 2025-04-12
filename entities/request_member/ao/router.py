@@ -35,6 +35,7 @@ async def add_new_member(
 ) -> None:
     ds = RequestMemberDS()
     async with ds.session_scope():
+        current_user = await ds.merge_into_session(current_user)
         await ds.add_new_member(
             request_member_id=request_member_id,
             current_user=current_user

@@ -8,6 +8,7 @@ class InitiativeAttributes(TypedDict):
     title: str
     question: str
     content: str
+    tracker: str
     is_one_day_event: bool
     is_extra_options: bool
     is_multi_select: bool

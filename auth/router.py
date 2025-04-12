@@ -2,7 +2,6 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Form
 from pydantic import EmailStr
-from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 from auth.auth import auth_service
@@ -19,7 +18,6 @@ from datastorage.crud.interfaces.base import Include
 from datastorage.crud.interfaces.list import (
     Filters, Orders, Pagination, Filter, Operation
 )
-from datastorage.database.base import get_async_session
 from datastorage.database.models import User, UserData
 
 auth_router = APIRouter()

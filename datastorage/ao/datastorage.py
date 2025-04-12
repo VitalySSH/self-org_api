@@ -11,13 +11,15 @@ from core.dataclasses import (
 )
 from datastorage.database.models import (
     Initiative, Rule, RequestMember, UserCommunitySettings, UserVotingResult,
-    VotingOption, VotingResult, Status
+    VotingOption, VotingResult, Status, RelationUserVrNoncompliance,
+    Noncompliance
 )
 from datastorage.ao.interfaces import AO
 from datastorage.base import DataStorage
 from datastorage.consts import Code
 from datastorage.database.models import RelationUserVrVo
 from datastorage.interfaces import T
+from entities.noncompliance.crud.dataclasses import NoncomplianceData
 from entities.user_voting_result.ao.interfaces import Resource, ResourceType
 from entities.voting_option.dataclasses import VotingOptionData
 
@@ -252,8 +254,10 @@ class AODataStorage(DataStorage[T], AO):
         last_vote = voting_result.vote
         last_status = resource.status
         is_significant_minority = voting_result.is_significant_minority
+        is_noncompliance_minority = voting_result.is_noncompliance_minority
         vote_in_percent = await self.get_vote_in_percent(voting_result.id)
         is_selected_options = False
+        is_selected_noncompliance = False
         is_quorum = (
                 (vote_in_percent.yes + vote_in_percent.no) >=
                 voting_params.quorum
@@ -280,21 +284,46 @@ class AODataStorage(DataStorage[T], AO):
                     )
                     voting_result.minority_options = minority_options
 
+                selected_noncompliance, minority_noncompliance = (
+                    await self._get_new_noncompliance(
+                        resource=resource,
+                        resource_type=resource_type,
+                        voting_params=voting_params
+                    )
+                )
+                is_noncompliance_minority = bool(minority_noncompliance)
+                is_selected_noncompliance = bool(selected_noncompliance)
+                voting_result.noncompliance = selected_noncompliance
+                voting_result.is_noncompliance_minority = (
+                    is_noncompliance_minority
+                )
+                voting_result.minority_noncompliance = minority_noncompliance
+
             else:
                 voting_result.vote = False
                 voting_result.is_significant_minority = False
+                voting_result.is_noncompliance_minority = False
                 if resource.is_extra_options:
                     voting_result.options = {}
                     voting_result.minority_options = {}
+                if resource_type == 'rule':
+                    voting_result.noncompliance = {}
+                    voting_result.minority_noncompliance = {}
+
 
         else:
             if last_vote:
                 voting_result.vote = False
             if is_significant_minority:
                 voting_result.is_significant_minority = False
+            if is_noncompliance_minority:
+                voting_result.is_noncompliance_minority = False
             if resource.is_extra_options:
                 voting_result.options = {}
                 voting_result.minority_options = {}
+            if resource_type == 'rule':
+                voting_result.noncompliance = {}
+                voting_result.minority_noncompliance = {}
 
         await self._update_status_in_resource(
             resource=resource,
@@ -302,6 +331,8 @@ class AODataStorage(DataStorage[T], AO):
             last_status=cast(Status, last_status),
             is_selected_options=is_selected_options,
             is_significant_minority=is_significant_minority,
+            is_selected_noncompliance=is_selected_noncompliance,
+            is_noncompliance_minority=is_noncompliance_minority,
             is_quorum=is_quorum,
             is_decision=is_decision,
         )
@@ -312,6 +343,8 @@ class AODataStorage(DataStorage[T], AO):
             last_status: Status,
             is_selected_options: bool,
             is_significant_minority: bool,
+            is_selected_noncompliance: bool,
+            is_noncompliance_minority: bool,
             is_quorum: bool,
             is_decision: bool,
     ) -> None:
@@ -321,12 +354,14 @@ class AODataStorage(DataStorage[T], AO):
                 if (last_status.code == Code.RULE_APPROVED and
                         (not is_quorum or not is_decision or
                          (resource.is_extra_options and
-                          not is_selected_options))):
+                          not is_selected_options) or
+                         not is_selected_noncompliance)):
                     status = await self.get_status_by_code(Code.RULE_REVOKED)
                 elif (is_quorum and is_decision and (
-                        (resource.is_extra_options and is_selected_options)
-                        or not resource.is_extra_options)):
-                    if is_significant_minority:
+                        (resource.is_extra_options and is_selected_options) or
+                        not resource.is_extra_options) and
+                      is_selected_noncompliance):
+                    if is_significant_minority or is_noncompliance_minority:
                         status = await self.get_status_by_code(
                             Code.COMPROMISE
                         )
@@ -335,14 +370,14 @@ class AODataStorage(DataStorage[T], AO):
                             Code.RULE_APPROVED
                         )
                 elif (is_quorum and is_decision and
-                      (resource.is_extra_options and
-                       not is_selected_options) and
-                      last_status.code != Code.INITIATIVE_REVOKED):
+                      ((resource.is_extra_options and not is_selected_options)
+                       or not is_selected_noncompliance)
+                      and last_status.code != Code.RULE_REVOKED):
                     status = await self.get_status_by_code(
                         Code.PRINCIPAL_AGREEMENT
                     )
                 else:
-                    if last_status.code == Code.INITIATIVE_REVOKED:
+                    if last_status.code == Code.RULE_REVOKED:
                         status = last_status
                     else:
                         status = await self.get_status_by_code(
@@ -399,6 +434,7 @@ class AODataStorage(DataStorage[T], AO):
                 filters.append(
                     UserVotingResult.initiative_id == resource.id
                 )
+
         total_count_query = (
             select(func.count(UserVotingResult.id)).where(*filters)
         )
@@ -440,17 +476,98 @@ class AODataStorage(DataStorage[T], AO):
         for idx, item in enumerate(options_data, 1):
             voting_option: VotingOption = item[1]
             count = item[2]
+            percent = int(count / total_count * 100)
             option = VotingOptionData(
                 number=idx,
                 value=voting_option.content,
-                percent=str(int(count / total_count * 100)),
+                percent=str(percent),
             )
             if count >= min_count:
                 options[voting_option.id] = option
             else:
-                minority_options[voting_option.id] = option
+                if percent < 50:
+                    minority_options[voting_option.id] = option
 
         return options, minority_options
+
+    async def _get_new_noncompliance(
+            self,
+            resource: Resource,
+            resource_type: ResourceType,
+            voting_params: BaseVotingParams,
+    ) -> Tuple[Dict[str, NoncomplianceData], Dict[str, NoncomplianceData]]:
+        if resource_type == 'initiative':
+            return {}, {}
+
+        filters = [
+            UserVotingResult.is_blocked.isnot(True),
+            UserVotingResult.rule_id == resource.id,
+        ]
+        total_count_query = (
+            select(func.count(UserVotingResult.id)).where(*filters)
+        )
+        total_count_result = await self._session.execute(total_count_query)
+        total_count = total_count_result.scalar_one()
+
+        if total_count == 0:
+            return {}, {}
+
+        min_count = (voting_params.vote / 100) * total_count
+        min_count_minority = (
+                (voting_params.significant_minority / 100) * total_count
+        )
+
+        counts_query = select(
+            Noncompliance.id,
+            Noncompliance,
+            func.count(RelationUserVrNoncompliance.to_id)
+        ).join(
+            RelationUserVrNoncompliance,
+            RelationUserVrNoncompliance.to_id == Noncompliance.id
+        ).join(
+            UserVotingResult,
+            UserVotingResult.id == RelationUserVrNoncompliance.from_id
+        ).where(
+            *filters
+        ).group_by(
+            Noncompliance.id
+        ).having(
+            func.count(RelationUserVrNoncompliance.to_id) >= min_count_minority
+        )
+
+        counts_result = await self._session.execute(counts_query)
+        noncompliance_data = sorted(counts_result.all(),
+                                    key=lambda it: it[2], reverse=True)
+
+        selected: Dict[str, NoncomplianceData] = {}
+        minority: Dict[str, NoncomplianceData] = {}
+        is_no_leader = False
+        for idx, item in enumerate(noncompliance_data, 1):
+            noncompliance: Noncompliance = item[1]
+            count = item[2]
+            percent = int(count / total_count * 100)
+            _data = NoncomplianceData(
+                number=idx,
+                value=noncompliance.name,
+                percent=str(percent),
+                count=count,
+            )
+            if count >= min_count:
+                if is_no_leader:
+                    continue
+
+                if len(selected) == 0:
+                    selected[noncompliance.id] = _data
+                elif len(selected) == 1:
+                    first_data: NoncomplianceData = list(selected.values())[0]
+                    if count == first_data.get('count'):
+                        is_no_leader = True
+                        selected = {}
+            else:
+                if percent < 50:
+                    minority[noncompliance.id] = _data
+
+        return selected, minority
 
     async def _block_user_settings(
             self, request_member: RequestMember

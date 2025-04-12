@@ -1,4 +1,4 @@
-from typing import Optional, List
+from typing import Optional
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +8,6 @@ from auth.schemas import UserCreate, UserUpdate
 from auth.security import decrypt_password, hash_password
 from datastorage.base import DataStorage
 from datastorage.database.models import User, UserData
-from entities.user_community_settings.model import UserCommunitySettings
 
 
 class UserService(DataStorage[User]):

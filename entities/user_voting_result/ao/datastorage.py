@@ -5,13 +5,11 @@ from sqlalchemy.orm import selectinload
 
 from datastorage.ao.datastorage import AODataStorage
 from datastorage.crud.datastorage import CRUDDataStorage
-from entities.delegate_settings.model import DelegateSettings
-from entities.initiative.model import Initiative
-from entities.rule.model import Rule
 from entities.user_voting_result.ao.interfaces import Resource, ResourceType
-from entities.user_voting_result.model import UserVotingResult
-from entities.voting_option.model import VotingOption
-from entities.voting_result.model import VotingResult
+from datastorage.database.models import (
+    VotingResult, VotingOption, UserVotingResult, Rule, Initiative,
+    Noncompliance, DelegateSettings
+)
 
 
 class UserVotingResultDS(
@@ -25,7 +23,8 @@ class UserVotingResultDS(
         """Пересчитает результаты голосования."""
         async with self.session_scope():
             user_voting_result: UserVotingResult = await self.get(
-                instance_id=result_id, include=['extra_options']
+                instance_id=result_id,
+                include=['extra_options', 'noncompliance']
             )
             voting_result: Optional[VotingResult] = await self.get(
                 instance_id=user_voting_result.voting_result_id,
@@ -42,6 +41,7 @@ class UserVotingResultDS(
                 resource_type=resource_type,
                 vote=user_voting_result.vote,
                 extra_options=user_voting_result.extra_options,
+                noncompliance=user_voting_result.noncompliance,
             )
 
             await self.user_vote_count(
@@ -82,6 +82,7 @@ class UserVotingResultDS(
             resource_type: ResourceType,
             vote: bool,
             extra_options: List[VotingOption],
+            noncompliance: List[Noncompliance],
     ) -> None:
         """Размножить голос от делегата к доверителям."""
         delegate_settings = await self._get_delegate_settings(
@@ -118,6 +119,9 @@ class UserVotingResultDS(
             user_voting_result.vote = vote
             if extra_options:
                 user_voting_result.extra_options = extra_options
+            if noncompliance:
+                user_voting_result.noncompliance = noncompliance
+
             await self._session.flush([user_voting_result])
 
             await self._propagate_vote(
@@ -128,6 +132,7 @@ class UserVotingResultDS(
                 resource_type=resource_type,
                 vote=vote,
                 extra_options=extra_options,
+                noncompliance=noncompliance,
             )
 
 

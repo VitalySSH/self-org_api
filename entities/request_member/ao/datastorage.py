@@ -561,6 +561,7 @@ class RequestMemberDS(
             user_voting_result.voting_result = voting_result
             user_voting_result.initiative_id = row.initiative_id
             user_voting_result.rule_id = row.rule_id
+            user_voting_result.is_voted_by_default = True
 
             try:
                 self._session.add(user_voting_result)

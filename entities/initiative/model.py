@@ -94,18 +94,20 @@ def before_insert_listener(mapper, connection, target):
         if target.community_id:
             community = connection.execute(
                 select(Community).where(Community.id == target.community_id)
-            ).scalar_one()
+            ).first()
 
             if community.parent_id is None:
                 count = connection.execute(
                     select(func.count(Initiative.id))
                     .where(Initiative.community_id == target.community_id)
                 ).scalar()
+                tracker = f'И-{count + 1}'
             else:
                 count = connection.execute(
                     select(func.count(Initiative.id))
                     .join(Community, Initiative.community_id == Community.id)
                     .where(Community.parent_id == community.parent_id)
                 ).scalar()
+                tracker = f'{community.tracker}/И-{count + 1}'
 
-            target.tracker = f'{community.tracker}-И-{count + 1}'
+            target.tracker = tracker

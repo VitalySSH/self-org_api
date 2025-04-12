@@ -44,15 +44,17 @@ class AuthUserService(AuthService):
 
     async def get_current_user(self, request: Request) -> User:
         """Получение текущего пользователя по токену."""
-        user: Optional[User] = None
         token = request.cookies.get(COOKIE_TOKEN_NAME)
-        if token:
-            decoded_token = self._token_service.decode_token(token)
-            user_id = decoded_token.get('sub')
-            user_service = UserService(User)
-            async with user_service.session_scope(read_only=True):
-                user = await user_service.get_user_by_id(user_id)
-        if user:
-            return user
+        if not token:
+            raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
 
-        raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
+        decoded_token = self._token_service.decode_token(token)
+        user_id = decoded_token.get('sub')
+
+        user_service = UserService(User)
+        async with user_service.session_scope(read_only=True):
+            user = await user_service.get_user_by_id(user_id)
+            if not user:
+                raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)
+
+            return user

@@ -22,6 +22,7 @@ async def create_new_community(
 ) -> None:
     ds = UserCommunitySettingsDS()
     async with ds.session_scope():
+        user = await ds.merge_into_session(user)
         try:
             names = settings.pop('names')
             descriptions = settings.pop('descriptions')
@@ -59,6 +60,8 @@ async def create_child_settings(
 ) -> UserCsRead:
     ds = UserCommunitySettingsDS()
     async with ds.session_scope():
+        user = await ds.merge_into_session(user)
+
         try:
             names = settings.pop('names')
             descriptions = settings.pop('descriptions')
