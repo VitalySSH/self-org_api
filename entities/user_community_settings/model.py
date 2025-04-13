@@ -23,7 +23,7 @@ class UserCommunitySettings(Base):
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     user_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     user: Mapped['User'] = relationship(lazy='noload')
@@ -51,8 +51,8 @@ class UserCommunitySettings(Base):
     significant_minority: Mapped[int] = mapped_column(
         nullable=False, index=True
     )
-    decision_delay: Mapped[int] = mapped_column(nullable=True)
-    dispute_time_limit: Mapped[int] = mapped_column(nullable=True)
+    decision_delay: Mapped[int] = mapped_column(nullable=False)
+    dispute_time_limit: Mapped[int] = mapped_column(nullable=False)
     is_secret_ballot: Mapped[bool] = mapped_column(
         nullable=False, default=False
     )

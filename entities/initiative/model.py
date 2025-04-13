@@ -84,7 +84,7 @@ class Initiative(Base):
         foreign_keys=f'{TableName.INITIATIVE}.c.responsible_id',
         lazy='noload'
     )
-    tracker: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
+    tracker: Mapped[Optional[str]] = mapped_column(nullable=False, index=True)
 
 
 @event.listens_for(Initiative, 'before_insert')

@@ -68,7 +68,7 @@ class Rule(Base):
         uselist=False, lazy='noload'
     )
     extra_question: Mapped[str] = mapped_column(nullable=True)
-    tracker: Mapped[Optional[str]] = mapped_column(nullable=True, index=True)
+    tracker: Mapped[Optional[str]] = mapped_column(nullable=False, index=True)
 
 
 @event.listens_for(Rule, 'before_insert')

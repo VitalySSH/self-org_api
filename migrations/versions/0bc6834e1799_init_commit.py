@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: 8f7dd0780f0b
+Revision ID: 0bc6834e1799
 Revises: 
-Create Date: 2025-04-10 00:09:27.291178
+Create Date: 2025-04-13 04:04:30.163456
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '8f7dd0780f0b'
+revision: str = '0bc6834e1799'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -24,7 +24,7 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('firstname', sa.String(), nullable=False),
     sa.Column('surname', sa.String(), nullable=False),
-    sa.Column('fullname', sa.String(), nullable=True),
+    sa.Column('fullname', sa.String(), nullable=False),
     sa.Column('about_me', sa.String(), nullable=True),
     sa.Column('foto_id', sa.String(), nullable=True),
     sa.Column('email', sa.String(), nullable=False),
@@ -111,9 +111,11 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('vote', sa.Boolean(), nullable=True),
     sa.Column('is_significant_minority', sa.Boolean(), nullable=False),
+    sa.Column('is_noncompliance_minority', sa.Boolean(), nullable=False),
     sa.Column('options', sa.JSON(), nullable=False),
     sa.Column('minority_options', sa.JSON(), nullable=False),
     sa.Column('noncompliance', sa.JSON(), nullable=False),
+    sa.Column('minority_noncompliance', sa.JSON(), nullable=False),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_table('auth_user_data',
@@ -138,13 +140,13 @@ def upgrade() -> None:
     op.create_index(op.f('ix_category_status_id'), 'category', ['status_id'], unique=False)
     op.create_table('community_settings',
     sa.Column('id', sa.String(), nullable=False),
-    sa.Column('name_id', sa.String(), nullable=True),
-    sa.Column('description_id', sa.String(), nullable=True),
-    sa.Column('quorum', sa.Integer(), nullable=True),
-    sa.Column('vote', sa.Integer(), nullable=True),
-    sa.Column('significant_minority', sa.Integer(), nullable=True),
-    sa.Column('decision_delay', sa.Integer(), nullable=True),
-    sa.Column('dispute_time_limit', sa.Integer(), nullable=True),
+    sa.Column('name_id', sa.String(), nullable=False),
+    sa.Column('description_id', sa.String(), nullable=False),
+    sa.Column('quorum', sa.Integer(), nullable=False),
+    sa.Column('vote', sa.Integer(), nullable=False),
+    sa.Column('significant_minority', sa.Integer(), nullable=False),
+    sa.Column('decision_delay', sa.Integer(), nullable=False),
+    sa.Column('dispute_time_limit', sa.Integer(), nullable=False),
     sa.Column('last_voting_params', sa.JSON(), nullable=True),
     sa.Column('is_secret_ballot', sa.Boolean(), nullable=False),
     sa.Column('is_can_offer', sa.Boolean(), nullable=False),
@@ -170,14 +172,14 @@ def upgrade() -> None:
     op.create_index(op.f('ix_opinion_rule_id'), 'opinion', ['rule_id'], unique=False)
     op.create_table('user_community_settings',
     sa.Column('id', sa.String(), nullable=False),
-    sa.Column('user_id', sa.String(), nullable=True),
+    sa.Column('user_id', sa.String(), nullable=False),
     sa.Column('community_id', sa.String(), nullable=False),
     sa.Column('parent_community_id', sa.String(), nullable=True),
     sa.Column('quorum', sa.Integer(), nullable=False),
     sa.Column('vote', sa.Integer(), nullable=False),
     sa.Column('significant_minority', sa.Integer(), nullable=False),
-    sa.Column('decision_delay', sa.Integer(), nullable=True),
-    sa.Column('dispute_time_limit', sa.Integer(), nullable=True),
+    sa.Column('decision_delay', sa.Integer(), nullable=False),
+    sa.Column('dispute_time_limit', sa.Integer(), nullable=False),
     sa.Column('is_secret_ballot', sa.Boolean(), nullable=False),
     sa.Column('is_can_offer', sa.Boolean(), nullable=False),
     sa.Column('is_minority_not_participate', sa.Boolean(), nullable=False),
@@ -198,7 +200,8 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('vote', sa.Boolean(), nullable=True),
     sa.Column('is_voted_myself', sa.Boolean(), nullable=False),
-    sa.Column('member_id', sa.String(), nullable=True),
+    sa.Column('is_voted_by_default', sa.Boolean(), nullable=False),
+    sa.Column('member_id', sa.String(), nullable=False),
     sa.Column('community_id', sa.String(), nullable=False),
     sa.Column('voting_result_id', sa.String(), nullable=False),
     sa.Column('initiative_id', sa.String(), nullable=True),
@@ -282,7 +285,7 @@ def upgrade() -> None:
     sa.Column('voting_result_id', sa.String(), nullable=False),
     sa.Column('extra_question', sa.String(), nullable=True),
     sa.Column('responsible_id', sa.String(), nullable=True),
-    sa.Column('tracker', sa.String(), nullable=True),
+    sa.Column('tracker', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
     sa.ForeignKeyConstraint(['creator_id'], ['auth_user.id'], ),
     sa.ForeignKeyConstraint(['old_category_id'], ['category.id'], ),
@@ -422,7 +425,7 @@ def upgrade() -> None:
     sa.Column('start_time', sa.DateTime(), nullable=True),
     sa.Column('voting_result_id', sa.String(), nullable=False),
     sa.Column('extra_question', sa.String(), nullable=True),
-    sa.Column('tracker', sa.String(), nullable=True),
+    sa.Column('tracker', sa.String(), nullable=False),
     sa.ForeignKeyConstraint(['category_id'], ['category.id'], ),
     sa.ForeignKeyConstraint(['creator_id'], ['auth_user.id'], ),
     sa.ForeignKeyConstraint(['old_category_id'], ['category.id'], ),
@@ -460,8 +463,8 @@ def upgrade() -> None:
     op.create_index(op.f('ix_relation_community_user_community_settings_to_id'), 'relation_community_user_community_settings', ['to_id'], unique=False)
     op.create_table('request_member',
     sa.Column('id', sa.String(), nullable=False),
-    sa.Column('member_id', sa.String(), nullable=True),
-    sa.Column('community_id', sa.String(), nullable=True),
+    sa.Column('member_id', sa.String(), nullable=False),
+    sa.Column('community_id', sa.String(), nullable=False),
     sa.Column('status_id', sa.String(), nullable=False),
     sa.Column('vote', sa.Boolean(), nullable=True),
     sa.Column('reason', sa.String(), nullable=True),

@@ -13,7 +13,7 @@ class User(Base):
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     firstname: Mapped[str] = mapped_column(nullable=False)
     surname: Mapped[str] = mapped_column(nullable=False)
-    fullname: Mapped[str] = mapped_column(nullable=True)
+    fullname: Mapped[str] = mapped_column(nullable=False)
     about_me: Mapped[str] = mapped_column(nullable=True)
     foto_id: Mapped[str] = mapped_column(nullable=True)
     email: Mapped[str] = mapped_column(nullable=False, unique=True)

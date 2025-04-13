@@ -28,9 +28,9 @@ class UserVotingResult(Base):
         nullable=False, default=False
     )
     is_voted_by_default: Mapped[bool] = mapped_column(
-        nullable=True, default=False
+        nullable=False, default=False
     )
-    member_id: Mapped[str] = mapped_column(nullable=True, index=True)
+    member_id: Mapped[str] = mapped_column(nullable=False, index=True)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     voting_result_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.VOTING_RESULT}.id'),

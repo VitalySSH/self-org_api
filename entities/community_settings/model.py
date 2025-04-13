@@ -21,21 +21,21 @@ class CommunitySettings(Base):
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     name_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_NAME}.id'),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     name: Mapped['CommunityName'] = relationship(lazy='noload')
     description_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY_DESCRIPTION}.id'),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     description: Mapped['CommunityDescription'] = relationship(lazy='noload')
-    quorum: Mapped[int] = mapped_column(nullable=True)
-    vote: Mapped[int] = mapped_column(nullable=True)
-    significant_minority: Mapped[int] = mapped_column(nullable=True)
-    decision_delay: Mapped[int] = mapped_column(nullable=True)
-    dispute_time_limit: Mapped[int] = mapped_column(nullable=True)
+    quorum: Mapped[int] = mapped_column(nullable=False)
+    vote: Mapped[int] = mapped_column(nullable=False)
+    significant_minority: Mapped[int] = mapped_column(nullable=False)
+    decision_delay: Mapped[int] = mapped_column(nullable=False)
+    dispute_time_limit: Mapped[int] = mapped_column(nullable=False)
     last_voting_params: Mapped[LastVotingParams] = mapped_column(
         JSON, nullable=True
     )

@@ -24,7 +24,7 @@ class RequestMember(Base):
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     member_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     member: Mapped['User'] = relationship(
@@ -33,7 +33,7 @@ class RequestMember(Base):
     )
     community_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.COMMUNITY}.id'),
-        nullable=True,
+        nullable=False,
         index=True,
     )
     community: Mapped['Community'] = relationship(lazy='noload')

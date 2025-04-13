@@ -5,4 +5,3 @@ class NoncomplianceData(TypedDict):
     number: int
     value: str
     percent: str
-    count: int

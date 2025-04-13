@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Tuple, Dict, List, cast
 
-from sqlalchemy import text, select, func, case
+from sqlalchemy import text, select, func, case, distinct
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -420,75 +420,121 @@ class AODataStorage(DataStorage[T], AO):
         resource.status = status
 
     async def _get_new_selected_options(
-            self, resource: Resource,
+            self,
+            resource: Resource,
             resource_type: ResourceType,
             voting_params: BaseVotingParams,
     ) -> Tuple[Dict[str, VotingOptionData], Dict[str, VotingOptionData]]:
         filters = [UserVotingResult.is_blocked.isnot(True)]
         match resource_type:
             case 'rule':
-                filters.append(
-                    UserVotingResult.rule_id == resource.id
-                )
+                filters.append(UserVotingResult.rule_id == resource.id)
             case 'initiative':
-                filters.append(
-                    UserVotingResult.initiative_id == resource.id
-                )
+                filters.append(UserVotingResult.initiative_id == resource.id)
 
-        total_count_query = (
-            select(func.count(UserVotingResult.id)).where(*filters)
-        )
-        total_count_result = await self._session.execute(total_count_query)
-        total_count = total_count_result.scalar_one()
+        total_users_query = select(
+            func.count(distinct(UserVotingResult.member_id))
+        ).where(*filters)
+        total_users = await self._session.scalar(total_users_query)
 
-        if total_count == 0:
+        if total_users == 0:
             return {}, {}
 
-        min_count = (voting_params.vote / 100) * total_count
+        min_count = (voting_params.vote / 100) * total_users
         min_count_minority = (
-                (voting_params.significant_minority / 100) * total_count
+                (voting_params.significant_minority / 100) * total_users
         )
 
-        option_counts_query = select(
-            VotingOption.id,
-            VotingOption,
-            func.count(RelationUserVrVo.to_id)
-        ).join(
-            RelationUserVrVo,
-            RelationUserVrVo.to_id == VotingOption.id
-        ).join(
-            UserVotingResult,
-            UserVotingResult.id == RelationUserVrVo.from_id
-        ).where(
-            *filters
-        ).group_by(
-            VotingOption.id
-        ).having(
-            func.count(RelationUserVrVo.to_id) >= min_count_minority
-        )
+        if not resource.is_multi_select:
+            weight_subquery = (
+                select(
+                    RelationUserVrVo.to_id.label('option_id'),
+                    (1.0 / func.count(RelationUserVrVo.to_id).over(
+                        partition_by=UserVotingResult.id
+                    )).label('weight')
+                )
+                .join(UserVotingResult,
+                      UserVotingResult.id == RelationUserVrVo.from_id)
+                .where(*filters)
+            ).subquery()
 
-        option_counts_result = await self._session.execute(option_counts_query)
-        options_data = sorted(option_counts_result.all(),
-                              key=lambda it: it[2], reverse=True)
-
-        options: Dict[str, VotingOptionData] = {}
-        minority_options: Dict[str, VotingOptionData] = {}
-        for idx, item in enumerate(options_data, 1):
-            voting_option: VotingOption = item[1]
-            count = item[2]
-            percent = int(count / total_count * 100)
-            option = VotingOptionData(
-                number=idx,
-                value=voting_option.content,
-                percent=str(percent),
+            # Агрегация весов по вариантам
+            aggregated_query = (
+                select(
+                    weight_subquery.c.option_id,
+                    func.sum(weight_subquery.c.weight).label('total_weight'),
+                    VotingOption
+                )
+                .join(VotingOption,
+                      VotingOption.id == weight_subquery.c.option_id)
+                .group_by(weight_subquery.c.option_id, VotingOption.id)
+                .having(
+                    func.sum(weight_subquery.c.weight) >= min_count_minority)
             )
-            if count >= min_count:
-                options[voting_option.id] = option
-            else:
-                if percent < 50:
-                    minority_options[voting_option.id] = option
 
-        return options, minority_options
+            result = await self._session.execute(aggregated_query)
+            options_data = result.all()
+
+            sorted_data = sorted(options_data, key=lambda x: x.total_weight,
+                                 reverse=True)
+            options = {}
+            minority = {}
+
+            for idx, (option_id, weight, voting_option) in enumerate(
+                    sorted_data, 1):
+                percent = int((weight / total_users) * 100)
+                option = VotingOptionData(
+                    number=idx,
+                    value=voting_option.content,
+                    percent=str(percent)
+                )
+
+                if weight >= min_count:
+                    options[option_id] = option
+                else:
+                    minority[option_id] = option
+        else:
+            option_counts_query = select(
+                VotingOption.id,
+                VotingOption,
+                func.count(RelationUserVrVo.to_id)
+            ).join(
+                RelationUserVrVo,
+                RelationUserVrVo.to_id == VotingOption.id
+            ).join(
+                UserVotingResult,
+                UserVotingResult.id == RelationUserVrVo.from_id
+            ).where(
+                *filters
+            ).group_by(
+                VotingOption.id
+            ).having(
+                func.count(RelationUserVrVo.to_id) >= min_count_minority
+            )
+
+            option_counts_result = await self._session.execute(
+                option_counts_query
+            )
+            options_data = sorted(option_counts_result.all(),
+                                  key=lambda it: it[2], reverse=True)
+
+            options = {}
+            minority = {}
+            for idx, item in enumerate(options_data, 1):
+                voting_option: VotingOption = item[1]
+                count = item[2]
+                percent = int((count / total_users) * 100)
+                option = VotingOptionData(
+                    number=idx,
+                    value=voting_option.content,
+                    percent=str(percent)
+                )
+                if count >= min_count:
+                    options[voting_option.id] = option
+                else:
+                    minority[voting_option.id] = option
+
+        return options, minority
 
     async def _get_new_noncompliance(
             self,
@@ -503,71 +549,73 @@ class AODataStorage(DataStorage[T], AO):
             UserVotingResult.is_blocked.isnot(True),
             UserVotingResult.rule_id == resource.id,
         ]
-        total_count_query = (
-            select(func.count(UserVotingResult.id)).where(*filters)
-        )
-        total_count_result = await self._session.execute(total_count_query)
-        total_count = total_count_result.scalar_one()
 
-        if total_count == 0:
+        # Подзапрос для весов
+        weight_subquery = (
+            select(
+                RelationUserVrNoncompliance.to_id.label('nc_id'),
+                (1.0 / func.count(RelationUserVrNoncompliance.to_id).over(
+                    partition_by=UserVotingResult.id
+                )).label('weight'),
+                UserVotingResult.id.label('uvr_id')
+            )
+            .join(UserVotingResult,
+                  UserVotingResult.id == RelationUserVrNoncompliance.from_id)
+            .where(*filters)
+        ).subquery()
+
+        # Агрегация
+        aggregated_query = (
+            select(
+                weight_subquery.c.nc_id,
+                func.sum(weight_subquery.c.weight).label('total_weight'),
+                Noncompliance
+            )
+            .join(Noncompliance, Noncompliance.id == weight_subquery.c.nc_id)
+            .group_by(weight_subquery.c.nc_id, Noncompliance.id)
+        )
+
+        result = await self._session.execute(aggregated_query)
+        nc_data = result.all()
+
+        total_weight = sum(
+            row.total_weight for row in nc_data
+        ) if nc_data else 0.0
+
+        if total_weight <= 0:
             return {}, {}
 
-        min_count = (voting_params.vote / 100) * total_count
-        min_count_minority = (
-                (voting_params.significant_minority / 100) * total_count
+        min_weight = (voting_params.vote / 100) * total_weight
+        min_minority = (
+                (voting_params.significant_minority / 100) * total_weight
         )
 
-        counts_query = select(
-            Noncompliance.id,
-            Noncompliance,
-            func.count(RelationUserVrNoncompliance.to_id)
-        ).join(
-            RelationUserVrNoncompliance,
-            RelationUserVrNoncompliance.to_id == Noncompliance.id
-        ).join(
-            UserVotingResult,
-            UserVotingResult.id == RelationUserVrNoncompliance.from_id
-        ).where(
-            *filters
-        ).group_by(
-            Noncompliance.id
-        ).having(
-            func.count(RelationUserVrNoncompliance.to_id) >= min_count_minority
-        )
+        sorted_nc = sorted(nc_data, key=lambda x: x.total_weight, reverse=True)
+        selected = {}
+        minority_nc = {}
+        leader_weight = None
 
-        counts_result = await self._session.execute(counts_query)
-        noncompliance_data = sorted(counts_result.all(),
-                                    key=lambda it: it[2], reverse=True)
-
-        selected: Dict[str, NoncomplianceData] = {}
-        minority: Dict[str, NoncomplianceData] = {}
-        is_no_leader = False
-        for idx, item in enumerate(noncompliance_data, 1):
-            noncompliance: Noncompliance = item[1]
-            count = item[2]
-            percent = int(count / total_count * 100)
-            _data = NoncomplianceData(
+        for idx, (nc_id, weight, noncompliance) in enumerate(sorted_nc, 1):
+            percent = int((weight / total_weight) * 100)
+            nc = NoncomplianceData(
                 number=idx,
                 value=noncompliance.name,
                 percent=str(percent),
-                count=count,
             )
-            if count >= min_count:
-                if is_no_leader:
-                    continue
 
-                if len(selected) == 0:
-                    selected[noncompliance.id] = _data
-                elif len(selected) == 1:
-                    first_data: NoncomplianceData = list(selected.values())[0]
-                    if count == first_data.get('count'):
-                        is_no_leader = True
-                        selected = {}
-            else:
-                if percent < 50:
-                    minority[noncompliance.id] = _data
+            if weight >= min_weight:
+                if not selected:
+                    selected[nc_id] = nc
+                    leader_weight = weight
+                elif weight == leader_weight:
+                    selected.clear()
+                    break
+                else:
+                    break
+            elif weight >= min_minority:
+                minority_nc[nc_id] = nc
 
-        return selected, minority
+        return selected, minority_nc
 
     async def _block_user_settings(
             self, request_member: RequestMember

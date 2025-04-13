@@ -19,7 +19,7 @@ class VotingResult(Base):
         nullable=False, default=False
     )
     is_noncompliance_minority: Mapped[bool] = mapped_column(
-        nullable=True, default=False
+        nullable=False, default=False
     )
     options: Mapped[Dict[str, VotingOptionData]] = mapped_column(
         JSON, default=dict
@@ -31,5 +31,5 @@ class VotingResult(Base):
         JSON, default=dict
     )
     minority_noncompliance: Mapped[Dict[str, NoncomplianceData]] = (
-        mapped_column(JSON, default=dict, nullable=True)
+        mapped_column(JSON, default=dict)
     )
