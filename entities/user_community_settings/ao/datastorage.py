@@ -193,6 +193,10 @@ class UserCommunitySettingsDS(
         settings.significant_minority = (
             data_to_create.settings.get('significant_minority')
         )
+        settings.decision_delay = data_to_create.settings.get('decision_delay')
+        settings.dispute_time_limit = (
+            data_to_create.settings.get('dispute_time_limit')
+        )
         settings.is_secret_ballot = (
             data_to_create.settings.get('is_secret_ballot')
         )

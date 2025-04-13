@@ -481,7 +481,8 @@ class AODataStorage(DataStorage[T], AO):
             minority = {}
 
             for idx, (option_id, weight, voting_option) in enumerate(
-                    sorted_data, 1):
+                    sorted_data, 1
+            ):
                 percent = int((weight / total_users) * 100)
                 option = VotingOptionData(
                     number=idx,

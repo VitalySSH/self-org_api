@@ -1,9 +1,10 @@
 import logging
+from collections import defaultdict
 from datetime import datetime
 
 from typing import List, Optional, Tuple, cast, Dict
 
-from sqlalchemy import select, func, desc, distinct, text, label
+from sqlalchemy import select, func, desc, distinct, text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
 
@@ -218,19 +219,18 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             voting_params = await self.calculate_voting_params(community_id)
             time_params = await self.calculate_time_params(community_id)
             total_users = await self._get_total_count_users(community_id)
-            name, name_percentage = await self._get_most_popular_name(
-                community_id=community_id, total_users=total_users
+            name: Optional[CommunityName] = await self._get_most_popular_name(
+                community_id=community_id,
+                total_users=total_users,
+                vote=voting_params.vote,
             )
-            if name and name_percentage < voting_params.vote:
-                name = None
-            description, description_percentage = (
+            description: Optional[CommunityDescription] = (
                 await self.get_most_popular_description(
-                    community_id=community_id, total_users=total_users
+                    community_id=community_id,
+                    total_users=total_users,
+                    vote=voting_params.vote,
                 )
             )
-            if description and description_percentage < voting_params.vote:
-                description = None
-
             community: Community = await self._get_community(community_id)
             community_settings: CommunitySettings = community.main_settings
             is_changed_voting_params = (
@@ -342,6 +342,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 .selectinload(Category.status),
                 selectinload(self._model.main_settings)
                 .selectinload(CommunitySettings.sub_communities_settings),
+                selectinload(self._model.main_settings)
+                .selectinload(CommunitySettings.responsibilities),
             )
         )
 
@@ -409,87 +411,103 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             self,
             community_id: str,
             total_users: int,
-    ) -> Tuple[CommunityName | None, int | None]:
-        """Возвращает наиболее популярное наименование сообщества
-        и процент пользователей, выбравших его.
-
-        Если есть несколько одинаково популярных вариантов
-        или нет данных - возвращает (None, None).
+            vote: int
+    ) -> Optional[CommunityName]:
+        """Возвращает наиболее популярное
+        наименование сообщества если оно превышает порог.
         """
-        if not total_users:
-            return None, None
+        if not total_users or vote <= 0:
+            return None
 
-        query = select(
-            CommunityName.id,
-            label('count', func.count(CommunityName.id)),
-            label('percentage', func.round(
-                100 * func.count(CommunityName.id) / total_users)),
-            func.rank().over(
-                order_by=func.count(CommunityName.id).desc()
-            ).label('rnk')
-        ).join(
-            UserCommunitySettings.names
-        ).where(
-            UserCommunitySettings.community_id == community_id,
-            UserCommunitySettings.is_blocked.is_not(True),
-        ).group_by(CommunityName.id)
+        stmt = """
+            WITH user_name_weights AS (
+                SELECT 
+                    cn.id,
+                    ucs.id AS user_id,
+                    1.0 / COUNT(cn.id) OVER (PARTITION BY ucs.id) AS weight
+                FROM public.user_community_settings ucs
+                JOIN relation_ucs_names run ON ucs.id = run.from_id
+                JOIN community_name cn ON run.to_id = cn.id
+                WHERE ucs.community_id = :community_id
+                AND ucs.is_blocked IS NOT TRUE
+            ),
+            aggregated_weights AS (
+                SELECT 
+                    id,
+                    SUM(weight) AS total_weight,
+                    (SUM(weight) / :total_users * 100) AS percentage
+                FROM user_name_weights
+                GROUP BY id
+                HAVING (SUM(weight) / :total_users * 100) >= :vote
+                ORDER BY total_weight DESC
+            )
+            SELECT id FROM aggregated_weights LIMIT 1
+        """
 
-        result = await self._session.execute(query)
-        records = result.all()
+        result = await self._session.execute(
+            text(stmt),
+            {
+                'community_id': community_id,
+                'total_users': total_users,
+                'vote': vote,
+            }
+        )
+        name_id = result.scalar()
 
-        if not records or records[0].rnk > 1:
-            return None, None
-
-        if len(records) > 1 and records[0].count == records[1].count:
-            return None, None
-
-        community_name = await self._session.get(CommunityName, records[0].id)
-
-        return community_name, int(records[0].percentage)
+        return await self._session.get(
+            CommunityName, name_id
+        ) if name_id else None
 
     async def get_most_popular_description(
             self,
             community_id: str,
             total_users: int,
-    ) -> tuple[CommunityDescription | None, int | None]:
-        """Возвращает наиболее популярное описание сообщества и
-        процент пользователей, выбравших его.
+            vote: int
+    ) -> Optional[CommunityDescription]:
+        """Возвращает наиболее популярное
+         описание сообщества если оно превышает порог.
+         """
+        if not total_users or vote <= 0:
+            return None
 
-        Если есть несколько одинаково популярных вариантов или нет данных -
-        возвращает (None, None).
+        stmt = """
+            WITH user_desc_weights AS (
+                SELECT 
+                    cd.id,
+                    ucs.id AS user_id,
+                    1.0 / COUNT(cd.id) OVER (PARTITION BY ucs.id) AS weight
+                FROM public.user_community_settings ucs
+                JOIN relation_ucs_descriptions rud ON ucs.id = rud.from_id
+                JOIN community_description cd ON rud.to_id = cd.id
+                WHERE ucs.community_id = :community_id
+                AND ucs.is_blocked IS NOT TRUE
+            ),
+            aggregated_weights AS (
+                SELECT 
+                    id,
+                    SUM(weight) AS total_weight,
+                    (SUM(weight) / :total_users * 100) AS percentage
+                FROM user_desc_weights
+                GROUP BY id
+                HAVING (SUM(weight) / :total_users * 100) >= :vote
+                ORDER BY total_weight DESC
+            )
+            SELECT id FROM aggregated_weights LIMIT 1
         """
-        if not total_users:
-            return None, None
 
-        query = select(
-            CommunityDescription.id,
-            label('count', func.count(CommunityDescription.id)),
-            label('percentage', func.round(
-                100 * func.count(CommunityDescription.id) / total_users)),
-            # Убрано 100.0 и .2
-            func.rank().over(
-                order_by=func.count(CommunityDescription.id).desc()).label(
-                'rnk')
-        ).join(
-            UserCommunitySettings.descriptions
-        ).where(
-            UserCommunitySettings.community_id == community_id,
-            UserCommunitySettings.is_blocked == False
-        ).group_by(CommunityDescription.id)
-
-        result = await self._session.execute(query)
-        records = result.all()
-
-        if not records or records[0].rnk > 1:
-            return None, None
-
-        if len(records) > 1 and records[0].count == records[1].count:
-            return None, None
-
-        community_desc = await self._session.get(
-            CommunityDescription,records[0].id
+        result = await self._session.execute(
+            text(stmt),
+            {
+                'community_id': community_id,
+                'total_users': total_users,
+                'vote': vote
+            }
         )
-        return community_desc, int(records[0].percentage)
+        desc_id = result.scalar()
+
+        return await self._session.get(
+            CommunityDescription, desc_id
+        ) if desc_id else None
 
     async def _get_voting_data_by_names(
             self,
@@ -499,28 +517,55 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         if not total_users:
             return []
 
-        name_data_query = (
+        # Сначала получаем количество вариантов для каждого пользователя
+        user_name_counts = await self._session.execute(
             select(
-                CommunityName.name,
-                func.count(distinct(UserCommunitySettings.id)).label('count')
+                UserCommunitySettings.id,
+                func.count(CommunityName.id).label('count')
             )
-            .select_from(UserCommunitySettings)
-            .join(
-                UserCommunitySettings.names
-            )
+            .join(UserCommunitySettings.names)
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.is_blocked.is_not(True),
             )
-            .group_by(CommunityName.name)
-            .order_by(desc('count'))
+            .group_by(UserCommunitySettings.id)
+        )
+        user_name_counts = dict(user_name_counts.all())
+
+        if not user_name_counts:
+            return []
+
+        # Получаем все варианты с весами
+        name_weights = defaultdict(float)
+        names_query = await self._session.execute(
+            select(
+                UserCommunitySettings.id,
+                CommunityName.name
+            )
+            .join(UserCommunitySettings.names)
+            .where(
+                UserCommunitySettings.community_id == community_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
         )
 
-        name_data = await self._session.execute(name_data_query)
+        for user_id, name in names_query:
+            name_weights[name] += 1.0 / user_name_counts[user_id]
+
+        total_weight = sum(name_weights.values())
+        if total_weight <= 0:
+            return []
 
         return [
-            PercentByName(name=name, percent=int((count / total_users) * 100))
-            for name, count in name_data.all()
+            PercentByName(
+                name=name,
+                percent=int(round((weight / total_weight) * 100)),
+            )
+            for name, weight in sorted(
+                name_weights.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
         ]
 
     async def _get_voting_data_by_desc(
@@ -531,28 +576,53 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         if not total_users:
             return []
 
-        desc_data_query = (
+        user_desc_counts = await self._session.execute(
             select(
-                CommunityDescription.value,
-                func.count(distinct(UserCommunitySettings.id)).label('count')
+                UserCommunitySettings.id,
+                func.count(CommunityDescription.id).label('count')
             )
-            .select_from(UserCommunitySettings)
-            .join(
-                UserCommunitySettings.descriptions
-            )
+            .join(UserCommunitySettings.descriptions)
             .where(
                 UserCommunitySettings.community_id == community_id,
                 UserCommunitySettings.is_blocked.is_not(True),
             )
-            .group_by(CommunityDescription.value)
-            .order_by(desc('count'))
+            .group_by(UserCommunitySettings.id)
+        )
+        user_desc_counts = dict(user_desc_counts.all())
+
+        if not user_desc_counts:
+            return []
+
+        desc_weights = defaultdict(float)
+        descs_query = await self._session.execute(
+            select(
+                UserCommunitySettings.id,
+                CommunityDescription.value
+            )
+            .join(UserCommunitySettings.descriptions)
+            .where(
+                UserCommunitySettings.community_id == community_id,
+                UserCommunitySettings.is_blocked.is_not(True),
+            )
         )
 
-        desc_data = await self._session.execute(desc_data_query)
+        for user_id, desc_value in descs_query:
+            desc_weights[desc_value] += 1.0 / user_desc_counts[user_id]
+
+        total_weight = sum(desc_weights.values())
+        if total_weight <= 0:
+            return []
 
         return [
-            PercentByName(name=desc_, percent=int((count / total_users) * 100))
-            for desc_, count in desc_data.all()
+            PercentByName(
+                name=desc_value,
+                percent=int(round((weight / total_weight) * 100)),
+            )
+            for desc_value, weight in sorted(
+                desc_weights.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )
         ]
 
     async def _get_user_settings_modified_data(
