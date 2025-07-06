@@ -39,6 +39,8 @@ class CommunitySettings(Base):
     last_voting_params: Mapped[LastVotingParams] = mapped_column(
         JSON, nullable=True
     )
+    is_workgroup: Mapped[bool] = mapped_column(nullable=False, default=False)
+    workgroup: Mapped[int] = mapped_column(nullable=False, default=0)
     #  TODO: для данных полей, функционал будет реализован позже
     is_secret_ballot: Mapped[bool] = mapped_column(
         nullable=False, default=False

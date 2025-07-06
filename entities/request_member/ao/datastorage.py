@@ -317,6 +317,8 @@ class RequestMemberDS(
         user_settings.dispute_time_limit = (
             community.main_settings.dispute_time_limit
         )
+        user_settings.is_workgroup = community.main_settings.is_workgroup
+        user_settings.workgroup = community.main_settings.workgroup
         user_settings.is_secret_ballot = (
             community.main_settings.is_secret_ballot
         )

@@ -1,5 +1,3 @@
-from typing import Optional
-
 from fastapi import Response, Request, HTTPException
 from passlib.context import CryptContext
 from starlette.status import HTTP_401_UNAUTHORIZED

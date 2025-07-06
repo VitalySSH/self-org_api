@@ -225,6 +225,8 @@ class UserCommunitySettingsDS(
         settings.quorum = user_settings.quorum
         settings.vote = user_settings.vote
         settings.significant_minority = user_settings.significant_minority
+        settings.is_workgroup = user_settings.is_workgroup
+        settings.workgroup = user_settings.workgroup
         settings.is_secret_ballot = user_settings.is_secret_ballot
         settings.is_can_offer = user_settings.is_can_offer
         settings.is_minority_not_participate = (
@@ -254,6 +256,12 @@ class UserCommunitySettingsDS(
         settings.decision_delay = data_to_create.settings.get('decision_delay')
         settings.dispute_time_limit = (
             data_to_create.settings.get('dispute_time_limit')
+        )
+        settings.is_workgroup = (
+            data_to_create.settings.get('is_workgroup')
+        )
+        settings.workgroup = (
+            data_to_create.settings.get('workgroup')
         )
         settings.is_secret_ballot = (
             data_to_create.settings.get('is_secret_ballot')

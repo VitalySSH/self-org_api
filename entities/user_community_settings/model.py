@@ -53,6 +53,8 @@ class UserCommunitySettings(Base):
     )
     decision_delay: Mapped[int] = mapped_column(nullable=False)
     dispute_time_limit: Mapped[int] = mapped_column(nullable=False)
+    is_workgroup: Mapped[bool] = mapped_column(nullable=False, default=False)
+    workgroup: Mapped[int] = mapped_column(nullable=False, default=0)
     is_secret_ballot: Mapped[bool] = mapped_column(
         nullable=False, default=False
     )

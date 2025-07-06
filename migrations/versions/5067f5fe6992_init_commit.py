@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: 0bc6834e1799
+Revision ID: 5067f5fe6992
 Revises: 
-Create Date: 2025-04-13 04:04:30.163456
+Create Date: 2025-07-06 23:28:18.200700
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '0bc6834e1799'
+revision: str = '5067f5fe6992'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -148,6 +148,8 @@ def upgrade() -> None:
     sa.Column('decision_delay', sa.Integer(), nullable=False),
     sa.Column('dispute_time_limit', sa.Integer(), nullable=False),
     sa.Column('last_voting_params', sa.JSON(), nullable=True),
+    sa.Column('is_workgroup', sa.Boolean(), nullable=False),
+    sa.Column('workgroup', sa.Integer(), nullable=False),
     sa.Column('is_secret_ballot', sa.Boolean(), nullable=False),
     sa.Column('is_can_offer', sa.Boolean(), nullable=False),
     sa.Column('is_minority_not_participate', sa.Boolean(), nullable=False),
@@ -180,6 +182,8 @@ def upgrade() -> None:
     sa.Column('significant_minority', sa.Integer(), nullable=False),
     sa.Column('decision_delay', sa.Integer(), nullable=False),
     sa.Column('dispute_time_limit', sa.Integer(), nullable=False),
+    sa.Column('is_workgroup', sa.Boolean(), nullable=False),
+    sa.Column('workgroup', sa.Integer(), nullable=False),
     sa.Column('is_secret_ballot', sa.Boolean(), nullable=False),
     sa.Column('is_can_offer', sa.Boolean(), nullable=False),
     sa.Column('is_minority_not_participate', sa.Boolean(), nullable=False),
