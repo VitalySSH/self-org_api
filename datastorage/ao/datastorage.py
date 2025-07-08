@@ -35,7 +35,45 @@ class AODataStorage(DataStorage[T], AO):
     ) -> None:
         super().__init__(model=self.__class__._model, session=session)
 
-    async def calculate_voting_params(
+    async def calc_workgroup_size(self, community_id: str) -> int:
+        """Вычислит размер рабочих групп для сообщества."""
+        query = text("""
+            WITH filtered_data AS (
+                SELECT 
+                    workgroup,
+                    COUNT(*) OVER () AS total_count
+                FROM public.user_community_settings
+                WHERE community_id = :community_id 
+                  AND is_blocked IS NOT TRUE AND is_workgroup IS TRUE
+            ),
+            ranked_data AS (
+                SELECT 
+                    workgroup,
+                    ROW_NUMBER() OVER (ORDER BY workgroup) AS row_num_workgroup,
+                    total_count
+                FROM filtered_data
+            ),
+            median_values AS (
+                SELECT 
+                    AVG(CASE WHEN row_num_workgroup IN ((total_count + 1) / 2, (total_count + 2) / 2) 
+                        THEN workgroup ELSE NULL END) AS workgroup_median
+                FROM ranked_data
+                WHERE 
+                    row_num_workgroup IN ((total_count + 1) / 2, (total_count + 2) / 2)
+            )
+            SELECT 
+                ROUND(COALESCE(workgroup_median, 0))
+            FROM median_values;
+        """)
+
+        data = await self._session.execute(
+            query, {'community_id': community_id}
+        )
+        row = data.fetchone()
+
+        return int(row[0])
+
+    async def calc_voting_params(
             self, community_id: str
     ) -> BaseVotingParams:
         """Вычислит основные параметры голосований
@@ -93,7 +131,7 @@ class AODataStorage(DataStorage[T], AO):
             significant_minority=int(minority_median),
         )
 
-    async def calculate_time_params(self, community_id: str) -> BaseTimeParams:
+    async def calc_time_params(self, community_id: str) -> BaseTimeParams:
         """Вычисляет медианные значения для сроков сообщества."""
         query = text("""
             WITH filtered_data AS (
@@ -198,7 +236,7 @@ class AODataStorage(DataStorage[T], AO):
         через пересчёт голосов по дочерним запросам.
         """
         if voting_params is None:
-            voting_params = await self.calculate_voting_params(
+            voting_params = await self.calc_voting_params(
             request_member.community_id
         )
         last_vote = request_member.vote
@@ -247,9 +285,9 @@ class AODataStorage(DataStorage[T], AO):
     ) -> None:
         """Подсчет голосов."""
         if voting_params is None:
-            voting_params = await self.calculate_voting_params(
-            cast(str, resource.community_id)
-        )
+            voting_params = await self.calc_voting_params(
+                cast(str, resource.community_id)
+            )
 
         last_vote = voting_result.vote
         last_status = resource.status
@@ -753,7 +791,7 @@ class AODataStorage(DataStorage[T], AO):
     ) -> None:
         """Пересчёт голосов по всем голосованиям сообщества."""
         if voting_params is None:
-            voting_params = await self.calculate_voting_params(community_id)
+            voting_params = await self.calc_voting_params(community_id)
 
         rules: List[Rule] = await self._get_community_rules(community_id)
         for rule in rules:

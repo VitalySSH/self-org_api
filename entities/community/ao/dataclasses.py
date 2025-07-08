@@ -15,6 +15,7 @@ class OtherCommunitySettings:
     is_secret_ballot: bool
     is_minority_not_participate: bool
     is_can_offer: bool
+    is_workgroup: bool
 
 
 @dataclass(kw_only=True)
@@ -28,6 +29,7 @@ class UserSettingsModifiedData:
 class CsByPercent(TypedDict):
     names: List[PercentByName]
     descriptions: List[PercentByName]
+    workgroup: List[PercentByName]
     secret_ballot: List[PercentByName]
     minority_not_participate: List[PercentByName]
     can_offer: List[PercentByName]

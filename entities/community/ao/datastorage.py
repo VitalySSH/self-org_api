@@ -87,6 +87,17 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                             modified_data.user_count * 100)
             ) for responsibility in responsibility_list]
 
+        is_workgroup_count = await self._get_is_workgroup_count(
+            community_id
+        )
+        workgroup_true = int(
+            is_workgroup_count / modified_data.user_count * 100
+        )
+        workgroup = [
+            PercentByName(name='Да', percent=workgroup_true),
+            PercentByName(name='Нет', percent=100 - workgroup_true)
+        ]
+
         is_secret_ballot_count = await self._get_is_secret_ballot_count(
             community_id
         )
@@ -131,6 +142,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             categories=categories,
             sub_communities=sub_communities,
             responsibilities=responsibilities,
+            workgroup=workgroup,
             secret_ballot=secret_ballot,
             minority_not_participate=minority_not_participate,
             can_offer=can_offer,
@@ -216,8 +228,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
     async def change_community_settings(self, community_id: str) -> None:
         start_time = datetime.now()
         async with self.session_scope():
-            voting_params = await self.calculate_voting_params(community_id)
-            time_params = await self.calculate_time_params(community_id)
+            voting_params = await self.calc_voting_params(community_id)
+            time_params = await self.calc_time_params(community_id)
             total_users = await self._get_total_count_users(community_id)
             name: Optional[CommunityName] = await self._get_most_popular_name(
                 community_id=community_id,
@@ -246,6 +258,9 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
                 system_category_id=(system_category.id
                                     if system_category else None)
             )
+            workgroup = 0
+            if other_settings.is_workgroup:
+                workgroup = await self.calc_workgroup_size(community_id)
             community_settings.vote = voting_params.vote
             community_settings.quorum = voting_params.quorum
             community_settings.significant_minority = (
@@ -255,6 +270,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             community_settings.dispute_time_limit = (
                 time_params.dispute_time_limit
             )
+            community_settings.is_workgroup = other_settings.is_workgroup
+            community_settings.workgroup = workgroup
             community_settings.is_secret_ballot = (
                 other_settings.is_secret_ballot
             )
@@ -684,7 +701,8 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
 
     async def _get_other_community_settings(
-            self, community_id: str,
+            self,
+            community_id: str,
             vote: int,
             system_category_id: Optional[str],
     ) -> OtherCommunitySettings:
@@ -724,6 +742,11 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             selected_responsibility_ids
         )
 
+        is_workgroup_count = await self._get_is_workgroup_count(community_id)
+        is_workgroup = int(
+            is_workgroup_count / modified_data.user_count * 100
+        ) >= vote
+
         is_secret_ballot_count = await self._get_is_secret_ballot_count(
             community_id
         )
@@ -750,6 +773,7 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
             is_secret_ballot=is_secret_ballot,
             is_minority_not_participate=is_minority_not_participate,
             is_can_offer=is_can_offer,
+            is_workgroup=is_workgroup,
         )
 
     async def _get_selected_categories(
@@ -836,6 +860,17 @@ class CommunityDS(AODataStorage[Community], CRUDDataStorage[Community]):
         )
 
         return await self._session.scalar(total_query)
+
+    async def _get_is_workgroup_count(self, community_id: str) -> int:
+        count_query = (
+            select(func.count()).select_from(UserCommunitySettings)
+            .where(
+                UserCommunitySettings.is_workgroup.is_(True),
+                UserCommunitySettings.is_blocked.is_not(True),
+                UserCommunitySettings.community_id == community_id,
+            )
+        )
+        return await self._session.scalar(count_query)
 
     async def _get_is_secret_ballot_count(self, community_id: str) -> int:
         count_query = (
