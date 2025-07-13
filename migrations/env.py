@@ -13,11 +13,11 @@ from datastorage.database.models import Base
 config = context.config
 
 section = config.config_ini_section
-config.set_section_option(section, 'DB_USER', conf.DB_USER)
-config.set_section_option(section, 'DB_PASSWORD', conf.DB_PASSWORD)
-config.set_section_option(section, 'DB_HOST', conf.DB_HOST)
-config.set_section_option(section, 'DB_PORT', conf.DB_PORT)
-config.set_section_option(section, 'DB_NAME', conf.DB_NAME)
+config.set_section_option(section, 'DB_USER', conf.POSTGRES_USER)
+config.set_section_option(section, 'DB_PASSWORD', conf.POSTGRES_PASSWORD)
+config.set_section_option(section, 'DB_HOST', conf.POSTGRES_HOST)
+config.set_section_option(section, 'DB_PORT', conf.POSTGRES_PORT)
+config.set_section_option(section, 'DB_NAME', conf.POSTGRES_DB)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.

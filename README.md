@@ -17,11 +17,11 @@
 * Установите зависимости `pip3 install -r requirements/dev.txt`
 * Создать файл .env в корневой директории и настроить переменные окружения для подключения БД и запуска приложения
 ``` 
-DB_USER=
-DB_PASSWORD=
-DB_HOST=
-DB_PORT=
-DB_NAME=
+POSTGRES_USER=
+POSTGRES_PASSWORD=
+POSTGRES_HOST=
+POSTGRES_PORT=
+POSTGRES_DB=
 JWT_SECRET_KEY=
 PASSWORD_SECRET_KEY=
 JWT_LIFE_TIME_SECONDS=

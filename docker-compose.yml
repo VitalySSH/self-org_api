@@ -29,7 +29,13 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PRODUCTION_MODE: true
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSWORD_SECRET_KEY: ${PASSWORD_SECRET_KEY}
+      JWT_LIFE_TIME_SECONDS: 3600
+      COOKIE_TOKEN_NAME: ${COOKIE_TOKEN_NAME}
+      HOST: 0.0.0.0
+      PORT: 8000
     command: >
       bash -c "
         alembic upgrade head &&
@@ -41,12 +47,17 @@ services:
     container_name: selforg_api
     depends_on:
       - db
-      - init
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
-      DATABASE_URL: postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      PRODUCTION_MODE: true
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      PASSWORD_SECRET_KEY: ${PASSWORD_SECRET_KEY}
+      JWT_LIFE_TIME_SECONDS: 3600
+      COOKIE_TOKEN_NAME: ${COOKIE_TOKEN_NAME}
+      HOST: 0.0.0.0
+      PORT: 8000
     ports:
       - "8000:8000"
     command: >

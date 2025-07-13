@@ -25,9 +25,7 @@ jobs:
         if: ${{ github.event_name == 'pull_request' }}
 
 #      - name: 🧪 Прогон тестов (только для pull_request)
-#        run: |
-#          cd app
-#          pytest
+#        run: pytest
 #        if: ${{ github.event_name == 'pull_request' }}
 
       - name: 🐳 Docker login в YCR
@@ -38,9 +36,8 @@ jobs:
 
       - name: 🔧 Сборка и пуш Docker-образа
         run: |
-          docker build -t ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest .
+          docker build -t ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest app
           docker push ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest
-
 
       - name: 🚀 SSH-деплой на сервер
         uses: appleboy/ssh-action@master
