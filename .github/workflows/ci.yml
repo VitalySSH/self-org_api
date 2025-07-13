@@ -37,9 +37,8 @@ jobs:
           rm key.json
 
       - name: 🔧 Сборка и пуш Docker-образа
-        working-directory: self-org_api
         run: |
-          docker build -t cr.yandex/${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest . -f app/Dockerfile
+          docker build -t cr.yandex/${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest .
           docker push cr.yandex/${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest
 
 
