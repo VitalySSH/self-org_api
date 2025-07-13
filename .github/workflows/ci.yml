@@ -54,6 +54,5 @@ jobs:
             export POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             export YCR_REGISTRY=${{ secrets.YCR_REGISTRY }}
             export YCR_IMAGE_NAME=${{ secrets.YCR_IMAGE_NAME }}
-            cd ~/self-org-api
             docker-compose pull
             docker-compose up -d
