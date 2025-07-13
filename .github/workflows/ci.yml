@@ -64,5 +64,8 @@ jobs:
             export POSTGRES_DB=${{ secrets.POSTGRES_DB }}
             export YCR_REGISTRY=${{ secrets.YCR_REGISTRY }}
             export YCR_IMAGE_NAME=${{ secrets.YCR_IMAGE_NAME }}
+            export JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
+            export PASSWORD_SECRET_KEY=${{ secrets.PASSWORD_SECRET_KEY }}
+            export COOKIE_TOKEN_NAME=${{ secrets.COOKIE_TOKEN_NAME }}
             docker-compose pull
             docker-compose up -d
