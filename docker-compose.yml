@@ -49,6 +49,7 @@ services:
     container_name: selforg_api
     depends_on:
       - db
+      - init
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
