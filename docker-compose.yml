@@ -20,7 +20,7 @@ services:
     restart: always
 
   init:
-    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:latest
+    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:${IMAGE_TAG}
     container_name: selforg_init
     depends_on:
       db:
@@ -45,11 +45,10 @@ services:
     restart: "no"
 
   api:
-    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:latest
+    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:${IMAGE_TAG}
     container_name: selforg_api
     depends_on:
       - db
-      - init
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
