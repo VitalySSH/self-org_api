@@ -67,6 +67,14 @@ services:
     command: >
       uvicorn main:app --host 0.0.0.0 --port 8000
     restart: always
+    networks:
+      - selforg_net
 
 volumes:
   pgdata:
+
+networks:
+  selforg_net:
+    external: true
+    name: selforg_net
+
