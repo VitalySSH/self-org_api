@@ -47,7 +47,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "docker-compose.yml"
           target: "/home/selforg/"
-          rm: true
+          rm: false
 
       - name: 🚀 SSH-деплой на сервер
         uses: appleboy/ssh-action@master
