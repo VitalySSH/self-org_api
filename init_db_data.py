@@ -8,6 +8,10 @@ from entities.status.model import Status
 async def create_statuses():
     ds = CRUDDataStorage(model=Status)
     async with ds.session_scope():
+        first_status = await ds.first()
+        if first_status:
+            return
+
         try:
             for entity_data in STATUSES:
                 status = Status()

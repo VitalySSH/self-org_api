@@ -1,0 +1,58 @@
+name: CI/CD — self-org_api
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🧾 Клонирование репозитория
+        uses: actions/checkout@v4
+
+      - name: 🐍 Установка Python 3.12
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+
+      - name: 📦 Установка зависимостей (только для pull_request)
+        run: |
+          pip install --upgrade pip
+          pip install -r app/requirements/dev.txt
+        if: ${{ github.event_name == 'pull_request' }}
+
+#      - name: 🧪 Прогон тестов (только для pull_request)
+#        run: |
+#          cd app
+#          pytest
+#        if: ${{ github.event_name == 'pull_request' }}
+
+      - name: 🐳 Docker login в YCR
+        run: |
+          echo '${{ secrets.YCR_PASSWORD }}' > key.json
+          docker login --username json_key --password-stdin cr.yandex/${{ secrets.YCR_REGISTRY }} < key.json
+          rm key.json
+
+      - name: 🔧 Сборка и пуш Docker-образа
+        run: |
+          docker build -t cr.yandex/${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest ./app
+          docker push cr.yandex/${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest
+
+      - name: 🚀 SSH-деплой на сервер
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            export POSTGRES_USER=${{ secrets.POSTGRES_USER }}
+            export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+            export POSTGRES_DB=${{ secrets.POSTGRES_DB }}
+            export YCR_REGISTRY=${{ secrets.YCR_REGISTRY }}
+            export YCR_IMAGE_NAME=${{ secrets.YCR_IMAGE_NAME }}
+            cd ~/self-org-api
+            docker-compose pull
+            docker-compose up -d

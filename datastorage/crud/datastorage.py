@@ -165,7 +165,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return ListResponse(data=list(rows), total=total)
 
     async def first(
-            self, filters: Optional[Filters] = None,
+            self,
+            filters: Optional[Filters] = None,
             orders: Optional[Orders] = None,
             include: Optional[Include] = None,
             model: Type[T] = None,
