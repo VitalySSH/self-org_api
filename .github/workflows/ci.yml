@@ -58,6 +58,9 @@ jobs:
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
+            echo '${{ secrets.YCR_PASSWORD }}' > key.json
+            docker login --username json_key --password-stdin ${{ secrets.YCR_REGISTRY }} < key.json
+            rm key.json
             cd selforg
             export POSTGRES_USER=${{ secrets.POSTGRES_USER }}
             export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
