@@ -33,7 +33,7 @@ jobs:
       - name: 🐳 Docker login в YCR
         run: |
           echo '${{ secrets.YCR_PASSWORD }}' > key.json
-          docker login --username json_key --password-stdin cr.yandex/${{ secrets.YCR_REGISTRY }} < key.json
+          docker login --username json_key --password-stdin ${{ secrets.YCR_REGISTRY }} < key.json
           rm key.json
 
       - name: 🔧 Сборка и пуш Docker-образа
