@@ -39,7 +39,7 @@ jobs:
       - name: 🔧 Сборка и пуш Docker-образа
         run: |
           docker build -t ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest .
-          docker push cr.yandex/${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest
+          docker push ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest
 
 
       - name: 🚀 SSH-деплой на сервер

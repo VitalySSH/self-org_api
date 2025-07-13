@@ -20,7 +20,7 @@ services:
     restart: always
 
   init:
-    image: cr.yandex/${YCR_REGISTRY}/${YCR_IMAGE_NAME}:latest
+    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:latest
     container_name: selforg_init
     depends_on:
       db:
@@ -37,7 +37,7 @@ services:
     restart: "no"
 
   api:
-    image: cr.yandex/${YCR_REGISTRY}/${YCR_IMAGE_NAME}:latest
+    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:latest
     container_name: selforg_api
     depends_on:
       - db
