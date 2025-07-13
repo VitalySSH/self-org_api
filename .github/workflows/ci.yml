@@ -38,27 +38,18 @@ jobs:
         run: |
           docker build -t ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest .
           docker push ${{ secrets.YCR_REGISTRY }}/${{ secrets.YCR_IMAGE_NAME }}:latest
-          
 
-      - name: 🔍 Проверка SSH-подключения
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.REMOTE_HOST }}
-          username: ${{ secrets.REMOTE_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "Успешное подключение!"
-            pwd
-
-      - name: 📤 Копирование docker-compose.yml на сервер
+      - name: 📤 Копирование docker-compose.yml
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.REMOTE_HOST }}
           username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
           source: "docker-compose.yml"
           target: "/home/selforg/"
           rm: false
+          overwrite: true
 
       - name: 🚀 SSH-деплой на сервер
         uses: appleboy/ssh-action@master
