@@ -25,7 +25,7 @@ class CookieTokenDelivery(TokenDelivery):
         max_age: int = config.JWT_LIFE_TIME_SECONDS,
         path: str = '/',
         domain: Optional[str] = None,
-        secure: bool = True,
+        secure: bool = False,
         httponly: bool = True,
         samesite: SamesiteType = 'lax',
     ):
