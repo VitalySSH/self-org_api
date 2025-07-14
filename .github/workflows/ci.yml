@@ -76,5 +76,7 @@ jobs:
             docker login --username json_key --password-stdin ${{ secrets.YCR_REGISTRY }} < key.json
             rm key.json
             cd /home/selforg/api
+            docker-compose down
             docker-compose pull
-            docker-compose up -d --pull always --force-recreate
+            docker-compose up -d --force-recreate
+            docker system prune -a -f
