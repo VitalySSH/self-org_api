@@ -17,7 +17,7 @@ class CookieTokenDelivery(TokenDelivery):
     _domain: Optional[str]
     _secure: bool
     _httponly: bool
-    _samesite: Optional[SamesiteType]
+    _samesite: SamesiteType
 
     def __init__(
         self,
@@ -27,7 +27,7 @@ class CookieTokenDelivery(TokenDelivery):
         domain: Optional[str] = None,
         secure: bool = False,
         httponly: bool = True,
-        samesite: Optional[SamesiteType] = None,
+        samesite: SamesiteType = 'none',
     ):
         self._name = name
         self._max_age = max_age
