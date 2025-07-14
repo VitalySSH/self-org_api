@@ -55,6 +55,16 @@ jobs:
           rm: false
           overwrite: true
 
+      - name: 🔁 Обновить IMAGE_TAG на сервере
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            sed -i '/^IMAGE_TAG=/d' /home/selforg/api/.env
+            echo "IMAGE_TAG=build-${{ github.run_number }}" >> /home/selforg/api/.env
+
       - name: 🚀 SSH-деплой на сервер
         uses: appleboy/ssh-action@master
         with:
@@ -65,15 +75,6 @@ jobs:
             echo '${{ secrets.YCR_PASSWORD }}' > key.json
             docker login --username json_key --password-stdin ${{ secrets.YCR_REGISTRY }} < key.json
             rm key.json
-            export POSTGRES_USER=${{ secrets.POSTGRES_USER }}
-            export POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
-            export POSTGRES_DB=${{ secrets.POSTGRES_DB }}
-            export YCR_REGISTRY=${{ secrets.YCR_REGISTRY }}
-            export YCR_IMAGE_NAME=${{ secrets.YCR_IMAGE_NAME }}
-            export JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            export PASSWORD_SECRET_KEY=${{ secrets.PASSWORD_SECRET_KEY }}
-            export COOKIE_TOKEN_NAME=${{ secrets.COOKIE_TOKEN_NAME }}
-            export IMAGE_TAG=build-${{ github.run_number }}
-            cd selforg/api
+            cd /home/selforg/api
             docker-compose pull
             docker-compose up -d --pull always --force-recreate
