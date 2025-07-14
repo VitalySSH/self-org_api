@@ -7,6 +7,8 @@ from auth.interfaces import TokenDelivery
 from core import config
 from core.config import COOKIE_TOKEN_NAME
 
+SamesiteType = Literal['lax', 'strict', 'none']
+
 
 class CookieTokenDelivery(TokenDelivery):
     _name: str
@@ -15,7 +17,7 @@ class CookieTokenDelivery(TokenDelivery):
     _domain: Optional[str]
     _secure: bool
     _httponly: bool
-    _samesite: Literal['lax', 'strict', 'none']
+    _samesite: Optional[SamesiteType]
 
     def __init__(
         self,
@@ -23,9 +25,9 @@ class CookieTokenDelivery(TokenDelivery):
         max_age: int = config.JWT_LIFE_TIME_SECONDS,
         path: str = '/',
         domain: Optional[str] = None,
-        secure: bool = True,
+        secure: bool = False,
         httponly: bool = True,
-        samesite: Literal['lax', 'strict', 'none'] = 'lax',
+        samesite: Optional[SamesiteType] = None,
     ):
         self._name = name
         self._max_age = max_age
@@ -47,6 +49,7 @@ class CookieTokenDelivery(TokenDelivery):
             httponly=self._httponly,
             samesite=self._samesite,
         )
+
         return response
 
     def logout_response(self) -> Response:

@@ -19,33 +19,6 @@ services:
       retries: 5
     restart: always
 
-  init:
-    image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:${IMAGE_TAG}
-    container_name: selforg_init
-    depends_on:
-      db:
-        condition: service_healthy
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_HOST: ${POSTGRES_HOST}
-      POSTGRES_PORT: "5432"
-      PRODUCTION_MODE: "true"
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      PASSWORD_SECRET_KEY: ${PASSWORD_SECRET_KEY}
-      JWT_LIFE_TIME_SECONDS: "3600"
-      COOKIE_TOKEN_NAME: ${COOKIE_TOKEN_NAME}
-      HOST: "0.0.0.0"
-      PORT: "8000"
-    command: >
-      bash -c "
-        alembic upgrade head &&
-        python3 init_db_data.py"
-    restart: "no"
-    networks:
-      - selforg_net
-
   api:
     image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:${IMAGE_TAG}
     container_name: selforg_api
@@ -64,6 +37,8 @@ services:
       COOKIE_TOKEN_NAME: ${COOKIE_TOKEN_NAME}
       HOST: "0.0.0.0"
       PORT: "8000"
+      FRONT_HOST: ${FRONT_HOST}
+      FRONT_PORT: ${FRONT_PORT}
     ports:
       - "8000:8000"
     command: >

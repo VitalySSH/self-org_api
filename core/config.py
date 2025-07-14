@@ -25,4 +25,7 @@ COOKIE_TOKEN_NAME = os.environ.get('COOKIE_TOKEN_NAME')
 HOST = str(os.environ.get('HOST', 'localhost'))
 PORT = int(os.environ.get('PORT', '8080'))
 
+FRONT_HOST = str(os.environ.get('FRONT_HOST', 'localhost'))
+FRONT_PORT = int(os.environ.get('FRONT_PORT', '5173'))
+
 UPLOADED_FILES_PATH = 'filestorage/uploaded_files/'

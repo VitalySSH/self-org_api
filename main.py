@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from auth.router import auth_router
 from core import config
-from core.config import HOST, PORT
+from core.config import HOST, PORT, FRONT_HOST, FRONT_PORT
 from datastorage.utils import get_entities_routers
 from filestorage.router import file_router
 
@@ -33,10 +33,13 @@ app = FastAPI(
     debug=config.PRODUCTION_MODE,
 )
 
+front = (
+    f'http://{FRONT_HOST}:{FRONT_PORT}' if
+    FRONT_PORT else f'http://{FRONT_HOST}'
+)
 origins = [
+    front,
     f'http://{HOST}:{PORT}',
-    f'http://{HOST}:5173',
-    'http://89.169.184.5/',
 ]
 
 app.add_middleware(
