@@ -31,7 +31,11 @@ class JWTTokenService(TokenService):
 
         return self._generate_token(payload=payload)
 
-    def _generate_token(self, payload: dict, expires_delta: Optional[timedelta] = None) -> str:
+    def _generate_token(
+            self,
+            payload: dict,
+            expires_delta: Optional[timedelta] = None,
+    ) -> str:
         to_encode = payload.copy()
         if expires_delta:
             expire = datetime.now() + expires_delta
@@ -39,7 +43,12 @@ class JWTTokenService(TokenService):
             expire = datetime.now() + timedelta(seconds=self._expires_seconds)
         to_encode.update({'exp': expire})
         encoded_jwt = jwt.encode(
-            payload=to_encode, key=self._secret_key, algorithm=self._algorithm)
+            payload=to_encode,
+            key=self._secret_key,
+            algorithm=self._algorithm,
+        )
+        if isinstance(encoded_jwt, bytes):
+            encoded_jwt = encoded_jwt.decode()
 
         return encoded_jwt
 

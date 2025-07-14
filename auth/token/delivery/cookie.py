@@ -41,7 +41,7 @@ class CookieTokenDelivery(TokenDelivery):
         response = Response(status_code=HTTP_204_NO_CONTENT)
         response.set_cookie(
             key=self._name,
-            value=token,
+            value=token.decode() if isinstance(token, bytes) else token,
             max_age=self._max_age,
             path=self._path,
             domain=self._domain,
