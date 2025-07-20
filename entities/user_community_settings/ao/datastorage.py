@@ -225,6 +225,8 @@ class UserCommunitySettingsDS(
         settings.quorum = user_settings.quorum
         settings.vote = user_settings.vote
         settings.significant_minority = user_settings.significant_minority
+        settings.decision_delay = user_settings.decision_delay
+        settings.dispute_time_limit = user_settings.dispute_time_limit
         settings.is_workgroup = user_settings.is_workgroup
         settings.workgroup = user_settings.workgroup
         settings.is_secret_ballot = user_settings.is_secret_ballot
