@@ -14,8 +14,8 @@ class RelationUserCsCategories(Base):
     )
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete="CASCADE"),
+        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.CATEGORY}.id', ondelete="CASCADE"),
+        ForeignKey(f'{TableName.CATEGORY}.id', ondelete='CASCADE'),
         nullable=False, index=True)

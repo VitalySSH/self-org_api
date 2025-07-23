@@ -14,10 +14,10 @@ class RelationUserCsUserCs(Base):
     )
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id'),
+        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
         primary_key=True
     )
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id'),
+        ForeignKey(f'{TableName.USER_COMMUNITY_SETTINGS}.id', ondelete='CASCADE'),
         primary_key=True
     )

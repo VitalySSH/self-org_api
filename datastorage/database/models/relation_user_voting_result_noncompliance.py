@@ -15,9 +15,8 @@ class RelationUserVrNoncompliance(Base):
     )
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
     from_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.USER_VOTING_RESULT}.id',
-                   ondelete="CASCADE"),
+        ForeignKey(f'{TableName.USER_VOTING_RESULT}.id', ondelete='CASCADE'),
         nullable=False, index=True)
     to_id: Mapped[str] = mapped_column(
-        ForeignKey(f'{TableName.NONCOMPLIANCE}.id', ondelete="CASCADE"),
+        ForeignKey(f'{TableName.NONCOMPLIANCE}.id', ondelete='CASCADE'),
         nullable=False, index=True)
