@@ -1,8 +1,8 @@
 """init commit
 
-Revision ID: 5067f5fe6992
+Revision ID: 5ffa3979baf7
 Revises: 
-Create Date: 2025-07-06 23:28:18.200700
+Create Date: 2025-07-24 07:41:35.563801
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = '5067f5fe6992'
+revision: str = '5ffa3979baf7'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -342,8 +342,8 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('from_id', sa.String(), nullable=False),
     sa.Column('to_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ),
-    sa.ForeignKeyConstraint(['to_id'], ['community_description.id'], ),
+    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['to_id'], ['community_description.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_user_cs_description')
     )
@@ -353,8 +353,8 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('from_id', sa.String(), nullable=False),
     sa.Column('to_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ),
-    sa.ForeignKeyConstraint(['to_id'], ['community_name.id'], ),
+    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['to_id'], ['community_name.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_user_cs_name')
     )
@@ -375,8 +375,8 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('from_id', sa.String(), nullable=False),
     sa.Column('to_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ),
-    sa.ForeignKeyConstraint(['to_id'], ['responsibility.id'], ),
+    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['to_id'], ['responsibility.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
     sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_user_cs_responsibility')
     )
@@ -386,8 +386,8 @@ def upgrade() -> None:
     sa.Column('id', sa.String(), nullable=False),
     sa.Column('from_id', sa.String(), nullable=False),
     sa.Column('to_id', sa.String(), nullable=False),
-    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ),
-    sa.ForeignKeyConstraint(['to_id'], ['user_community_settings.id'], ),
+    sa.ForeignKeyConstraint(['from_id'], ['user_community_settings.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['to_id'], ['user_community_settings.id'], ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id', 'from_id', 'to_id'),
     sa.UniqueConstraint('from_id', 'to_id', name='idx_unique_user_community_settings_user_cs')
     )

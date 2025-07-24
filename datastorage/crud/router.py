@@ -213,7 +213,8 @@ def get_crud_router(
                 if post_processing_data:
                     pp_data, include = build_post_processing_data(
                         current_method=Method.UPDATE,
-                        post_processing_data=post_processing_data)
+                        post_processing_data=post_processing_data
+                    )
                     if pp_data:
                         post_instance: model = await ds.get(
                             instance_id=instance_id, include=include

@@ -245,9 +245,10 @@ class RequestMemberDS(
         return root_requests
 
     async def _delete_child_request_members(
-            self, request_member_id: str
+            self,
+            request_member_id: str
     ) -> None:
-        community_id, user_id = None, None
+        community_id, user_id, creator_id = None, None, None
         child_request_members = await self._get_child_request_members(
             request_member_id
         )
@@ -257,10 +258,23 @@ class RequestMemberDS(
                 community_id = child_request_member.community_id
             if not user_id:
                 user_id = child_request_member.member_id
+            if (not creator_id and
+                    child_request_member.creator_id ==
+                    child_request_member.member_id):
+                creator_id = child_request_member.creator_id
 
             await self._delete_request_member(child_request_member)
 
         if community_id and user_id:
+
+            if creator_id:
+                related_request_members = await self._get_related_request_members(
+                    community_id=community_id,
+                    creator_id=creator_id,
+                )
+                for related_request_member in related_request_members:
+                    await self._delete_request_member(related_request_member)
+
             await self._check_and_delete_user_settings(
                 community_id=community_id, user_id=user_id
             )
@@ -443,15 +457,38 @@ class RequestMemberDS(
             self,
             request_member_id: str,
     ) -> List[RequestMember]:
+        query = (
+            select(RequestMember)
+            .options(
+                selectinload(RequestMember.status),
+            )
+            .where(
+                RequestMember.parent_id == request_member_id
+            )
+        )
+        child_request_members = await self._session.scalars(query)
+
+        return list(child_request_members)
+
+    async def _get_related_request_members(
+            self,
+            community_id: str,
+            creator_id: str,
+    ) -> List[RequestMember]:
         query = select(RequestMember).where(
-            RequestMember.parent_id == request_member_id
+            RequestMember.community_id == community_id,
+            RequestMember.creator_id == creator_id,
+            RequestMember.parent_id.is_not(None),
         )
         child_request_members = await self._session.scalars(query)
 
         return list(child_request_members)
 
     async def _get_child_request_member(
-            self, community_id: str, user_id: str) -> Optional[RequestMember]:
+            self,
+            community_id: str,
+            user_id: str
+    ) -> Optional[RequestMember]:
         query = select(RequestMember).where(
             RequestMember.community_id == community_id,
             RequestMember.member_id == user_id,
