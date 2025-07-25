@@ -6,9 +6,9 @@ services:
     container_name: selforg_db
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_HOST_AUTH_METHOD: scram-sha-256
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -19,6 +19,10 @@ services:
 #      timeout: 5s
 #      retries: 5
     restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      - selforg_net
 
   api:
     image: ${YCR_REGISTRY}/${YCR_IMAGE_NAME}:${IMAGE_TAG}

@@ -69,4 +69,8 @@ STATUSES = [
         'name': 'Инициатива отменена',
         'code': Code.INITIATIVE_REVOKED,
     },
+    {
+        'name': 'Событие завершено',
+        'code': Code.EVENT_COMPLETED,
+    },
 ]

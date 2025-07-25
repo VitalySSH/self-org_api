@@ -16,3 +16,4 @@ class Code:
     NONCOMPLIANCE = 'noncompliance'
     INITIATIVE_APPROVED = 'initiative_approved'
     INITIATIVE_REVOKED = 'initiative_revoked'
+    EVENT_COMPLETED = 'event_completed'
