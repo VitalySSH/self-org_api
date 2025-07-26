@@ -6,6 +6,7 @@ from datastorage.utils import build_uuid
 
 
 class Noncompliance(Base):
+    """Последствия несоблюдения правил."""
     __tablename__ = TableName.NONCOMPLIANCE
 
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)

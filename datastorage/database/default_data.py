@@ -50,7 +50,7 @@ STATUSES = [
         'code': Code.COMPROMISE,
     },
     {
-        'name': 'Правило вступило в силу',
+        'name': 'Вступило в силу',
         'code': Code.RULE_APPROVED,
     },
     {
