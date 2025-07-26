@@ -7,10 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from auth.router import auth_router
 from core import config
 from core.config import HOST, PORT, FRONT_HOST, FRONT_PORT
+from core.lifespan import lifespan
 from datastorage.utils import get_entities_routers
 from filestorage.router import file_router
+from scheduler.router import router as scheduler_router
 
-logging.basicConfig()
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logging.getLogger('sqlalchemy.engine').setLevel(logging.ERROR)
 
 app = FastAPI(
@@ -31,6 +36,7 @@ app = FastAPI(
     },
     root_path='/api/v1',
     debug=config.PRODUCTION_MODE,
+    lifespan=lifespan,
 )
 
 front = (
@@ -57,6 +63,9 @@ app.include_router(file_router, prefix='/file', tags=['filestorage'])
 # Entities
 for router_param in get_entities_routers():
     app.include_router(router_param.router, prefix=router_param.prefix, tags=router_param.tags)
+
+# Scheduler (для управления задачами)
+app.include_router(scheduler_router, prefix='/scheduler', tags=['scheduler'])
 
 
 if __name__ == '__main__':
