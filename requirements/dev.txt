@@ -10,7 +10,6 @@ h11
 idna
 passlib
 jsonify
-psycopg2
 pydantic==2.6.0
 sniffio
 SQLAlchemy==2.0.25

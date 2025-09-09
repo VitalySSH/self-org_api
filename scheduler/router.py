@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from typing import List, Dict
 
-from app.scheduler.scheduler import scheduler_service
+from scheduler.scheduler import scheduler_service
 
 router = APIRouter()
 
