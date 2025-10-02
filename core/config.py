@@ -17,6 +17,8 @@ DATABASE_CONNECTION_STR = 'postgresql+asyncpg://{}:{}@{}:{}/{}'.format(
 
 PRODUCTION_MODE = (os.environ.get('PRODUCTION_MODE', '')).lower() == 'true' or False
 
+USE_MOCK_LLM = (os.environ.get('USE_MOCK_LLM', '')).lower() == 'true'
+
 JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY')
 PASSWORD_SECRET_KEY = os.environ.get('PASSWORD_SECRET_KEY')
 JWT_LIFE_TIME_SECONDS = int(os.environ.get('JWT_LIFE_TIME_SECONDS'))

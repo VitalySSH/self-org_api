@@ -11,6 +11,7 @@ from core.lifespan import lifespan
 from datastorage.utils import get_entities_routers
 from filestorage.router import file_router
 from scheduler.router import router as scheduler_router
+from llm.routers.lab_router import router as llm_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -66,6 +67,8 @@ for router_param in get_entities_routers():
 
 # Scheduler (для управления задачами)
 app.include_router(scheduler_router, prefix='/scheduler', tags=['scheduler'])
+#LLM
+app.include_router(llm_router, prefix='/llm', tags=['LLM', 'lab'])
 
 
 if __name__ == '__main__':

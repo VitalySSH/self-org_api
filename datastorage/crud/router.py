@@ -39,9 +39,9 @@ def build_post_processing_data(
 
 def get_crud_router(
         model: Type[T],
-        read_schema: RS,
-        create_schema: CS,
-        update_schema: US,
+        read_schema: Type[RS],
+        create_schema: Type[CS],
+        update_schema: Type[US],
         methods: List[Method],
         post_processing_data: Optional[List[PostProcessingData]] = None,
 ) -> APIRouter:
@@ -164,7 +164,8 @@ def get_crud_router(
                         if pp_data:
                             if include:
                                 post_instance: model = await ds.get(
-                                    instance_id=new_instance, include=include
+                                    instance_id=new_instance.id,
+                                    include=include,
                                 )
                             else:
                                 post_instance = deepcopy(new_instance)

@@ -38,7 +38,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         )
 
     def execute_post_processing(
-            self, instance: Optional[T],
+            self,
+            instance: Optional[T],
             post_processing_data: List[PostProcessingData],
             instance_id: Optional[str] = None,
     ) -> None:
@@ -54,7 +55,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return [key for key, value in schema.get('relations', {}).items()]
 
     async def get(
-            self, instance_id: str,
+            self,
+            instance_id: str,
             include: Include = None,
             model: Type[T] = None,
     ) -> Union[None, T, Any]:
@@ -73,8 +75,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
             )
 
     async def create(
-            self, instance: T,
-            include: Include = None
+            self,
+            instance: T,
+            include: Include = None,
     ) -> T:
         relation_data = {
             rel_field: value for rel_field in include or []
@@ -233,8 +236,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 setattr(instance, attr_name, attr_value)
 
     async def _update_relations(
-            self, instance: T,
-            relations: Relations
+            self,
+            instance: T,
+            relations: Relations,
     ) -> None:
         model = type(instance)
         for rel_name, rel_value in relations.items():
@@ -250,9 +254,10 @@ class CRUDDataStorage(DataStorage[T], CRUD):
                 setattr(instance, rel_name, related_obj)
 
     async def _fetch_many_to_many(
-            self, rel_values: List[SchemaInstance],
+            self,
+            rel_values: List[SchemaInstance],
             model: Type[T],
-            rel_name: str
+            rel_name: str,
     ) -> List[T]:
         objs = []
         for rel_value in rel_values:
@@ -263,7 +268,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return objs
 
     async def _fetch_relation(
-            self, rel_value: SchemaInstance,
+            self,
+            rel_value: SchemaInstance,
             model: Type[T],
             rel_name: str
     ) -> Optional[T]:
@@ -341,8 +347,9 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return options
 
     def _get_filter_params(
-            self, filters: Filters,
-            model: Type[T]
+            self,
+            filters: Filters,
+            model: Type[T],
     ) -> List:
         """Формирует список параметров для фильтрации."""
         params = []
@@ -366,7 +373,8 @@ class CRUDDataStorage(DataStorage[T], CRUD):
         return params
 
     def _build_condition(
-            self, model: Type[T],
+            self,
+            model: Type[T],
             parts: List[str],
             operation: Operation,
             value: Any,

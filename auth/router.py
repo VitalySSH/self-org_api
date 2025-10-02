@@ -41,6 +41,7 @@ async def login_for_access_token(
             user.id
         )
         password = decrypt_password(secret_password)
+
         if not verify_password(
                 password=password,
                 hashed_password=user_data.hashed_password

@@ -3,10 +3,21 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 from core.config import DATABASE_CONNECTION_STR
 
-engine = create_async_engine(DATABASE_CONNECTION_STR)
-async_session_maker = async_sessionmaker(engine, expire_on_commit=False)
+engine = create_async_engine(
+    DATABASE_CONNECTION_STR,
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20
+)
+async_session_maker = async_sessionmaker(
+    engine,
+    expire_on_commit=False,
+)
 
 
 async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
-        yield session
+        try:
+            yield session
+        finally:
+            await session.close()

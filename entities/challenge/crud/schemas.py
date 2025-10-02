@@ -3,34 +3,31 @@ from typing import TypedDict, List
 from datastorage.crud.interfaces.schema import SchemaInstance
 
 
-class RuleAttributes(TypedDict):
+class ChallengeAttributes(TypedDict):
     title: str
-    question: str
-    content: str
-    is_extra_options: bool
-    is_multi_select: bool
+    description: str
     community_id: str
 
 
-class RuleRelations(TypedDict, total=False):
+class ChallengeRelations(TypedDict, total=False):
     creator: SchemaInstance
     status: SchemaInstance
     category: SchemaInstance
-    extra_options: List[SchemaInstance]
-    user_results: List[SchemaInstance]
+    old_category: SchemaInstance
+    solutions: List[SchemaInstance]
 
 
-class RuleRead(TypedDict):
+class ChallengeRead(TypedDict):
     id: str
-    attributes: RuleAttributes
-    relations: RuleRelations
+    attributes: ChallengeAttributes
+    relations: ChallengeRelations
 
 
-class RuleCreate(TypedDict, total=False):
+class ChallengeCreate(TypedDict, total=False):
     id: str
-    attributes: RuleAttributes
-    relations: RuleRelations
+    attributes: ChallengeAttributes
+    relations: ChallengeRelations
 
 
-class RuleUpdate(RuleCreate):
+class ChallengeUpdate(ChallengeCreate):
     pass

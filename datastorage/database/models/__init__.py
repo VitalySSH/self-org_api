@@ -19,6 +19,13 @@ __all__ = (
     'DelegateSettings',
     'Opinion',
     'Solution',
+    'SolutionVersion',
+    'CollectiveInteraction',
+    'InteractionSuggestion',
+    'InteractionCriticism',
+    'InteractionCombination',
+    'CombinationSourceElement',
+    'VersionInteractionInfluence',
     'Responsibility',
     'RequestMember',
     'Noncompliance',
@@ -26,7 +33,6 @@ __all__ = (
     'RelationUserCsCategories',
     'RelationUserVrVo',
     'RelationCommunityUCs',
-    'RelationChallengeSolutions',
     'RelationCsUCs',
     'RelationUserCsUserCs',
     'RelationCsResponsibilities',
@@ -51,6 +57,13 @@ from entities.challenge.model import Challenge
 from entities.category.model import Category
 from entities.opinion.model import Opinion
 from entities.solution.model import Solution
+from entities.solution_version.model import SolutionVersion
+from entities.collective_interaction.model import CollectiveInteraction
+from entities.interaction_suggestion.model import InteractionSuggestion
+from entities.interaction_criticism.model import InteractionCriticism
+from entities.interaction_combination.model import InteractionCombination
+from entities.combination_source_element.model import CombinationSourceElement
+from entities.version_interaction_influence.model import VersionInteractionInfluence
 from entities.voting_result.model import VotingResult
 from entities.user_voting_result.model import UserVotingResult
 from entities.voting_option.model import VotingOption
@@ -63,7 +76,6 @@ from .relation_community_settings_categories import RelationCsCategories
 from .relation_user_community_settings_categories import RelationUserCsCategories
 from .relation_user_voting_result_options import RelationUserVrVo
 from .relation_community_user_community_settings import RelationCommunityUCs
-from .relation_challenge_solutions import RelationChallengeSolutions
 from .relation_community_settings_ucs import RelationCsUCs
 from .relation_user_community_settings_ucs import RelationUserCsUserCs
 from .relation_community_settings_responsibilities import RelationCsResponsibilities

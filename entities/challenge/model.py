@@ -15,8 +15,8 @@ class Challenge(Base):
     __tablename__ = TableName.CHALLENGE
 
     id: Mapped[str] = mapped_column(primary_key=True, default=build_uuid)
-    question: Mapped[str] = mapped_column(nullable=False)
-    content: Mapped[str] = mapped_column(nullable=False)
+    title: Mapped[str] = mapped_column(nullable=False)
+    description: Mapped[str] = mapped_column(nullable=False)
     community_id: Mapped[str] = mapped_column(nullable=False, index=True)
     creator_id: Mapped[str] = mapped_column(
         ForeignKey(f'{TableName.USER}.id'),
@@ -48,4 +48,6 @@ class Challenge(Base):
         foreign_keys=[old_category_id]
     )
     solutions: Mapped[List['Solution']] = relationship(
-        secondary=TableName.RELATION_CHALLENGE_SOLUTIONS, lazy='noload')
+        back_populates='challenge',
+        lazy='noload'
+    )

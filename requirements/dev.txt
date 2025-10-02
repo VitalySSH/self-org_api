@@ -1,5 +1,6 @@
 anyio
 asyncpg
+aiohttp
 click
 dnspython
 email-validator
@@ -12,6 +13,7 @@ passlib
 jsonify
 pydantic==2.6.0
 sniffio
+psycopg2-binary
 SQLAlchemy==2.0.25
 starlette==0.35.1
 typing_extensions

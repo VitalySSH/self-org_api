@@ -17,3 +17,6 @@ class Code:
     INITIATIVE_APPROVED = 'initiative_approved'
     INITIATIVE_REVOKED = 'initiative_revoked'
     EVENT_COMPLETED = 'event_completed'
+    NEW_CHALLENGE = 'new_challenge'
+    CHALLENGE_AT_WORK = 'challenge_at_work'
+    CHALLENGE_SOLVED = 'challenge_solved'

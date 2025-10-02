@@ -73,4 +73,16 @@ STATUSES = [
         'name': 'Событие завершено',
         'code': Code.EVENT_COMPLETED,
     },
+    {
+        'name': 'Новая',
+        'code': Code.NEW_CHALLENGE,
+    },
+    {
+        'name': 'В работе',
+        'code': Code.CHALLENGE_AT_WORK,
+    },
+    {
+        'name': 'Решена',
+        'code': Code.CHALLENGE_SOLVED,
+    },
 ]
