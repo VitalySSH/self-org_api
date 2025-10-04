@@ -1,8 +1,10 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
-from core.config import USE_MOCK_LLM
+from core.config import USE_MOCK_LLM, HUGGINGFACE_API_KEY
 from datastorage.crud.exceptions import CRUDNotFound
 from datastorage.database.base import get_async_session
 from ..models.lab import (
@@ -36,7 +38,7 @@ async def get_laboratory_service(
         import os
         for provider in providers:
             if provider.name == "huggingface":
-                provider.api_key = os.getenv("HUGGINGFACE_API_KEY")
+                provider.api_key = HUGGINGFACE_API_KEY
             # elif provider.name == "anthropic":
             #     provider.api_key = os.getenv("ANTHROPIC_API_KEY")
             # elif provider.name == "openai":
@@ -66,9 +68,11 @@ async def generate_thinking_directions(
 
         # Получаем информацию о задаче для ответа
         challenge = await service.data_adapter.get_challenge(
-            request.challenge_id)
+            request.challenge_id
+        )
         solutions = await service.data_adapter.get_challenge_solutions(
-            request.challenge_id)
+            request.challenge_id
+        )
 
         return DirectionsResponse(
             directions=[
@@ -425,30 +429,40 @@ async def get_pending_interactions(
 
 
 @router.get("/health")
-async def llm_service_health():
-    """Проверка состояния LLM сервисов"""
+async def llm_service_health(
+    service: LaboratoryService = Depends(get_laboratory_service)
+):
     try:
-        service = await get_laboratory_service()
+        providers_status = []
 
-        # Простая проверка доступности LLM
-        async with service.llm_service:
-            # Тестовый запрос
-            test_response = await service.llm_service._make_llm_request(
-                "Test", "Respond with 'OK'", "text"
-            )
+        for provider in service.llm_service.providers:
+            if provider.name == "huggingface":
+                status = await service.llm_service.check_huggingface_health(
+                    provider
+                )
+            # elif provider.name == "ollama":
+            #     status = await service.llm_service.check_ollama_health(
+            #         provider
+            #     )
+            else:
+                status = {"status": "unknown", "error": "Unsupported provider"}
 
-            llm_healthy = "text" in test_response
+            providers_status.append({
+                "name": provider.name,
+                **status
+            })
+
+        all_healthy = all(p["status"] == "healthy" for p in providers_status)
 
         return {
-            "status": "healthy" if llm_healthy else "degraded",
-            "llm_providers": len(service.llm_service.providers),
-            "timestamp": "2024-01-01T00:00:00Z"
-            # В реальности - datetime.now()
+            "status": "healthy" if all_healthy else "degraded",
+            "providers": providers_status,
+            "timestamp": datetime.now().isoformat()
         }
 
     except Exception as e:
         return {
             "status": "unhealthy",
             "error": str(e),
-            "timestamp": "2024-01-01T00:00:00Z"
+            "timestamp": datetime.now().isoformat()
         }

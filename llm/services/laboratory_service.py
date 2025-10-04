@@ -64,7 +64,7 @@ class LaboratoryService:
             solution.challenge_id, solution.user_id
         )
 
-        if len(other_solutions) < 1:
+        if len(other_solutions) < 3:
             raise ValueError(
                 "Недостаточно решений для анализа коллективного интеллекта")
 
@@ -135,7 +135,7 @@ class LaboratoryService:
             solution.challenge_id, solution.user_id
         )
 
-        if len(other_solutions) < 1:
+        if len(other_solutions) < 3:
             raise ValueError("Недостаточно решений для генерации предложений")
 
         # Генерируем предложения через LLM
@@ -188,7 +188,7 @@ class LaboratoryService:
             solution.challenge_id, solution.user_id
         )
 
-        if len(other_solutions) < 1:
+        if len(other_solutions) < 3:
             raise ValueError("Недостаточно решений для генерации критики")
 
         # Генерируем критику через LLM
@@ -329,8 +329,9 @@ class LaboratoryService:
         for version in versions:
             # Получаем влияния для каждой версии
             # Это упрощенная версия, в реальности нужен отдельный метод
-            ai_interactions += 1 if hasattr(version,
-                                            'influences') and version.influences else 0
+            ai_interactions += 1 if hasattr(
+                version,'influences'
+            ) and version.influences else 0
 
         return {
             "solution_id": solution_id,

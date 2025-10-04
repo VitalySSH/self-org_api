@@ -10,18 +10,20 @@ def create_default_llm_providers() -> List[LLMProvider]:
             name="huggingface",
             api_url="https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1",
             model="mistralai/Mistral-7B-Instruct-v0.1",
+            # api_url="https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
+            # model="microsoft/DialoGPT-medium",
             max_tokens=4000,
             temperature=0.7,
             priority=1
         ),
-        LLMProvider(
-            name="ollama",
-            api_url="http://localhost:11434/api/generate",
-            model="llama2:7b",
-            max_tokens=4000,
-            temperature=0.7,
-            priority=2
-        ),
+        # LLMProvider(
+        #     name="ollama",
+        #     api_url="http://localhost:11434/api/generate",
+        #     model="llama2:7b",
+        #     max_tokens=4000,
+        #     temperature=0.7,
+        #     priority=2
+        # ),
         # LLMProvider(
         #     name="anthropic",
         #     api_url="https://api.anthropic.com/v1/messages",

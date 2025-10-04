@@ -38,7 +38,12 @@ class LLMService:
 
         system_prompt = """Ты - аналитик коллективного интеллекта. Анализируй существующие решения и выделяй основные подходы к решению проблемы.
 
-        Для каждого подхода создай готовый стартовый текст решения (200-300 слов), который новый участник может использовать как отправную точку.
+        Анализируй решения по их СУТИ, а не по форме. Учитывай:
+        - Практические и теоретические подходы
+        - Творческие и логические методы  
+        - Технические и гуманитарные решения
+
+        Для каждого подхода создай готовый стартовый текст решения (300-500 слов), который новый участник может использовать как отправную точку.
         
         Верни результат строго в формате JSON:
         {
@@ -93,6 +98,17 @@ class LLMService:
         system_prompt = """Ты - креативный синтезатор коллективного интеллекта. 
             Анализируешь решения и создаешь новые идеи, комбинируя "полезные элементы" из разных решений.
             
+            Ищи полезные элементы любого типа:
+            - Практические методы и техники
+            - Творческие подходы и метафоры
+            - Аналитические frameworks
+            - Жизненный опыт и аналогии
+            - Неожиданные инсайты и наблюдения
+            
+            Создавай разные типы идей:
+            - Практичные и логичные комбинации
+            - Неожиданные, но обоснованные синтезы
+            
             Верни результат строго в формате JSON:
             {
               "ideas": [
@@ -125,11 +141,12 @@ class LLMService:
             
             Создай {max_ideas} новые идеи, комбинируя элементы из разных решений:
             
-            1. Разложи каждое решение на "полезные элементы" (методы, инструменты, подходы)
+            1. Разложи каждое решение на "полезные элементы" (методы, аналогии, инсайты, подходы)
             2. Найди интересные комбинации элементов из РАЗНЫХ решений
             3. Убедись, что комбинации НЕ присутствуют в анализируемом решении
             4. Каждая идея должна использовать элементы минимум из 2 разных решений
-            5. Идеи должны быть практичными и логически обоснованными
+            5. Идеи должны быть логически обоснованными
+            6. Создавай разные типы идей: как практичные, так и неожиданные
             
             НЕ предлагай то, что уже есть в анализируемом решении!
             """
@@ -177,12 +194,12 @@ class LLMService:
             1. Найди элементы решения, которые можно усилить
             2. Найди в других решениях успешные подходы к похожим элементам
             3. Предложи конкретные способы улучшения
-            4. Дай советы по интеграции улучшений
             
             Фокусируйся на:
-            - Практических, применимых предложениях
-            - Конкретных элементах, а не общих рекомендациях
+            - Практических, применимых предложениях для данной задачи
+            - Конкретных элементах, а не общих рекомендациях  
             - Примерах из реальных решений других участников
+            - Улучшениях, релевантных типу задачи
             """
 
         response = await self._make_llm_request(
@@ -327,10 +344,10 @@ class LLMService:
             return await self._call_huggingface(
                 provider, prompt, system_prompt, response_format
             )
-        elif provider.name == "ollama":
-            return await self._call_ollama(
-                provider, prompt, system_prompt, response_format
-            )
+        # elif provider.name == "ollama":
+        #     return await self._call_ollama(
+        #         provider, prompt, system_prompt, response_format
+        #     )
         # elif provider.name == "anthropic":
         #     return await self._call_anthropic(
         #         provider, prompt, system_prompt,response_format
@@ -663,3 +680,51 @@ class LLMService:
         param_str = json.dumps(params, sort_keys=True)
         combined = f"{operation}:{param_str}"
         return hashlib.md5(combined.encode()).hexdigest()
+
+    @staticmethod
+    async def check_huggingface_health(provider: LLMProvider) -> dict:
+        try:
+            async with aiohttp.ClientSession() as session:
+                headers = {"Authorization": f"Bearer {provider.api_key}"}
+
+
+                async with session.head(
+                        provider.api_url,
+                        headers=headers,
+                        timeout=5
+                ) as response:
+                    return {
+                        "status": "healthy" if response.status in [
+                            200, 401, 403
+                        ] else "unhealthy",
+                        "http_status": response.status
+                    }
+
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
+
+    @staticmethod
+    async def check_ollama_health(provider: LLMProvider) -> dict:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(
+                        "http://localhost:11434/api/tags",
+                        timeout=10
+                ) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        models = [model["name"] for model in
+                                  data.get("models", [])]
+                        model_available = provider.model in models
+
+                        return {
+                            "status": "healthy" if model_available else "degraded",
+                            "models_available": models,
+                            "target_model_available": model_available
+                        }
+                    else:
+                        return {"status": "unhealthy",
+                                "error": f"Ollama not responding: {response.status}"}
+
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}
