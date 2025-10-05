@@ -29,14 +29,6 @@ router = APIRouter()
 async def get_laboratory_service(
         session: AsyncSession = Depends(get_async_session)
 ) -> LaboratoryService:
-    """
-    Создание сервиса лаборатории с зависимостями
-
-    Включает:
-    - LLM Service (Groq + Together AI + HF fallback)
-    - Preprocessing Service (предобработка решений)
-    - Cache Service (in-memory semantic cache)
-    """
 
     if USE_MOCK_LLM:
         llm_service = MockLLMService()

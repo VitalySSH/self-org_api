@@ -44,7 +44,8 @@ class LaboratoryService:
             raise ValueError("Задача не найдена")
 
         existing_solutions = await self.data_adapter.get_challenge_solutions(
-            challenge_id)
+            challenge_id
+        )
 
         if len(existing_solutions) < 3:
             raise ValueError("Недостаточно решений для генерации направлений")

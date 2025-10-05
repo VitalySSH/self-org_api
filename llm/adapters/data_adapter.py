@@ -33,8 +33,13 @@ class DataAdapter:
                 Filter(
                     field="challenge_id",
                     op=Operation.EQ,
-                    val=challenge_id
-                )
+                    val=challenge_id,
+                ),
+                Filter(
+                    field="current_content",
+                    op=Operation.NOT_EQ,
+                    val='',
+                ),
             ]
             response = await ds.list(filters=filters)
             return response.data
