@@ -2,15 +2,24 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 from .llm_service import LLMService, ThinkingDirection
+from .preprocessing_service import PreprocessingService
+from .cache_service import SemanticCache
 from ..adapters.data_adapter import DataAdapter
 
 
 class LaboratoryService:
-    """Основной сервис лаборатории коллективного интеллекта"""
 
-    def __init__(self, data_adapter: DataAdapter, llm_service: LLMService):
+    def __init__(
+            self,
+            data_adapter: DataAdapter,
+            llm_service: LLMService,
+            preprocessing_service: PreprocessingService,
+            cache_service: SemanticCache
+    ):
         self.data_adapter = data_adapter
         self.llm_service = llm_service
+        self.preprocessing = preprocessing_service
+        self.cache = cache_service
 
     # === Работа с направлениями мысли ===
 
@@ -37,10 +46,13 @@ class LaboratoryService:
         existing_solutions = await self.data_adapter.get_challenge_solutions(
             challenge_id)
 
-        # Генерируем направления через LLM
+        if len(existing_solutions) < 3:
+            raise ValueError("Недостаточно решений для генерации направлений")
+
+        # Генерируем направления через LLM (Together AI для креативных задач)
         async with self.llm_service:
             directions = await self.llm_service.generate_thinking_directions(
-                challenge, existing_solutions
+                challenge, existing_solutions, preferred_provider="together"
             )
 
         return directions
@@ -52,7 +64,14 @@ class LaboratoryService:
             solution_id: str,
             max_ideas: int = 3
     ) -> Dict[str, Any]:
-        """Запрос новых идей от коллективного интеллекта"""
+        """
+        Запрос новых идей от коллективного интеллекта
+
+        Оптимизации:
+        - Проверка кэша перед LLM вызовом
+        - Адаптивная стратегия в зависимости от количества решений
+        - Умный выбор провайдера
+        """
 
         # Получаем решение пользователя
         solution = await self.data_adapter.get_solution(solution_id)
@@ -68,13 +87,31 @@ class LaboratoryService:
             raise ValueError(
                 "Недостаточно решений для анализа коллективного интеллекта")
 
-        # Генерируем идеи через LLM
-        async with self.llm_service:
-            ideas = await self.llm_service.generate_collective_ideas(
+        # 1. Проверяем кэш
+        other_ids = [s.id for s in other_solutions]
+        cached = await self.cache.get(solution_id, "ideas", other_ids)
+        if cached:
+            return cached
+
+        # 2. Выбираем стратегию анализа на основе количества решений
+        n = len(other_solutions)
+
+        if n <= 10:
+            ideas = await self._direct_ideas_analysis(
+                solution, other_solutions, max_ideas, provider="together"
+            )
+        elif n <= 20:
+            relevant = await self._select_most_relevant(
+                solution, other_solutions, top_k=12
+            )
+            ideas = await self._direct_ideas_analysis(
+                solution, relevant, max_ideas, provider="together"
+            )
+        else:
+            ideas = await self._clustered_ideas_analysis(
                 solution, other_solutions, max_ideas
             )
 
-        # Создаем взаимодействие
         interaction = await self.data_adapter.create_collective_interaction(
             solution=solution,
             interaction_type="combinations"
@@ -90,10 +127,10 @@ class LaboratoryService:
                 "source_elements": []
             }
 
-            # Создаем элементы источников на основе combination_elements
-            for i, element in enumerate(idea.combination_elements):
-                solution_id = element.get("solution_id")
-                if solution_id == solution.id:
+            # Создаем элементы источников
+            for element in idea.combination_elements:
+                solution_id_elem = element.get("solution_id")
+                if solution_id_elem == solution.id:
                     source_solution = solution
                 else:
                     source_solution = await self.data_adapter.get_solution(
@@ -114,11 +151,16 @@ class LaboratoryService:
         )
         await self.data_adapter.session.commit()
 
-        return {
+        result = {
             "interaction_id": interaction.id,
             "ideas": ideas,
             "total_count": len(ideas)
         }
+
+        # 4. Сохраняем в кэш
+        await self.cache.set(solution_id, "ideas", other_ids, result, ttl=1800)
+
+        return result
 
     async def request_improvement_suggestions(
             self,
@@ -138,10 +180,26 @@ class LaboratoryService:
         if len(other_solutions) < 3:
             raise ValueError("Недостаточно решений для генерации предложений")
 
-        # Генерируем предложения через LLM
-        async with self.llm_service:
-            suggestions = await self.llm_service.generate_improvement_suggestions(
-                solution, other_solutions, max_suggestions
+        # Проверяем кэш
+        other_ids = [s.id for s in other_solutions]
+        cached = await self.cache.get(solution_id, "improvements", other_ids)
+        if cached:
+            return cached
+
+        # Адаптивная стратегия
+        n = len(other_solutions)
+
+        if n <= 12:
+            suggestions = await self._direct_suggestions_analysis(
+                solution, other_solutions, max_suggestions, provider="together"
+            )
+        else:
+            # Отбираем релевантные
+            relevant = await self._select_most_relevant(
+                solution, other_solutions, top_k=15
+            )
+            suggestions = await self._direct_suggestions_analysis(
+                solution, relevant, max_suggestions, provider="together"
             )
 
         # Создаем взаимодействие
@@ -167,11 +225,17 @@ class LaboratoryService:
         )
         await self.data_adapter.session.commit()
 
-        return {
+        result = {
             "interaction_id": interaction.id,
             "suggestions": suggestions,
             "total_count": len(suggestions)
         }
+
+        # Кэшируем
+        await self.cache.set(solution_id, "improvements", other_ids, result,
+                             ttl=1800)
+
+        return result
 
     async def request_solution_criticism(
             self,
@@ -191,10 +255,25 @@ class LaboratoryService:
         if len(other_solutions) < 3:
             raise ValueError("Недостаточно решений для генерации критики")
 
-        # Генерируем критику через LLM
-        async with self.llm_service:
-            criticisms = await self.llm_service.generate_solution_criticism(
-                solution, other_solutions, max_criticisms
+        # Проверяем кэш
+        other_ids = [s.id for s in other_solutions]
+        cached = await self.cache.get(solution_id, "criticism", other_ids)
+        if cached:
+            return cached
+
+        # Адаптивная стратегия
+        n = len(other_solutions)
+
+        if n <= 12:
+            criticisms = await self._direct_criticism_analysis(
+                solution, other_solutions, max_criticisms, provider="together"
+            )
+        else:
+            relevant = await self._select_most_relevant(
+                solution, other_solutions, top_k=15
+            )
+            criticisms = await self._direct_criticism_analysis(
+                solution, relevant, max_criticisms, provider="together"
             )
 
         # Создаем взаимодействие
@@ -220,11 +299,101 @@ class LaboratoryService:
         )
         await self.data_adapter.session.commit()
 
-        return {
+        result = {
             "interaction_id": interaction.id,
             "criticisms": criticisms,
             "total_count": len(criticisms)
         }
+
+        # Кэшируем
+        await self.cache.set(solution_id, "criticism", other_ids, result,
+                             ttl=1800)
+
+        return result
+
+    # === Вспомогательные методы для адаптивных стратегий ===
+
+    async def _direct_ideas_analysis(
+            self,
+            target_solution,
+            other_solutions: List,
+            max_ideas: int,
+            provider: str = "together"
+    ):
+        """Прямой анализ без предобработки"""
+        async with self.llm_service:
+            return await self.llm_service.generate_collective_ideas(
+                target_solution, other_solutions, max_ideas, provider
+            )
+
+    async def _direct_suggestions_analysis(
+            self,
+            target_solution,
+            other_solutions: List,
+            max_suggestions: int,
+            provider: str = "together"
+    ):
+        """Прямой анализ предложений"""
+        async with self.llm_service:
+            return await self.llm_service.generate_improvement_suggestions(
+                target_solution, other_solutions, max_suggestions, provider
+            )
+
+    async def _direct_criticism_analysis(
+            self,
+            target_solution,
+            other_solutions: List,
+            max_criticisms: int,
+            provider: str = "together"
+    ):
+        """Прямой анализ критики"""
+        async with self.llm_service:
+            return await self.llm_service.generate_solution_criticism(
+                target_solution, other_solutions, max_criticisms, provider
+            )
+
+    async def _select_most_relevant(
+            self,
+            target_solution,
+            other_solutions: List,
+            top_k: int = 12
+    ) -> List:
+        """
+        Отбор наиболее релевантных решений через semantic similarity
+
+        Использует предобработанные embeddings если доступны
+        """
+        # Пытаемся использовать предобработку
+        similar = await self.preprocessing.find_similar_solutions(
+            target_solution.id, top_k=top_k
+        )
+
+        if similar:
+            # Получаем решения по ID
+            similar_ids = [s[0] for s in similar]
+            return [s for s in other_solutions if s.id in similar_ids][:top_k]
+
+        # Fallback: просто берем первые N
+        return other_solutions[:top_k]
+
+    async def _clustered_ideas_analysis(
+            self,
+            target_solution,
+            other_solutions: List,
+            max_ideas: int
+    ):
+        """
+        Кластеризованный анализ для большого количества решений
+
+        TODO: Реализовать когда понадобится (30+ решений)
+        Пока используем отбор релевантных
+        """
+        relevant = await self._select_most_relevant(
+            target_solution, other_solutions, top_k=15
+        )
+        return await self._direct_ideas_analysis(
+            target_solution, relevant, max_ideas, provider="together"
+        )
 
     # === Обработка ответов пользователя ===
 
@@ -268,12 +437,17 @@ class LaboratoryService:
         return success
 
     async def delete_interaction(self, interaction_id: str) -> None:
+        """Удаление взаимодействия"""
         await self.data_adapter.delete_interaction(interaction_id)
         await self.data_adapter.session.commit()
 
     async def delete_solution(self, solution_id: str) -> None:
+        """Удаление решения"""
         await self.data_adapter.delete_solution(solution_id)
         await self.data_adapter.session.commit()
+
+        # Инвалидируем кэш для этого решения
+        await self.cache.invalidate(solution_id=solution_id)
 
     async def integrate_accepted_items(
             self,
@@ -313,6 +487,9 @@ class LaboratoryService:
         )
         await self.data_adapter.session.commit()
 
+        # Инвалидируем кэш для этого решения
+        await self.cache.invalidate(solution_id=solution_id)
+
         return success
 
     # === Аналитика и метрики ===
@@ -327,10 +504,8 @@ class LaboratoryService:
         # Подсчитываем AI взаимодействия из версий
         ai_interactions = 0
         for version in versions:
-            # Получаем влияния для каждой версии
-            # Это упрощенная версия, в реальности нужен отдельный метод
             ai_interactions += 1 if hasattr(
-                version,'influences'
+                version, 'influences'
             ) and version.influences else 0
 
         return {
@@ -354,10 +529,9 @@ class LaboratoryService:
         # Дополнительные метрики коллективного интеллекта
         return {
             **analytics,
-            "ai_utilization_rate": 0,  # Процент пользователей, использующих ИИ
+            "ai_utilization_rate": 0,
             "average_interactions_per_solution": 0,
-            "most_effective_ai_suggestions": [],
-            "collaboration_intensity": "medium"  # low, medium, high
+            "collaboration_intensity": "medium"
         }
 
     async def get_community_ai_overview(
@@ -399,8 +573,6 @@ class LaboratoryService:
         timeline = []
 
         for version in versions:
-            # Упрощенная проверка влияния ИИ
-            # В реальности нужно проверять связи с VersionInteractionInfluence
             has_ai_influence = hasattr(version,
                                        'influences') and version.influences
 
@@ -434,7 +606,6 @@ class LaboratoryService:
 
         detailed_interactions = []
         for interaction in interactions:
-            # Получаем детальную информацию о взаимодействии
             interaction_details = await self.data_adapter.get_interaction_with_details(
                 interaction.id
             )
@@ -473,3 +644,7 @@ class LaboratoryService:
                 detailed_interactions.append(formatted_interaction)
 
         return detailed_interactions
+
+    def get_cache_stats(self) -> Dict[str, Any]:
+        """Получение статистики кэша"""
+        return self.cache.get_stats()

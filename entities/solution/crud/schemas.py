@@ -8,6 +8,7 @@ class SolutionAttributes(TypedDict, total=False):
     current_content: str
     status: str
     collective_influence_count: int
+    is_author_like: Optional[bool]
     created_at: datetime
     updated_at: Optional[datetime]
 

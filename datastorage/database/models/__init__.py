@@ -20,6 +20,7 @@ __all__ = (
     'Opinion',
     'Solution',
     'SolutionVersion',
+    'SolutionPreprocessing',
     'CollectiveInteraction',
     'InteractionSuggestion',
     'InteractionCriticism',
@@ -58,6 +59,7 @@ from entities.category.model import Category
 from entities.opinion.model import Opinion
 from entities.solution.model import Solution
 from entities.solution_version.model import SolutionVersion
+from entities.solution_preprocessing.model import SolutionPreprocessing
 from entities.collective_interaction.model import CollectiveInteraction
 from entities.interaction_suggestion.model import InteractionSuggestion
 from entities.interaction_criticism.model import InteractionCriticism

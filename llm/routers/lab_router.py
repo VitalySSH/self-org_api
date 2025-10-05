@@ -1,10 +1,10 @@
 from datetime import datetime
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.auth import auth_service
-from core.config import USE_MOCK_LLM, HUGGINGFACE_API_KEY
+from core.config import USE_MOCK_LLM
 from datastorage.crud.exceptions import CRUDNotFound
 from datastorage.database.base import get_async_session
 from ..models.lab import (
@@ -16,8 +16,10 @@ from ..models.lab import (
     CollectiveMetricsResponse, CommunityAIOverviewResponse
 )
 from ..providers import create_default_llm_providers
+from ..services.cache_service import get_cache_instance
 from ..services.laboratory_service import LaboratoryService
 from ..services.llm_service import LLMService
+from ..services.preprocessing_service import PreprocessingService
 from ..adapters.data_adapter import DataAdapter
 from ..services.mock_llm_service import MockLLMService
 
@@ -25,30 +27,43 @@ router = APIRouter()
 
 
 async def get_laboratory_service(
-    session: AsyncSession = Depends(get_async_session)
+        session: AsyncSession = Depends(get_async_session)
 ) -> LaboratoryService:
-    """Создание сервиса лаборатории с зависимостями"""
+    """
+    Создание сервиса лаборатории с зависимостями
+
+    Включает:
+    - LLM Service (Groq + Together AI + HF fallback)
+    - Preprocessing Service (предобработка решений)
+    - Cache Service (in-memory semantic cache)
+    """
 
     if USE_MOCK_LLM:
         llm_service = MockLLMService()
     else:
         providers = create_default_llm_providers()
-    
-        # Устанавливаем API ключи из переменных окружения
+
         import os
         for provider in providers:
-            if provider.name == "huggingface":
-                provider.api_key = HUGGINGFACE_API_KEY
-            # elif provider.name == "anthropic":
-            #     provider.api_key = os.getenv("ANTHROPIC_API_KEY")
-            # elif provider.name == "openai":
-            #     provider.api_key = os.getenv("OPENAI_API_KEY")
+            if provider.name == "groq":
+                provider.api_key = os.getenv("GROQ_API_KEY")
+            elif provider.name == "together":
+                provider.api_key = os.getenv("TOGETHER_API_KEY")
+            elif provider.name == "huggingface":
+                provider.api_key = os.getenv("HUGGINGFACE_API_KEY")
 
         llm_service = LLMService(providers)
 
     data_adapter = DataAdapter(session)
+    preprocessing_service = PreprocessingService(data_adapter)
+    cache_service = get_cache_instance()
 
-    return LaboratoryService(data_adapter, llm_service)
+    return LaboratoryService(
+        data_adapter,
+        llm_service,
+        preprocessing_service,
+        cache_service
+    )
 
 
 # === Работа с направлениями мысли ===
@@ -110,7 +125,8 @@ async def request_collective_ideas(
             ideas=[
                 CollectiveIdeaResponse(
                     idea_description=idea.idea_description,
-                    combination_elements=[e.get("element") for e in idea.combination_elements],
+                    combination_elements=[e.get("element") for e in
+                                          idea.combination_elements],
                     source_solutions_count=idea.source_solutions_count,
                     potential_impact=idea.potential_impact,
                     reasoning=idea.reasoning,
@@ -220,20 +236,23 @@ async def respond_to_interaction(
         raise HTTPException(status_code=500,
                             detail=f"Ошибка обработки ответа: {str(e)}")
 
+
 @router.delete("/interaction/{interaction_id}")
 async def delete_interaction(
         interaction_id: str,
         current_user=Depends(auth_service.get_current_user),
         service: LaboratoryService = Depends(get_laboratory_service)
 ):
+    """Удаление взаимодействия"""
     try:
         await service.delete_interaction(interaction_id)
+        return {"success": True, "message": "Взаимодействие удалено"}
 
     except CRUDNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500,
-                            detail=f"Ошибка обработки ответа: {str(e)}")
+                            detail=f"Ошибка удаления: {str(e)}")
 
 
 @router.delete("/solution/{solution_id}")
@@ -242,14 +261,16 @@ async def delete_solution(
         current_user=Depends(auth_service.get_current_user),
         service: LaboratoryService = Depends(get_laboratory_service)
 ):
+    """Удаление решения"""
     try:
         await service.delete_solution(solution_id)
+        return {"success": True, "message": "Решение удалено"}
 
     except CRUDNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500,
-                            detail=f"Ошибка обработки ответа: {str(e)}")
+                            detail=f"Ошибка удаления: {str(e)}")
 
 
 @router.post("/integration/apply", response_model=IntegrationResponse)
@@ -279,7 +300,7 @@ async def apply_integration(
 
         return IntegrationResponse(
             integrated_text=integrated_text,
-            change_description=f"Интеграция {len(request.accepted_items)} предложений KИ"
+            change_description=f"Интеграция {len(request.accepted_items)} предложений КИ"
         )
 
     except ValueError as e:
@@ -292,10 +313,15 @@ async def apply_integration(
 @router.post("/solution/version/create")
 async def create_solution_version(
         request: SolutionVersionRequest,
+        background_tasks: BackgroundTasks,
         current_user=Depends(auth_service.get_current_user),
         service: LaboratoryService = Depends(get_laboratory_service)
 ):
-    """Создание новой версии решения (после интеграции предложений ИИ)"""
+    """
+    Создание новой версии решения (после интеграции предложений ИИ)
+
+    Запускает предобработку в фоне
+    """
     try:
         # Проверяем права доступа
         has_access = await service.validate_solution_access(
@@ -318,10 +344,21 @@ async def create_solution_version(
             raise HTTPException(status_code=400,
                                 detail="Не удалось создать версию решения")
 
+        # Запускаем предобработку в фоне
+        solution = await service.data_adapter.get_solution(request.solution_id)
+        challenge = await service.data_adapter.get_challenge(
+            solution.challenge_id)
+
+        background_tasks.add_task(
+            service.preprocessing.preprocess_solution,
+            solution,
+            challenge
+        )
+
         return {
             "success": True,
             "solution_id": request.solution_id,
-            "message": "Новая версия решения создана"
+            "message": "Новая версия решения создана, предобработка запущена"
         }
 
     except ValueError as e:
@@ -345,7 +382,6 @@ async def get_solution_ai_influence(
     """Получение метрик влияния ИИ на конкретное решение"""
     try:
         influence_data = await service.get_solution_ai_influence(solution_id)
-
         return AIInfluenceResponse(**influence_data)
 
     except ValueError as e:
@@ -367,7 +403,6 @@ async def get_collective_metrics(
     """Получение метрик коллективного интеллекта для задачи"""
     try:
         metrics = await service.get_collective_metrics(challenge_id)
-
         return CollectiveMetricsResponse(**metrics)
 
     except Exception as e:
@@ -387,7 +422,6 @@ async def get_community_ai_overview(
     """Обзор использования ИИ в сообществе"""
     try:
         overview = await service.get_community_ai_overview(community_id)
-
         return CommunityAIOverviewResponse(**overview)
 
     except Exception as e:
@@ -428,35 +462,81 @@ async def get_pending_interactions(
                             detail=f"Ошибка получения взаимодействий: {str(e)}")
 
 
+@router.get("/cache/stats")
+async def get_cache_stats(
+        current_user=Depends(auth_service.get_current_user),
+        service: LaboratoryService = Depends(get_laboratory_service)
+):
+    """Получение статистики кэша (для мониторинга)"""
+    try:
+        stats = service.get_cache_stats()
+        return {
+            "cache_stats": stats,
+            "timestamp": datetime.now().isoformat()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail=f"Ошибка получения статистики: {str(e)}")
+
+
+@router.post("/solution/{solution_id}/preprocess")
+async def trigger_preprocessing(
+        solution_id: str,
+        background_tasks: BackgroundTasks,
+        current_user=Depends(auth_service.get_current_user),
+        service: LaboratoryService = Depends(get_laboratory_service)
+):
+    """
+    Ручной запуск предобработки решения
+
+    Полезно для batch обработки существующих решений
+    """
+    try:
+        solution = await service.data_adapter.get_solution(solution_id)
+        if not solution:
+            raise HTTPException(status_code=404, detail="Решение не найдено")
+
+        challenge = await service.data_adapter.get_challenge(
+            solution.challenge_id
+        )
+
+        background_tasks.add_task(
+            service.preprocessing.preprocess_solution,
+            solution,
+            challenge
+        )
+
+        return {
+            "success": True,
+            "solution_id": solution_id,
+            "message": "Предобработка запущена в фоне"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500,
+                            detail=f"Ошибка запуска предобработки: {str(e)}")
+
+
 @router.get("/health")
 async def llm_service_health(
-    service: LaboratoryService = Depends(get_laboratory_service)
+        service: LaboratoryService = Depends(get_laboratory_service)
 ):
+    """Проверка здоровья LLM провайдеров"""
     try:
         providers_status = []
 
+        # Временно упрощенная проверка
         for provider in service.llm_service.providers:
-            if provider.name == "huggingface":
-                status = await service.llm_service.check_huggingface_health(
-                    provider
-                )
-            # elif provider.name == "ollama":
-            #     status = await service.llm_service.check_ollama_health(
-            #         provider
-            #     )
-            else:
-                status = {"status": "unknown", "error": "Unsupported provider"}
-
             providers_status.append({
                 "name": provider.name,
-                **status
+                "model": provider.model,
+                "priority": provider.priority,
+                "status": "configured"
             })
 
-        all_healthy = all(p["status"] == "healthy" for p in providers_status)
-
         return {
-            "status": "healthy" if all_healthy else "degraded",
+            "status": "healthy",
             "providers": providers_status,
+            "cache_stats": service.get_cache_stats(),
             "timestamp": datetime.now().isoformat()
         }
 

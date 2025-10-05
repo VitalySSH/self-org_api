@@ -19,6 +19,7 @@ class TableName:
     OPINION = 'opinion'
     SOLUTION = 'solution'
     SOLUTION_VERSION = 'solution_version'
+    SOLUTION_PREPROCESSING = 'solution_preprocessing'
     RESPONSIBILITY = 'responsibility'
     REQUEST_MEMBER = 'request_member'
     NONCOMPLIANCE = 'noncompliance'

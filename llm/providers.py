@@ -1,43 +1,55 @@
 from typing import List
-
-from llm.services.llm_service import LLMProvider
+from llm.models.lab import LLMProvider
 
 
 def create_default_llm_providers() -> List[LLMProvider]:
-    """Создание конфигурации провайдеров по умолчанию"""
     return [
+        # LLMProvider(
+        #     name="groq",
+        #     api_url="https://api.groq.com/openai/v1/chat/completions",
+        #     model="llama-3.3-70b-versatile",
+        #     max_tokens=4000,
+        #     temperature=0.7,
+        #     timeout=60,
+        #     priority=1
+        # ),
         LLMProvider(
-            name="huggingface",
-            api_url="https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1",
-            model="mistralai/Mistral-7B-Instruct-v0.1",
-            # api_url="https://api-inference.huggingface.co/models/microsoft/DialoGPT-medium",
-            # model="microsoft/DialoGPT-medium",
+            name="together",
+            api_url="https://api.together.xyz/v1/chat/completions",
+            # model="Qwen/Qwen2.5-32B-Instruct-Turbo",
+            model="meta-llama/Llama-3.3-70B-Instruct-Turbo-Free",
             max_tokens=4000,
             temperature=0.7,
+            timeout=60,
             priority=1
         ),
-        # LLMProvider(
-        #     name="ollama",
-        #     api_url="http://localhost:11434/api/generate",
-        #     model="llama2:7b",
-        #     max_tokens=4000,
-        #     temperature=0.7,
-        #     priority=2
-        # ),
-        # LLMProvider(
-        #     name="anthropic",
-        #     api_url="https://api.anthropic.com/v1/messages",
-        #     model="claude-3-5-sonnet-20241022",
-        #     max_tokens=4000,
-        #     temperature=0.7,
-        #     priority=3
-        # ),
-        # LLMProvider(
-        #     name="openai",
-        #     api_url="https://api.openai.com/v1/chat/completions",
-        #     model="gpt-4o-mini",
-        #     max_tokens=4000,
-        #     temperature=0.7,
-        #     priority=4
-        # )
+        LLMProvider(
+            name="huggingface",
+            api_url="https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct",
+            model="Qwen/Qwen2.5-7B-Instruct",
+            max_tokens=2000,
+            temperature=0.7,
+            timeout=30,
+            priority=2
+        ),
     ]
+
+
+def create_provider_for_task(task_type: str, solutions_count: int) -> str:
+    """
+    Выбирает оптимальный провайдер на основе типа задачи и количества решений
+
+    Args:
+        task_type: "directions", "ideas", "improvements", "criticism"
+        solutions_count: количество решений для анализа
+
+    Returns:
+        Имя провайдера
+    """
+    if solutions_count <= 12 and task_type in ["improvements", "criticism"]:
+        return "together"
+
+    if task_type in ["ideas", "directions"] or solutions_count > 12:
+        return "together"
+
+    return "together"

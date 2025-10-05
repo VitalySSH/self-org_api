@@ -33,3 +33,7 @@ FRONT_PORT = int(os.environ.get('FRONT_PORT', '5173'))
 UPLOADED_FILES_PATH = 'filestorage/uploaded_files/'
 
 HUGGINGFACE_API_KEY = os.environ.get('HUGGINGFACE_API_KEY')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
+TOGETHER_API_KEY = os.environ.get('TOGETHER_API_KEY')
+
+AUTH_SECRET_KEY = os.environ.get('AUTH_SECRET_KEY')

@@ -1,5 +1,4 @@
 import json
-import hashlib
 from typing import List, Dict, Any, Optional
 import aiohttp
 
@@ -11,11 +10,14 @@ from llm.models.lab import (
 
 
 class LLMService:
-    """Переработанный LLM сервис для модуля лаборатории"""
 
     def __init__(self, providers: List[LLMProvider]):
         self.providers = sorted(providers, key=lambda x: x.priority)
+        self.providers_dict = {p.name: p for p in providers}
         self.session: Optional[aiohttp.ClientSession] = None
+
+        self.groq_requests_count = 0
+        self.groq_last_reset = None
 
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
@@ -29,12 +31,13 @@ class LLMService:
             self,
             challenge: Challenge,
             existing_solutions: List[Solution],
-            max_directions: int = 5
+            max_directions: int = 5,
+            preferred_provider: str = None
     ) -> List[ThinkingDirection]:
-        """Генерация направлений мысли с готовыми стартовыми решениями"""
+        """Генерация направлений мысли"""
 
         if len(existing_solutions) < 3:
-            return []  # Недостаточно данных для анализа
+            return []
 
         system_prompt = """Ты - аналитик коллективного интеллекта. Анализируй существующие решения и выделяй основные подходы к решению проблемы.
 
@@ -42,9 +45,14 @@ class LLMService:
         - Практические и теоретические подходы
         - Творческие и логические методы  
         - Технические и гуманитарные решения
-
-        Для каждого подхода создай готовый стартовый текст решения (300-500 слов), который новый участник может использовать как отправную точку.
         
+        КРИТИЧЕСКИ ВАЖНЫЕ ТРЕБОВАНИЯ:
+        1. Включай в результат ТОЛЬКО те подходы, которые поддерживаются как минимум 2+ участниками
+        2. Названия подходов должны быть нейтральными и описательными, без оценочных суждений
+        3. Стартовый текст должен быть структурным шаблоном с незавершенными разделами для развития
+        
+        Для каждого подхода создай стартовый шаблон решения как основу для развития, не более 500 слов.
+
         Верни результат строго в формате JSON:
         {
           "directions": [
@@ -53,7 +61,7 @@ class LLMService:
               "description": "Описание философии подхода",
               "key_approaches": ["подход1", "подход2"],
               "participants_count": число_участников,
-              "initial_solution_text": "Готовый стартовый текст решения для новичка",
+              "initial_solution_text": "Структурированный шаблон с разделами для заполнения",
               "example_excerpts": ["цитата1", "цитата2"]
             }
           ]
@@ -65,50 +73,59 @@ class LLMService:
         prompt = f"""
             ЗАДАЧА: {challenge.title}
             ОПИСАНИЕ: {challenge.description}
-            
+
             СУЩЕСТВУЮЩИЕ РЕШЕНИЯ УЧАСТНИКОВ:
             {solutions_text}
-            
+
             Проанализируй решения и выдели {max_directions} основных подходов к решению этой задачи.
-            
+
             Для каждого подхода:
-            1. Найди участников с похожими решениями
-            2. Определи ключевые методы и философию
-            3. Создай готовый стартовый текст (300-500 слов), объединяющий лучшие идеи этого подхода
-            4. Добавь примеры-цитаты из оригинальных решений
+            1. Найди участников (2+ человека) с похожими решениями
+            2. Определи ключевые методы и философию БЕСПРИСТРАСТНО
+            3. Создай структурный шаблон с разделами для развития, объединяющий лучшие идеи этого подхода
+            4. Добавь репрезентативные примеры-цитаты из оригинальных решений
             
-            Стартовый текст должен быть:
-            - Структурированным и понятным
-            - Основанным на реальных решениях участников
-            - Готовым для использования новичком
-            - Оставляющим пространство для творческого развития
+            Шаблон должен:
+            - Содержать НАЧАЛА разделов, а не готовый текст
+            - Быть основой для творческого развития
+            - Сохранять нейтральный тон без оценок
+            - Основаться на реальных решениях группы участников
             """
 
-        response = await self._make_llm_request(prompt, system_prompt, "json")
+        # Выбираем провайдер (Together AI лучше для креативных задач на русском)
+        provider_name = preferred_provider or "together"
+        response = await self._make_llm_request(
+            prompt, system_prompt, "json", provider_name
+        )
         return self._parse_directions_response(response)
 
     async def generate_collective_ideas(
             self,
             target_solution: Solution,
             other_solutions: List[Solution],
-            max_ideas: int = 3
+            max_ideas: int = 3,
+            preferred_provider: str = None
     ) -> List[CollectiveIdea]:
         """Генерация новых идей-комбинаций элементов"""
 
         system_prompt = """Ты - креативный синтезатор коллективного интеллекта. 
             Анализируешь решения и создаешь новые идеи, комбинируя "полезные элементы" из разных решений.
-            
+
             Ищи полезные элементы любого типа:
             - Практические методы и техники
             - Творческие подходы и метафоры
             - Аналитические frameworks
             - Жизненный опыт и аналогии
             - Неожиданные инсайты и наблюдения
-            
+
             Создавай разные типы идей:
             - Практичные и логичные комбинации
             - Неожиданные, но обоснованные синтезы
             
+            КРИТИЧЕСКИЕ ТРЕБОВАНИЯ:
+            1. Описание идеи должно содержать 2-3 предложения, излагающих ТОЛЬКО суть идеи
+            2. Строго запрещено создавать идеи, не основанные на конкретных "полезных элементах" из решений
+
             Верни результат строго в формате JSON:
             {
               "ideas": [
@@ -135,36 +152,39 @@ class LLMService:
         prompt = f"""
             АНАЛИЗИРУЕМОЕ РЕШЕНИЕ:
             {target_solution.current_content}
-            
+
             ДРУГИЕ РЕШЕНИЯ ДЛЯ КОМБИНИРОВАНИЯ:
             {other_solutions_text}
-            
+
             Создай {max_ideas} новые идеи, комбинируя элементы из разных решений:
-            
+
             1. Разложи каждое решение на "полезные элементы" (методы, аналогии, инсайты, подходы)
             2. Найди интересные комбинации элементов из РАЗНЫХ решений
             3. Убедись, что комбинации НЕ присутствуют в анализируемом решении
             4. Каждая идея должна использовать элементы минимум из 2 разных решений
             5. Идеи должны быть логически обоснованными
             6. Создавай разные типы идей: как практичные, так и неожиданные
-            
+
             НЕ предлагай то, что уже есть в анализируемом решении!
             """
 
-        response = await self._make_llm_request(prompt, system_prompt, "json")
+        provider_name = preferred_provider or "together"
+        response = await self._make_llm_request(prompt, system_prompt, "json",
+                                                provider_name)
         return self._parse_ideas_response(response)
 
     async def generate_improvement_suggestions(
             self,
             target_solution: Solution,
             other_solutions: List[Solution],
-            max_suggestions: int = 4
+            max_suggestions: int = 4,
+            preferred_provider: str = None
     ) -> List[ImprovementSuggestion]:
         """Генерация предложений по улучшению решения"""
 
         system_prompt = """Ты - консультант по улучшению решений. 
             Анализируешь решение и предлагаешь конкретные улучшения на основе опыта других участников.
-            
+
             Верни результат строго в формате JSON:
             {
               "suggestions": [
@@ -185,25 +205,32 @@ class LLMService:
         prompt = f"""
             АНАЛИЗИРУЕМОЕ РЕШЕНИЕ:
             {target_solution.current_content}
-            
+
             РЕШЕНИЯ ДРУГИХ УЧАСТНИКОВ:
             {other_solutions_text}
-            
-            Предложи {max_suggestions} конкретных улучшения для анализируемого решения:
-            
+
+            Предложи {max_suggestions} конкретных улучшений для анализируемого решения:
+
             1. Найди элементы решения, которые можно усилить
             2. Найди в других решениях успешные подходы к похожим элементам
             3. Предложи конкретные способы улучшения
             
+            ВАЖНЫЕ ТРЕБОВАНИЯ К ПРИМЕРАМ:
+            - В source_examples приводи ТОЧНЫЕ идеи из решений в виде 2-3 предложений
+            - Примеры должны быть ОБЕЗЛИЧЕНЫ: не упоминай номера решений, авторов или идентификаторы
+            - Каждый пример должен конкретно описывать подход или метод из реального решения
+            - Избегай общих фраз, фокусируйся на конкретных деталях из текстов решений
+
             Фокусируйся на:
-            - Практических, применимых предложениях для данной задачи
+            - Практичных, применимых предложениях для данной задачи
             - Конкретных элементах, а не общих рекомендациях  
             - Примерах из реальных решений других участников
             - Улучшениях, релевантных типу задачи
             """
 
+        provider_name = preferred_provider or "together"
         response = await self._make_llm_request(
-            prompt, system_prompt, "json"
+            prompt, system_prompt, "json", provider_name
         )
         return self._parse_suggestions_response(response)
 
@@ -211,13 +238,14 @@ class LLMService:
             self,
             target_solution: Solution,
             other_solutions: List[Solution],
-            max_criticisms: int = 3
+            max_criticisms: int = 3,
+            preferred_provider: str = None
     ) -> List[CriticismPoint]:
         """Генерация конструктивной критики решения"""
 
         system_prompt = """Ты - критический аналитик решений. 
             Находишь потенциальные слабые места и проблемы в решении на основе сравнения с другими подходами.
-            
+
             Верни результат строго в формате JSON:
             {
               "criticisms": [
@@ -237,27 +265,33 @@ class LLMService:
         prompt = f"""
             АНАЛИЗИРУЕМОЕ РЕШЕНИЕ:
             {target_solution.current_content}
-            
+
             ДРУГИЕ РЕШЕНИЯ ДЛЯ СРАВНЕНИЯ:
             {other_solutions_text}
-            
-            Найди {max_criticisms} обоснованных критических замечания:
-            
+
+            Найди {max_criticisms} обоснованных критических замечаний:
+
             1. Сравни решение с альтернативными подходами
             2. Найди потенциальные слабые места или упущения
             3. Для каждой критики предложи способ исправления
             4. Используй примеры из других решений как доказательство
             
+            ВАЖНЫЕ ТРЕБОВАНИЯ:
+            - В reasoning используй ОБЕЗЛИЧЕННЫЕ формулировки: описывай подходы, а не конкретные решения
+            - Не упоминай номера решений, авторов или идентификаторы в reasoning
+            - Фокусируйся на методологических различиях и альтернативных подходах
+
             Критика должна быть:
             - Конструктивной (с предложением исправления)
             - Обоснованной (с примерами из других решений)
             - Конкретной (не общие фразы)
-            
+
             НЕ критикуй стиль изложения - только содержательные аспекты!
             """
 
+        provider_name = preferred_provider or "together"
         response = await self._make_llm_request(
-            prompt, system_prompt, "json"
+            prompt, system_prompt, "json", provider_name
         )
         return self._parse_criticism_response(response)
 
@@ -273,32 +307,45 @@ class LLMService:
 
         Создай улучшенную версию решения, которая:
         1. Сохраняет авторский стиль и структуру
-        2. Логично интегрирует принятые предложения
+        2. Логично интегрирует принятые предложения только в нужные места
         3. Обеспечивает связность и читаемость текста
-        4. Выделяет изменения маркерами [ДОБАВЛЕНО: ...] или [ИЗМЕНЕНО: ...]"""
+        4. Не изменяет неизмененные части текста
+        """
 
-        items_text = self._format_accepted_items(accepted_items,
-                                                 user_modifications)
+        items_text = self._format_accepted_items(
+            accepted_items, user_modifications
+        )
 
         prompt = f"""
             ТЕКУЩЕЕ РЕШЕНИЕ:
             {current_solution.current_content}
-            
+
             ПРИНЯТЫЕ ПРЕДЛОЖЕНИЯ ДЛЯ ИНТЕГРАЦИИ:
             {items_text}
+
+            АККУРАТНО интегрируй предложения в существующее решение:
             
-            Создай улучшенную версию решения:
-            1. Интегрируй все принятые предложения
-            2. Сохрани авторский стиль
-            3. Обеспечь логическую связность
-            4. Выдели изменения маркерами [ДОБАВЛЕНО: ...] или [ИЗМЕНЕНО: ...]
-            5. Убедись, что текст читается естественно
+            СТРОГИЕ ОГРАНИЧЕНИЯ:
+            1. ЗАПРЕЩЕНО изменять текст в разделах, не связанных с принятыми предложениями
+            2. ЗАПРЕЩЕНО переписывать оригинальные формулировки без необходимости
+            3. ЗАПРЕЩЕНО менять структуру текста, кроме целевых мест интеграции
+            4. Разрешается изменять ТОЛЬКО те части текста, которые непосредственно связаны с предложениями
             
-            Финальный текст должен быть цельным и гармоничным.
+            ВАЖНЫЕ ПРАВИЛА РЕДАКТИРОВАНИЯ:
+            1. Сохраняй оригинальную структуру текста - не переписывай полностью
+            2. Вноси изменения ТОЛЬКО в те разделы, которые затрагиваются предложениями
+            3. При интеграции новых идей старайся использовать стиль и лексику автора
+            6. Избегай полного переписывания текста - только точечные улучшения
+            
+            ЦЕЛЬ: Пользователь должен видеть, что это то же самое решение, но улучшенное, а не полностью новый текст.
+            
+            Ограничение: объём текста не должен превышать 3000 символов.
+            
+            Финальный текст должен сохранять узнаваемость оригинала при интеграции улучшений.
             """
 
         response = await self._make_llm_request(
-            prompt, system_prompt, "text"
+            prompt, system_prompt, "text", "together"
         )
         return response.get("text", "")
 
@@ -308,16 +355,24 @@ class LLMService:
             self,
             prompt: str,
             system_prompt: str = "",
-            response_format: str = "text"
+            response_format: str = "text",
+            preferred_provider: str = None
     ) -> Dict[str, Any]:
         """Выполнение запроса к LLM с fallback"""
 
         if not self.session:
             self.session = aiohttp.ClientSession()
 
+        # Если указан preferred_provider, пробуем его первым
+        providers = list(self.providers)
+        if preferred_provider and preferred_provider in self.providers_dict:
+            pref = self.providers_dict[preferred_provider]
+            providers = [pref] + [p for p in providers if
+                                  p.name != preferred_provider]
+
         last_error = None
 
-        for provider in self.providers:
+        for provider in providers:
             try:
                 response = await self._call_provider(
                     provider, prompt, system_prompt, response_format
@@ -340,24 +395,62 @@ class LLMService:
     ) -> Dict[str, Any]:
         """Вызов конкретного провайдера"""
 
-        if provider.name == "huggingface":
+        if provider.name == "groq":
+            return await self._call_openai_compatible(
+                provider, prompt, system_prompt, response_format
+            )
+        elif provider.name == "together":
+            return await self._call_openai_compatible(
+                provider, prompt, system_prompt, response_format
+            )
+        elif provider.name == "huggingface":
             return await self._call_huggingface(
                 provider, prompt, system_prompt, response_format
             )
-        # elif provider.name == "ollama":
-        #     return await self._call_ollama(
-        #         provider, prompt, system_prompt, response_format
-        #     )
-        # elif provider.name == "anthropic":
-        #     return await self._call_anthropic(
-        #         provider, prompt, system_prompt,response_format
-        #     )
-        # elif provider.name == "openai":
-        #     return await self._call_openai(
-        #         provider, prompt, system_prompt, response_format
-        #     )
         else:
             raise ValueError(f"Unknown provider: {provider.name}")
+
+    async def _call_openai_compatible(
+            self,
+            provider: LLMProvider,
+            prompt: str,
+            system_prompt: str,
+            response_format: str,
+    ) -> Dict[str, Any]:
+        """Вызов OpenAI-совместимых API (Groq, Together AI)"""
+
+        headers = {
+            "Authorization": f"Bearer {provider.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+        messages.append({"role": "user", "content": prompt})
+
+        payload = {
+            "model": provider.model,
+            "messages": messages,
+            "max_tokens": provider.max_tokens,
+            "temperature": provider.temperature
+        }
+
+        async with self.session.post(
+                provider.api_url,
+                json=payload,
+                headers=headers,
+                timeout=provider.timeout
+        ) as response:
+            if response.status == 200:
+                data = await response.json()
+                content = data["choices"][0]["message"]["content"]
+                return self._parse_response(content, response_format)
+            else:
+                error_text = await response.text()
+                raise Exception(
+                    f"{provider.name} API error {response.status}: {error_text}"
+                )
 
     async def _call_huggingface(
             self,
@@ -404,104 +497,6 @@ class LLMService:
                 error_text = await response.text()
                 raise Exception(
                     f"Hugging Face API error {response.status}: {error_text}")
-
-    async def _call_ollama(
-            self,
-            provider: LLMProvider,
-            prompt: str,
-            system_prompt: str,
-            response_format: str,
-    ) -> Dict[str, Any]:
-        """Вызов локального Ollama"""
-        payload = {
-            "model": provider.model,
-            "prompt": f"{system_prompt}\n\n{prompt}" if system_prompt else prompt,
-            "stream": False,
-            "options": {
-                "temperature": provider.temperature,
-                "num_predict": provider.max_tokens
-            }
-        }
-
-        async with self.session.post(
-                provider.api_url, json=payload, timeout=provider.timeout
-        ) as response:
-            if response.status == 200:
-                data = await response.json()
-                content = data.get("response", "")
-                return self._parse_response(content, response_format)
-            else:
-                error_text = await response.text()
-                raise Exception(
-                    f"Ollama API error {response.status}: {error_text}"
-                )
-
-    async def _call_anthropic(
-            self, provider: LLMProvider, prompt: str, system_prompt: str,
-            response_format: str
-    ) -> Dict[str, Any]:
-        """Вызов Anthropic Claude API"""
-        headers = {
-            "Content-Type": "application/json",
-            "x-api-key": provider.api_key,
-            "anthropic-version": "2023-06-01"
-        }
-
-        payload = {
-            "model": provider.model,
-            "max_tokens": provider.max_tokens,
-            "temperature": provider.temperature,
-            "system": system_prompt,
-            "messages": [{"role": "user", "content": prompt}]
-        }
-
-        async with self.session.post(
-                provider.api_url,
-                json=payload,
-                headers=headers,
-                timeout=provider.timeout
-        ) as response:
-            if response.status == 200:
-                data = await response.json()
-                content = data["content"][0]["text"]
-                return self._parse_response(content, response_format)
-            else:
-                raise Exception(f"Anthropic API error: {response.status}")
-
-    async def _call_openai(
-            self, provider: LLMProvider, prompt: str, system_prompt: str,
-            response_format: str
-    ) -> Dict[str, Any]:
-        """Вызов OpenAI API"""
-        headers = {
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {provider.api_key}"
-        }
-
-        messages = []
-        if system_prompt:
-            messages.append({"role": "system", "content": system_prompt})
-        messages.append({"role": "user", "content": prompt})
-
-        payload = {
-            "model": provider.model,
-            "messages": messages,
-            "max_tokens": provider.max_tokens,
-            "temperature": provider.temperature
-        }
-
-        async with self.session.post(
-                provider.api_url,
-                json=payload,
-                headers=headers,
-                timeout=provider.timeout
-        ) as response:
-            if response.status == 200:
-                data = await response.json()
-                content = data["choices"][0]["message"]["content"]
-                return self._parse_response(content, response_format)
-            else:
-                raise Exception(f"OpenAI API error: {response.status}")
 
     @staticmethod
     def _parse_response(content: str, response_format: str) -> Dict[str, Any]:
@@ -673,58 +668,3 @@ class LLMService:
             return criticisms
         except Exception:
             return []
-
-    @staticmethod
-    def generate_cache_key(operation: str,params: Dict[str, Any]) -> str:
-        """Генерация ключа кэша для операции"""
-        param_str = json.dumps(params, sort_keys=True)
-        combined = f"{operation}:{param_str}"
-        return hashlib.md5(combined.encode()).hexdigest()
-
-    @staticmethod
-    async def check_huggingface_health(provider: LLMProvider) -> dict:
-        try:
-            async with aiohttp.ClientSession() as session:
-                headers = {"Authorization": f"Bearer {provider.api_key}"}
-
-
-                async with session.head(
-                        provider.api_url,
-                        headers=headers,
-                        timeout=5
-                ) as response:
-                    return {
-                        "status": "healthy" if response.status in [
-                            200, 401, 403
-                        ] else "unhealthy",
-                        "http_status": response.status
-                    }
-
-        except Exception as e:
-            return {"status": "unhealthy", "error": str(e)}
-
-    @staticmethod
-    async def check_ollama_health(provider: LLMProvider) -> dict:
-        try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get(
-                        "http://localhost:11434/api/tags",
-                        timeout=10
-                ) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        models = [model["name"] for model in
-                                  data.get("models", [])]
-                        model_available = provider.model in models
-
-                        return {
-                            "status": "healthy" if model_available else "degraded",
-                            "models_available": models,
-                            "target_model_available": model_available
-                        }
-                    else:
-                        return {"status": "unhealthy",
-                                "error": f"Ollama not responding: {response.status}"}
-
-        except Exception as e:
-            return {"status": "unhealthy", "error": str(e)}

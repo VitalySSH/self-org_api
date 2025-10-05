@@ -9,6 +9,7 @@ from datastorage.database.models import (
     InteractionSuggestion, InteractionCriticism, InteractionCombination,
     CombinationSourceElement, VersionInteractionInfluence
 )
+from entities.solution_preprocessing.model import SolutionPreprocessing
 
 
 class DataAdapter:
@@ -557,3 +558,30 @@ class DataAdapter:
                 [p for p in influence_percentages if p > 0]
             ),
         }
+
+    async def get_or_create_preprocessing(
+            self,
+            solution_id: str
+    ) -> Optional[SolutionPreprocessing]:
+        """Получение предобработки или None если не существует"""
+        ds = CRUDDataStorage(model=SolutionPreprocessing, session=self.session)
+        async with ds.session_scope(read_only=True):
+            return await ds.first(
+                filters=[Filter(field="solution_id", op=Operation.EQ,
+                                val=solution_id)]
+            )
+
+    async def update_preprocessing(
+            self,
+            solution_id: str,
+            **kwargs
+    ) -> bool:
+        """Обновление предобработки"""
+        ds = CRUDDataStorage(model=SolutionPreprocessing, session=self.session)
+        prep = await self.get_or_create_preprocessing(solution_id)
+        if prep:
+            for key, value in kwargs.items():
+                if hasattr(prep, key):
+                    setattr(prep, key, value)
+            return True
+        return False
