@@ -44,6 +44,10 @@ services:
       PORT: "8000"
       FRONT_HOST: ${FRONT_HOST}
       FRONT_PORT: ${FRONT_PORT}
+      USE_MOCK_LLM: "false"
+      HUGGINGFACE_API_KEY: ${HUGGINGFACE_API_KEY}
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      TOGETHER_API_KEY: ${TOGETHER_API_KEY}
     ports:
       - "8000:8000"
     command: >

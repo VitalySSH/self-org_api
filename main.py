@@ -36,7 +36,7 @@ app = FastAPI(
         'name': 'MIT'
     },
     root_path='/api/v1',
-    debug=config.PRODUCTION_MODE,
+    debug=not config.PRODUCTION_MODE,
     lifespan=lifespan,
 )
 
