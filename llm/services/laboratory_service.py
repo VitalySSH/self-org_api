@@ -89,10 +89,10 @@ class LaboratoryService:
                 "Недостаточно решений для анализа коллективного интеллекта")
 
         # 1. Проверяем кэш
-        other_ids = [s.id for s in other_solutions]
-        cached = await self.cache.get(solution_id, "ideas", other_ids)
-        if cached:
-            return cached
+        # other_ids = [s.id for s in other_solutions]
+        # cached = await self.cache.get(solution_id, "ideas", other_ids)
+        # if cached:
+        #     return cached
 
         # 2. Выбираем стратегию анализа на основе количества решений
         n = len(other_solutions)
@@ -159,7 +159,7 @@ class LaboratoryService:
         }
 
         # 4. Сохраняем в кэш
-        await self.cache.set(solution_id, "ideas", other_ids, result, ttl=1800)
+        # await self.cache.set(solution_id, "ideas", other_ids, result, ttl=1800)
 
         return result
 
@@ -182,10 +182,10 @@ class LaboratoryService:
             raise ValueError("Недостаточно решений для генерации предложений")
 
         # Проверяем кэш
-        other_ids = [s.id for s in other_solutions]
-        cached = await self.cache.get(solution_id, "improvements", other_ids)
-        if cached:
-            return cached
+        # other_ids = [s.id for s in other_solutions]
+        # cached = await self.cache.get(solution_id, "improvements", other_ids)
+        # if cached:
+        #     return cached
 
         # Адаптивная стратегия
         n = len(other_solutions)
@@ -233,8 +233,7 @@ class LaboratoryService:
         }
 
         # Кэшируем
-        await self.cache.set(solution_id, "improvements", other_ids, result,
-                             ttl=1800)
+        # await self.cache.set(solution_id, "improvements", other_ids, result, ttl=1800)
 
         return result
 
@@ -257,10 +256,10 @@ class LaboratoryService:
             raise ValueError("Недостаточно решений для генерации критики")
 
         # Проверяем кэш
-        other_ids = [s.id for s in other_solutions]
-        cached = await self.cache.get(solution_id, "criticism", other_ids)
-        if cached:
-            return cached
+        # other_ids = [s.id for s in other_solutions]
+        # cached = await self.cache.get(solution_id, "criticism", other_ids)
+        # if cached:
+        #     return cached
 
         # Адаптивная стратегия
         n = len(other_solutions)
@@ -307,8 +306,7 @@ class LaboratoryService:
         }
 
         # Кэшируем
-        await self.cache.set(solution_id, "criticism", other_ids, result,
-                             ttl=1800)
+        # await self.cache.set(solution_id, "criticism", other_ids, result, ttl=1800)
 
         return result
 
@@ -448,7 +446,7 @@ class LaboratoryService:
         await self.data_adapter.session.commit()
 
         # Инвалидируем кэш для этого решения
-        await self.cache.invalidate(solution_id=solution_id)
+        # await self.cache.invalidate(solution_id=solution_id)
 
     async def integrate_accepted_items(
             self,
@@ -489,7 +487,7 @@ class LaboratoryService:
         await self.data_adapter.session.commit()
 
         # Инвалидируем кэш для этого решения
-        await self.cache.invalidate(solution_id=solution_id)
+        # await self.cache.invalidate(solution_id=solution_id)
 
         return success
 

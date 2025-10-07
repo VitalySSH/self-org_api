@@ -58,8 +58,8 @@ class SemanticCache:
         self.hits = 0
         self.misses = 0
 
+    @staticmethod
     def _create_cache_key(
-            self,
             solution_id: str,
             request_type: str,
             other_solutions_ids: List[str]
@@ -77,8 +77,8 @@ class SemanticCache:
         data = f"{solution_id}:{request_type}:{':'.join(sorted_ids)}"
         return hashlib.md5(data.encode()).hexdigest()
 
+    @staticmethod
     def _create_embedding(
-            self,
             solution_id: str,
             request_type: str,
             other_solutions_ids: List[str],
@@ -126,8 +126,11 @@ class SemanticCache:
         self._cleanup_expired()
 
         # 1. Точное совпадение
-        key = self._create_cache_key(solution_id, request_type,
-                                     other_solutions_ids)
+        key = self._create_cache_key(
+            solution_id,
+            request_type,
+            other_solutions_ids
+        )
         if key in self.cache:
             entry = self.cache[key]
             entry.hits += 1
@@ -235,7 +238,8 @@ class SemanticCache:
         """Получение статистики кэша"""
         total_requests = self.hits + self.misses
         hit_rate = (
-                    self.hits / total_requests * 100) if total_requests > 0 else 0
+                self.hits / total_requests * 100
+        ) if total_requests > 0 else 0
 
         return {
             "size": len(self.cache),
