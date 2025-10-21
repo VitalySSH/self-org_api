@@ -16,7 +16,8 @@ from ..models.lab import (
     CollectiveMetricsResponse, CommunityAIOverviewResponse
 )
 from ..providers import create_default_llm_providers
-from ..services.cache_service import get_cache_instance
+from ..services.rate_limiting_service import get_rate_limiting_service
+from ..services.token_calculator_service import get_token_calculator
 from ..services.laboratory_service import LaboratoryService
 from ..services.llm_service import LLMService
 from ..services.preprocessing_service import PreprocessingService
@@ -29,6 +30,7 @@ router = APIRouter()
 async def get_laboratory_service(
         session: AsyncSession = Depends(get_async_session)
 ) -> LaboratoryService:
+    """Фабрика для создания LaboratoryService."""
 
     if USE_MOCK_LLM:
         llm_service = MockLLMService()
@@ -48,13 +50,15 @@ async def get_laboratory_service(
 
     data_adapter = DataAdapter(session)
     preprocessing_service = PreprocessingService(data_adapter)
-    cache_service = get_cache_instance()
+    rate_limiting_service = get_rate_limiting_service()
+    token_calculator = get_token_calculator()
 
     return LaboratoryService(
         data_adapter,
         llm_service,
         preprocessing_service,
-        cache_service
+        rate_limiting_service,
+        token_calculator
     )
 
 
@@ -68,18 +72,39 @@ async def generate_thinking_directions(
 ):
     """Генерация направлений мысли для новых участников с готовыми стартовыми решениями"""
     try:
+        # Проверка rate limit
+        allowed, seconds_remaining = service.rate_limiter.check_rate_limit(
+            user_id=current_user.id,
+            request_type="directions"
+        )
+
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limit_exceeded",
+                    "message": "Вы можете делать запрос этого типа раз в 30 минут",
+                    "seconds_remaining": seconds_remaining,
+                    "request_type": "directions"
+                }
+            )
+
+        # Генерируем направления
         directions = await service.generate_thinking_directions(
             challenge_id=request.challenge_id,
             user_id=request.user_id
         )
 
+        # Записываем факт запроса
+        service.rate_limiter.record_request(
+            user_id=current_user.id,
+            request_type="directions"
+        )
+
         # Получаем информацию о задаче для ответа
-        challenge = await service.data_adapter.get_challenge(
-            request.challenge_id
-        )
+        challenge = await service.data_adapter.get_challenge(request.challenge_id)
         solutions = await service.data_adapter.get_challenge_solutions(
-            request.challenge_id
-        )
+            request.challenge_id)
 
         return DirectionsResponse(
             directions=[
@@ -93,8 +118,10 @@ async def generate_thinking_directions(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка генерации направлений: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка генерации направлений: {str(e)}"
+        )
 
 
 # === Запросы к коллективному интеллекту ===
@@ -107,9 +134,33 @@ async def request_collective_ideas(
 ):
     """Запрос новых идей (комбинации элементов) от коллективного интеллекта"""
     try:
+        # Проверка rate limit
+        allowed, seconds_remaining = service.rate_limiter.check_rate_limit(
+            user_id=current_user.id,
+            request_type="ideas"
+        )
+
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limit_exceeded",
+                    "message": "Вы можете делать запрос этого типа раз в 30 минут",
+                    "seconds_remaining": seconds_remaining,
+                    "request_type": "ideas"
+                }
+            )
+
+        # Генерируем идеи
         result = await service.request_collective_ideas(
             solution_id=request.solution_id,
             max_ideas=request.max_items or 3
+        )
+
+        # Записываем факт запроса
+        service.rate_limiter.record_request(
+            user_id=current_user.id,
+            request_type="ideas"
         )
 
         return IdeasResponse(
@@ -117,8 +168,9 @@ async def request_collective_ideas(
             ideas=[
                 CollectiveIdeaResponse(
                     idea_description=idea.idea_description,
-                    combination_elements=[e.get("element") for e in
-                                          idea.combination_elements],
+                    combination_elements=[
+                        e.get("element") for e in idea.combination_elements
+                    ],
                     source_solutions_count=idea.source_solutions_count,
                     potential_impact=idea.potential_impact,
                     reasoning=idea.reasoning,
@@ -131,8 +183,10 @@ async def request_collective_ideas(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка запроса идей: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка запроса идей: {str(e)}"
+        )
 
 
 @router.post("/improvements/request", response_model=ImprovementsResponse)
@@ -143,9 +197,33 @@ async def request_improvement_suggestions(
 ):
     """Запрос предложений по улучшению решения"""
     try:
+        # Проверка rate limit
+        allowed, seconds_remaining = service.rate_limiter.check_rate_limit(
+            user_id=current_user.id,
+            request_type="improvements"
+        )
+
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limit_exceeded",
+                    "message": "Вы можете делать запрос этого типа раз в 30 минут",
+                    "seconds_remaining": seconds_remaining,
+                    "request_type": "improvements"
+                }
+            )
+
+        # Генерируем предложения
         result = await service.request_improvement_suggestions(
             solution_id=request.solution_id,
             max_suggestions=request.max_items or 4
+        )
+
+        # Записываем факт запроса
+        service.rate_limiter.record_request(
+            user_id=current_user.id,
+            request_type="improvements"
         )
 
         return ImprovementsResponse(
@@ -160,8 +238,10 @@ async def request_improvement_suggestions(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка запроса улучшений: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка запроса улучшений: {str(e)}"
+        )
 
 
 @router.post("/criticism/request", response_model=CriticismResponse)
@@ -172,9 +252,33 @@ async def request_solution_criticism(
 ):
     """Запрос критики решения от коллективного интеллекта"""
     try:
+        # Проверка rate limit
+        allowed, seconds_remaining = service.rate_limiter.check_rate_limit(
+            user_id=current_user.id,
+            request_type="criticism"
+        )
+
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "error": "rate_limit_exceeded",
+                    "message": "Вы можете делать запрос этого типа раз в 30 минут",
+                    "seconds_remaining": seconds_remaining,
+                    "request_type": "criticism"
+                }
+            )
+
+        # Генерируем критику
         result = await service.request_solution_criticism(
             solution_id=request.solution_id,
             max_criticisms=request.max_items or 3
+        )
+
+        # Записываем факт запроса
+        service.rate_limiter.record_request(
+            user_id=current_user.id,
+            request_type="criticism"
         )
 
         return CriticismResponse(
@@ -189,8 +293,10 @@ async def request_solution_criticism(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка запроса критики: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка запроса критики: {str(e)}"
+        )
 
 
 # === Обработка ответов пользователя ===
@@ -206,14 +312,14 @@ async def respond_to_interaction(
     try:
         success = await service.respond_to_interaction(
             interaction_id=interaction_id,
-            item_responses=[
-                item.model_dump() for item in response.item_responses
-            ]
+            item_responses=[item.model_dump() for item in response.item_responses]
         )
 
         if not success:
-            raise HTTPException(status_code=404,
-                                detail="Взаимодействие не найдено")
+            raise HTTPException(
+                status_code=404,
+                detail="Взаимодействие не найдено"
+            )
 
         return {
             "success": True,
@@ -225,8 +331,10 @@ async def respond_to_interaction(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка обработки ответа: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка обработки ответа: {str(e)}"
+        )
 
 
 @router.delete("/interaction/{interaction_id}")
@@ -243,8 +351,10 @@ async def delete_interaction(
     except CRUDNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка удаления: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка удаления: {str(e)}"
+        )
 
 
 @router.delete("/solution/{solution_id}")
@@ -261,8 +371,10 @@ async def delete_solution(
     except CRUDNotFound as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка удаления: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка удаления: {str(e)}"
+        )
 
 
 @router.post("/integration/apply", response_model=IntegrationResponse)
@@ -280,8 +392,10 @@ async def apply_integration(
         )
 
         if not has_access:
-            raise HTTPException(status_code=403,
-                                detail="Нет прав доступа к решению")
+            raise HTTPException(
+                status_code=403,
+                detail="Нет прав доступа к решению"
+            )
 
         integrated_text = await service.integrate_accepted_items(
             solution_id=request.solution_id,
@@ -298,8 +412,10 @@ async def apply_integration(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка интеграции: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка интеграции: {str(e)}"
+        )
 
 
 @router.post("/solution/version/create")
@@ -322,8 +438,10 @@ async def create_solution_version(
         )
 
         if not has_access:
-            raise HTTPException(status_code=403,
-                                detail="Нет прав доступа к решению")
+            raise HTTPException(
+                status_code=403,
+                detail="Нет прав доступа к решению"
+            )
 
         success = await service.create_solution_version(
             solution_id=request.solution_id,
@@ -333,13 +451,14 @@ async def create_solution_version(
         )
 
         if not success:
-            raise HTTPException(status_code=400,
-                                detail="Не удалось создать версию решения")
+            raise HTTPException(
+                status_code=400,
+                detail="Не удалось создать версию решения"
+            )
 
         # Запускаем предобработку в фоне
         solution = await service.data_adapter.get_solution(request.solution_id)
-        challenge = await service.data_adapter.get_challenge(
-            solution.challenge_id)
+        challenge = await service.data_adapter.get_challenge(solution.challenge_id)
 
         background_tasks.add_task(
             service.preprocessing.preprocess_solution,
@@ -356,8 +475,10 @@ async def create_solution_version(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка создания версии: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка создания версии: {str(e)}"
+        )
 
 
 # === Аналитика и метрики ИИ ===
@@ -379,8 +500,10 @@ async def get_solution_ai_influence(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка получения метрик: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка получения метрик: {str(e)}"
+        )
 
 
 @router.get(
@@ -398,8 +521,10 @@ async def get_collective_metrics(
         return CollectiveMetricsResponse(**metrics)
 
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка получения метрик: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка получения метрик: {str(e)}"
+        )
 
 
 @router.get(
@@ -417,8 +542,10 @@ async def get_community_ai_overview(
         return CommunityAIOverviewResponse(**overview)
 
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка получения обзора: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка получения обзора: {str(e)}"
+        )
 
 
 # === Вспомогательные эндпоинты ===
@@ -438,8 +565,10 @@ async def get_pending_interactions(
         )
 
         if not has_access:
-            raise HTTPException(status_code=403,
-                                detail="Нет прав доступа к решению")
+            raise HTTPException(
+                status_code=403,
+                detail="Нет прав доступа к решению"
+            )
 
         interactions = await service.get_pending_interactions(solution_id)
 
@@ -450,25 +579,29 @@ async def get_pending_interactions(
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка получения взаимодействий: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка получения взаимодействий: {str(e)}"
+        )
 
 
-@router.get("/cache/stats")
-async def get_cache_stats(
+@router.get("/rate-limit/stats")
+async def get_rate_limit_stats(
         current_user=Depends(auth_service.get_current_user),
         service: LaboratoryService = Depends(get_laboratory_service)
 ):
-    """Получение статистики кэша (для мониторинга)"""
+    """Получение статистики rate limiting (для мониторинга)"""
     try:
-        stats = service.get_cache_stats()
+        stats = service.get_rate_limit_stats()
         return {
-            "cache_stats": stats,
+            "rate_limit_stats": stats,
             "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка получения статистики: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка получения статистики: {str(e)}"
+        )
 
 
 @router.post("/solution/{solution_id}/preprocess")
@@ -488,9 +621,7 @@ async def trigger_preprocessing(
         if not solution:
             raise HTTPException(status_code=404, detail="Решение не найдено")
 
-        challenge = await service.data_adapter.get_challenge(
-            solution.challenge_id
-        )
+        challenge = await service.data_adapter.get_challenge(solution.challenge_id)
 
         background_tasks.add_task(
             service.preprocessing.preprocess_solution,
@@ -504,31 +635,34 @@ async def trigger_preprocessing(
             "message": "Предобработка запущена в фоне"
         }
     except Exception as e:
-        raise HTTPException(status_code=500,
-                            detail=f"Ошибка запуска предобработки: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ошибка запуска предобработки: {str(e)}"
+        )
 
 
 @router.get("/health")
 async def llm_service_health(
         service: LaboratoryService = Depends(get_laboratory_service)
 ):
-    """Проверка здоровья LLM провайдеров"""
+    """Проверка здоровья LLM провайдеров и сервисов"""
     try:
         providers_status = []
 
-        # Временно упрощенная проверка
         for provider in service.llm_service.providers:
             providers_status.append({
                 "name": provider.name,
                 "model": provider.model,
                 "priority": provider.priority,
+                "max_tokens": provider.max_tokens,
+                "max_context": provider.max_context_tokens,
                 "status": "configured"
             })
 
         return {
             "status": "healthy",
             "providers": providers_status,
-            "cache_stats": service.get_cache_stats(),
+            "rate_limiting": service.get_rate_limit_stats(),
             "timestamp": datetime.now().isoformat()
         }
 
@@ -538,3 +672,95 @@ async def llm_service_health(
             "error": str(e),
             "timestamp": datetime.now().isoformat()
         }
+
+
+@router.get("/rate-limit/check/{request_type}")
+async def check_rate_limit_availability(
+        request_type: str,
+        current_user=Depends(auth_service.get_current_user),
+        service: LaboratoryService = Depends(get_laboratory_service)
+):
+    """Проверка доступности запроса к LLM для текущего пользователя."""
+    # Валидация типа запроса
+    valid_types = ["ideas", "improvements", "criticism", "directions"]
+    if request_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "invalid_request_type",
+                "message": f"Неверный тип запроса. Допустимые: {', '.join(valid_types)}",
+                "valid_types": valid_types
+            }
+        )
+
+    # Проверяем rate limit
+    allowed, seconds_remaining = service.rate_limiter.check_rate_limit(
+        user_id=current_user.id,
+        request_type=request_type
+    )
+
+    if allowed:
+        return {
+            "available": True,
+            "request_type": request_type,
+            "message": "Запрос доступен",
+            "seconds_remaining": 0
+        }
+    else:
+        # Вычисляем читаемое время
+        minutes = seconds_remaining // 60
+        seconds = seconds_remaining % 60
+
+        return {
+            "available": False,
+            "request_type": request_type,
+            "message": f"Запрос будет доступен через {minutes} минут {seconds} секунд",
+            "seconds_remaining": seconds_remaining,
+            "minutes_remaining": minutes,
+            "formatted_time": f"{minutes}:{seconds:02d}"
+        }
+
+
+@router.get("/rate-limit/check-all")
+async def check_all_rate_limits(
+        current_user=Depends(auth_service.get_current_user),
+        service: LaboratoryService = Depends(get_laboratory_service)
+):
+    """
+    Проверка доступности всех типов запросов к LLM для текущего пользователя
+
+    Returns:
+        Статус доступности для каждого типа запроса
+    """
+    request_types = ["ideas", "improvements", "criticism", "directions"]
+    results = {}
+
+    for request_type in request_types:
+        allowed, seconds_remaining = service.rate_limiter.check_rate_limit(
+            user_id=current_user.id,
+            request_type=request_type
+        )
+
+        if allowed:
+            results[request_type] = {
+                "available": True,
+                "seconds_remaining": 0,
+                "message": "Доступен"
+            }
+        else:
+            minutes = seconds_remaining // 60
+            seconds = seconds_remaining % 60
+
+            results[request_type] = {
+                "available": False,
+                "seconds_remaining": seconds_remaining,
+                "minutes_remaining": minutes,
+                "formatted_time": f"{minutes}:{seconds:02d}",
+                "message": f"Доступен через {minutes}м {seconds}с"
+            }
+
+    return {
+        "user_id": current_user.id,
+        "request_types": results,
+        "timestamp": datetime.now().isoformat()
+    }

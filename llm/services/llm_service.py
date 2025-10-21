@@ -3,6 +3,7 @@ from typing import List, Dict, Any, Optional
 import aiohttp
 
 from datastorage.database.models import Challenge, Solution
+from .token_calculator_service import get_token_calculator
 from llm.models.lab import (
     LLMProvider, ThinkingDirection, ImprovementSuggestion,
     CriticismPoint, CollectiveIdea
@@ -15,6 +16,7 @@ class LLMService:
         self.providers = sorted(providers, key=lambda x: x.priority)
         self.providers_dict = {p.name: p for p in providers}
         self.session: Optional[aiohttp.ClientSession] = None
+        self.token_calc = get_token_calculator()
 
         self.groq_requests_count = 0
         self.groq_last_reset = None
@@ -180,7 +182,7 @@ class LLMService:
             target_solution: Solution,
             other_solutions: List[Solution],
             max_suggestions: int = 4,
-            preferred_provider: str = None
+            preferred_provider: str = None,
     ) -> List[ImprovementSuggestion]:
         """Генерация предложений по улучшению решения"""
 
@@ -282,6 +284,7 @@ class LLMService:
             - В reasoning используй ОБЕЗЛИЧЕННЫЕ формулировки: описывай подходы, а не конкретные решения
             - Не упоминай номера решений, авторов или идентификаторы в reasoning
             - Фокусируйся на методологических различиях и альтернативных подходах
+            - Критика должна быть направлена на конкретные элементы анализируемого решения
 
             Критика должна быть:
             - Конструктивной (с предложением исправления)
@@ -431,10 +434,34 @@ class LLMService:
             messages.append({"role": "system", "content": system_prompt})
         messages.append({"role": "user", "content": prompt})
 
+        token_info = self.token_calc.calculate_optimal_max_tokens(
+            provider=provider,
+            system_prompt=system_prompt,
+            user_prompt=prompt,
+            safety_margin=0.15
+        )
+
+        if not token_info["fits_in_context"]:
+            raise ValueError(
+                f"Контекст слишком большой для провайдера {provider.name}. "
+                f"Требуется: {token_info['context_tokens_with_margin']} токенов, "
+                f"доступно: {token_info['provider_max_context']} токенов. "
+                f"Попробуйте сократить количество анализируемых решений."
+            )
+
+        optimal_max_tokens = token_info["max_tokens"]
+
+        # Логирование для отладки
+        print(f"🔢 Token calculation for {provider.name}:")
+        print(f"   Context tokens: {token_info['context_tokens']}")
+        print(f"   With margin: {token_info['context_tokens_with_margin']}")
+        print(f"   Available: {token_info['available_tokens']}")
+        print(f"   Optimal max_tokens: {optimal_max_tokens}")
+
         payload = {
             "model": provider.model,
             "messages": messages,
-            "max_tokens": provider.max_tokens,
+            "max_tokens": optimal_max_tokens,
             "temperature": provider.temperature
         }
 
@@ -461,7 +488,8 @@ class LLMService:
             system_prompt: str,
             response_format: str,
     ) -> Dict[str, Any]:
-        """Вызов Hugging Face API"""
+        """Вызов Hugging Face API с динамическим расчётом токенов"""
+
         headers = {
             "Authorization": f"Bearer {provider.api_key}",
             "Content-Type": "application/json"
@@ -472,10 +500,26 @@ class LLMService:
             else f"User: {prompt}\nAssistant:"
         )
 
+        token_info = self.token_calc.calculate_optimal_max_tokens(
+            provider=provider,
+            system_prompt=system_prompt,
+            user_prompt=prompt,
+            safety_margin=0.15
+        )
+
+        if not token_info["fits_in_context"]:
+            raise ValueError(
+                f"Контекст слишком большой для провайдера {provider.name}. "
+                f"Требуется: {token_info['context_tokens_with_margin']} токенов, "
+                f"доступно: {token_info['provider_max_context']} токенов."
+            )
+
+        optimal_max_tokens = token_info["max_tokens"]
+
         payload = {
             "inputs": full_prompt,
             "parameters": {
-                "max_new_tokens": provider.max_tokens,
+                "max_new_tokens": optimal_max_tokens,
                 "temperature": provider.temperature,
                 "return_full_text": False,
                 "do_sample": True
@@ -483,7 +527,9 @@ class LLMService:
         }
 
         async with self.session.post(
-                provider.api_url, json=payload, headers=headers,
+                provider.api_url,
+                json=payload,
+                headers=headers,
                 timeout=provider.timeout
         ) as response:
             if response.status == 200:
@@ -498,7 +544,8 @@ class LLMService:
             else:
                 error_text = await response.text()
                 raise Exception(
-                    f"Hugging Face API error {response.status}: {error_text}")
+                    f"Hugging Face API error {response.status}: {error_text}"
+                )
 
     @staticmethod
     def _parse_response(content: str, response_format: str) -> Dict[str, Any]:
@@ -518,16 +565,28 @@ class LLMService:
             return {"text": content}
 
     @staticmethod
-    def _format_solutions_for_analysis(solutions: List[Solution]) -> str:
-        """Форматирование решений для анализа"""
+    def _format_solutions_for_analysis(
+            solutions: List[Solution],
+            max_chars_per_solution: int = 1000
+    ) -> str:
+        """
+        Форматирование решений для анализа с оптимизацией
+
+        Теперь с ограничением по символам
+        """
         if not solutions:
             return "Нет доступных решений для анализа."
 
         formatted = []
-        for i, solution in enumerate(solutions[:30], 1):
-            content = solution.current_content[:1000]
-            if len(solution.current_content) > 1000:
-                content += "... [обрезано]"
+        for i, solution in enumerate(solutions, 1):
+            content = solution.current_content
+
+            if len(content) > max_chars_per_solution:
+                content = content[:max_chars_per_solution]
+                last_period = content.rfind('.')
+                if last_period > max_chars_per_solution * 0.8:
+                    content = content[:last_period + 1]
+                content += " [...обрезано]"
 
             formatted.append(f"""
                 РЕШЕНИЕ #{i} (Автор: {solution.user_id[:8]}):
@@ -538,17 +597,29 @@ class LLMService:
 
     @staticmethod
     def _format_solutions_for_detailed_analysis(
-            solutions: List[Solution]
+            solutions: List[Solution],
+            max_chars_per_solution: int = 1500
     ) -> str:
-        """Детальное форматирование для комбинирования"""
+        """
+        Детальное форматирование для комбинирования с оптимизацией
+
+        Теперь с ограничением по символам на решение
+        """
         if not solutions:
             return "Нет доступных решений."
 
         formatted = []
-        for i, solution in enumerate(solutions[:20], 1):
-            content = solution.current_content[:1500]
-            if len(solution.current_content) > 1500:
-                content += "... [обрезано]"
+        for i, solution in enumerate(solutions, 1):
+            content = solution.current_content
+
+            # Обрезаем если слишком длинное
+            if len(content) > max_chars_per_solution:
+                content = content[:max_chars_per_solution]
+                # Ищем последнюю точку для красивой обрезки
+                last_period = content.rfind('.')
+                if last_period > max_chars_per_solution * 0.8:
+                    content = content[:last_period + 1]
+                content += " [...обрезано]"
 
             formatted.append(f"""
                 РЕШЕНИЕ #{i} (solution_id: {solution.id}):

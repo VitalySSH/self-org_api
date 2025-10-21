@@ -12,6 +12,8 @@ class LLMProvider(BaseModel):
     api_key: Optional[str] = None
     model: str
     max_tokens: int = 4000
+    max_context_tokens: int = 4096
+    safe_usage_ratio: float = 0.8
     temperature: float = 0.7
     timeout: int = 30
     priority: int = 1

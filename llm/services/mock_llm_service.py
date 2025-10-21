@@ -61,7 +61,8 @@ class MockLLMService(LLMService):
             self,
             target_solution: Solution,
             other_solutions: List[Solution],
-            max_ideas: int = 3
+            max_ideas: int = 3,
+            preferred_provider: str = None,
     ) -> List[CollectiveIdea]:
         """Mock идеи"""
         await asyncio.sleep(1.0)
@@ -109,7 +110,8 @@ class MockLLMService(LLMService):
             self,
             target_solution: Solution,
             other_solutions: List[Solution],
-            max_suggestions: int = 4
+            max_suggestions: int = 4,
+            preferred_provider: str = None,
     ) -> List[ImprovementSuggestion]:
         """Mock предложения по улучшению"""
         await asyncio.sleep(0.8)
@@ -137,7 +139,8 @@ class MockLLMService(LLMService):
             self,
             target_solution: Solution,
             other_solutions: List[Solution],
-            max_criticisms: int = 3
+            max_criticisms: int = 3,
+            preferred_provider: str = None,
     ) -> List[CriticismPoint]:
         """Mock критика"""
         await asyncio.sleep(0.7)
