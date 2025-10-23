@@ -72,9 +72,9 @@ class TokenCalculatorService:
         # Проверяем влезает ли вообще
         fits_in_context = context_tokens_with_margin < provider.max_context_tokens
 
-        if available_for_response < 600:
+        if available_for_response < 800:
             # Если доступно совсем мало - пробуем использовать минимум
-            optimal_max_tokens = 600
+            optimal_max_tokens = 800
         else:
             optimal_max_tokens = min(
                 provider.max_tokens,

@@ -20,7 +20,7 @@ def create_default_llm_providers() -> List[LLMProvider]:
             api_url="https://api.together.xyz/v1/chat/completions",
             model="deepseek-ai/DeepSeek-R1-Distill-Llama-70B-free",
             max_tokens=3000,
-            max_context_tokens=3192,
+            max_context_tokens=8192,
             safe_usage_ratio=0.8,
             temperature=0.7,
             timeout=90,

@@ -105,48 +105,53 @@ class LaboratoryService:
                 solution, selected_solutions, max_ideas
             )
 
-        # Создаём взаимодействие
-        interaction = await self.data_adapter.create_collective_interaction(
-            solution=solution,
-            interaction_type="combinations"
-        )
+        if ideas:
+            # Создаём взаимодействие
+            interaction = await self.data_adapter.create_collective_interaction(
+                solution=solution,
+                interaction_type="combinations"
+            )
+            interaction_id = interaction.id
 
-        # Создаём комбинации
-        combinations_data = []
-        for idea in ideas:
-            combination_data = {
-                "new_idea_description": idea.idea_description,
-                "potential_impact": idea.potential_impact,
-                "reasoning": idea.reasoning,
-                "source_elements": []
-            }
-
-            # Создаём элементы источников
-            for element in idea.combination_elements:
-                solution_id_elem = element.get("solution_id")
-                if solution_id_elem == solution.id:
-                    source_solution = solution
-                else:
-                    source_solution = await self.data_adapter.get_solution(
-                        element.get("solution_id")
-                    )
-                source_element = {
-                    "source_solution": source_solution,
-                    "element_description": element.get("element"),
-                    "element_context": element.get("reasoning"),
+            # Создаём комбинации
+            combinations_data = []
+            for idea in ideas:
+                combination_data = {
+                    "new_idea_description": idea.idea_description,
+                    "potential_impact": idea.potential_impact,
+                    "reasoning": idea.reasoning,
+                    "source_elements": []
                 }
-                combination_data["source_elements"].append(source_element)
 
-            combinations_data.append(combination_data)
+                # Создаём элементы источников
+                for element in idea.combination_elements:
+                    solution_id_elem = element.get("solution_id")
+                    if solution_id_elem == solution.id:
+                        source_solution = solution
+                    else:
+                        source_solution = await self.data_adapter.get_solution(
+                            element.get("solution_id")
+                        )
+                    source_element = {
+                        "source_solution": source_solution,
+                        "element_description": element.get("element"),
+                        "element_context": element.get("reasoning"),
+                    }
+                    combination_data["source_elements"].append(source_element)
 
-        await self.data_adapter.create_interaction_combinations(
-            interaction=interaction,
-            combinations_data=combinations_data
-        )
-        await self.data_adapter.session.commit()
+                combinations_data.append(combination_data)
+
+            await self.data_adapter.create_interaction_combinations(
+                interaction=interaction,
+                combinations_data=combinations_data
+            )
+            await self.data_adapter.session.commit()
+
+        else:
+            interaction_id = None
 
         result = {
-            "interaction_id": interaction.id,
+            "interaction_id": interaction_id,
             "ideas": ideas,
             "total_count": len(ideas),
             "solutions_analyzed": len(selected_solutions)
@@ -183,31 +188,36 @@ class LaboratoryService:
                 solution, selected_solutions, max_suggestions
             )
 
-        # Создаём взаимодействие
-        interaction = await self.data_adapter.create_collective_interaction(
-            solution=solution,
-            interaction_type="suggestions"
-        )
+        if suggestions:
+            # Создаём взаимодействие
+            interaction = await self.data_adapter.create_collective_interaction(
+                solution=solution,
+                interaction_type="suggestions"
+            )
+            interaction_id = interaction.id
 
-        # Создаём предложения
-        suggestions_data = []
-        for suggestion in suggestions:
-            suggestion_data = {
-                "element_description": suggestion.target_element,
-                "integration_advice": suggestion.integration_advice,
-                "source_solutions_count": len(suggestion.source_examples),
-                "reasoning": suggestion.reasoning
-            }
-            suggestions_data.append(suggestion_data)
+            # Создаём предложения
+            suggestions_data = []
+            for suggestion in suggestions:
+                suggestion_data = {
+                    "element_description": suggestion.target_element,
+                    "integration_advice": suggestion.integration_advice,
+                    "source_solutions_count": len(suggestion.source_examples),
+                    "reasoning": suggestion.reasoning
+                }
+                suggestions_data.append(suggestion_data)
 
-        await self.data_adapter.create_interaction_suggestions(
-            interaction=interaction,
-            suggestions_data=suggestions_data
-        )
-        await self.data_adapter.session.commit()
+            await self.data_adapter.create_interaction_suggestions(
+                interaction=interaction,
+                suggestions_data=suggestions_data
+            )
+            await self.data_adapter.session.commit()
+
+        else:
+            interaction_id = None
 
         result = {
-            "interaction_id": interaction.id,
+            "interaction_id": interaction_id,
             "suggestions": suggestions,
             "total_count": len(suggestions),
             "solutions_analyzed": len(selected_solutions)
@@ -244,31 +254,36 @@ class LaboratoryService:
                 solution, selected_solutions, max_criticisms
             )
 
-        # Создаём взаимодействие
-        interaction = await self.data_adapter.create_collective_interaction(
-            solution=solution,
-            interaction_type="criticism"
-        )
+        if criticisms:
+            # Создаём взаимодействие
+            interaction = await self.data_adapter.create_collective_interaction(
+                solution=solution,
+                interaction_type="criticism"
+            )
+            interaction_id = interaction.id
 
-        # Создаём критику
-        criticisms_data = []
-        for criticism in criticisms:
-            criticism_data = {
-                "criticism_text": criticism.criticism_text,
-                "severity": criticism.severity,
-                "suggested_fix": criticism.suggested_fix,
-                "reasoning": criticism.reasoning
-            }
-            criticisms_data.append(criticism_data)
+            # Создаём критику
+            criticisms_data = []
+            for criticism in criticisms:
+                criticism_data = {
+                    "criticism_text": criticism.criticism_text,
+                    "severity": criticism.severity,
+                    "suggested_fix": criticism.suggested_fix,
+                    "reasoning": criticism.reasoning
+                }
+                criticisms_data.append(criticism_data)
 
-        await self.data_adapter.create_interaction_criticisms(
-            interaction=interaction,
-            criticisms_data=criticisms_data
-        )
-        await self.data_adapter.session.commit()
+            await self.data_adapter.create_interaction_criticisms(
+                interaction=interaction,
+                criticisms_data=criticisms_data
+            )
+            await self.data_adapter.session.commit()
+
+        else:
+            interaction_id = None
 
         result = {
-            "interaction_id": interaction.id,
+            "interaction_id": interaction_id,
             "criticisms": criticisms,
             "total_count": len(criticisms),
             "solutions_analyzed": len(selected_solutions)
