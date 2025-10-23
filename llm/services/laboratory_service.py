@@ -308,10 +308,7 @@ class LaboratoryService:
         """
         n = len(all_solutions)
 
-        # Получаем провайдера
-        provider = self.llm_service.providers_dict.get("together")
-        if not provider:
-            provider = self.llm_service.providers[0]
+        provider = self.llm_service.providers[0]
 
         # Базовые промпты для расчёта (примерные)
         system_prompt = self._get_system_prompt_for_type(request_type)

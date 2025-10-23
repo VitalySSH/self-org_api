@@ -15,7 +15,6 @@ class LLMService:
 
     def __init__(self, providers: List[LLMProvider]):
         self.providers = sorted(providers, key=lambda x: x.priority)
-        self.providers_dict = {p.name: p for p in providers}
         self.session: Optional[aiohttp.ClientSession] = None
         self.token_calc = get_token_calculator()
         self._text_optimizer = TextOptimizer()
@@ -329,12 +328,12 @@ class LLMService:
         if not self.session:
             self.session = aiohttp.ClientSession()
 
-        # Если указан preferred_provider, пробуем его первым
-        providers = list(self.providers)
-        if preferred_provider and preferred_provider in self.providers_dict:
-            pref = self.providers_dict[preferred_provider]
-            providers = [pref] + [p for p in providers if
-                                  p.name != preferred_provider]
+        if preferred_provider:
+            providers = sorted(
+                self.providers, key=lambda x: x.name == preferred_provider
+            )
+        else:
+            providers = list(self.providers)
 
         last_error = None
 
@@ -519,7 +518,7 @@ class LLMService:
         """Форматирование принятых предложений"""
         formatted = []
         for i, item in enumerate(accepted_items):
-            text = f"ПРЕДЛОЖЕНИЕ {i + 1}: {item.get('text', 'Нет текста')}"
+            text = f"ПРЕДЛОЖЕНИЕ {i + 1}: {item.get('idea_description', 'Нет текста')}"
             if user_modifications and i < len(user_modifications):
                 text += f"\nМОДИФИКАЦИЯ ПОЛЬЗОВАТЕЛЯ: {user_modifications[i]}"
             formatted.append(text)
@@ -566,10 +565,10 @@ class LLMService:
             for idea_data in ideas_data:
                 idea = CollectiveIdea(
                     idea_description=idea_data.get("idea_description", ""),
-                    combination_elements=idea_data.get("combination_elements",
-                                                       []),
+                    combination_elements=idea_data.get("combination_elements",[]),
                     source_solutions_count=idea_data.get(
-                        "source_solutions_count", 0),
+                        "source_solutions_count", 0
+                    ),
                     potential_impact=idea_data.get("potential_impact", ""),
                     reasoning=idea_data.get("reasoning", "")
                 )
