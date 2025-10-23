@@ -72,20 +72,14 @@ class TokenCalculatorService:
         # Проверяем влезает ли вообще
         fits_in_context = context_tokens_with_margin < provider.max_context_tokens
 
-        # ИСПРАВЛЕНИЕ: Оптимальное количество токенов для ответа
-        # Используем МЕНЬШЕЕ из трёх значений:
-        # 1. max_tokens провайдера
-        # 2. Доступное место в контексте
-        # 3. Минимум 512 токенов (если доступно меньше - используем доступное)
-        if available_for_response < 512:
-            # Если доступно совсем мало - используем что есть
-            optimal_max_tokens = max(100, available_for_response)
+        if available_for_response < 600:
+            # Если доступно совсем мало - пробуем использовать минимум
+            optimal_max_tokens = 600
         else:
-            # Нормальная ситуация - ограничиваем разумным максимумом
             optimal_max_tokens = min(
                 provider.max_tokens,
                 available_for_response,
-                6000  # ДОБАВЛЕНО: разумный максимум для стабильности
+                6000
             )
 
         return {
@@ -177,7 +171,6 @@ class TokenCalculatorService:
     def optimize_solution_texts(
             solutions: List[Any],
             max_solutions: int,
-            max_chars_per_solution: int = 1500
     ) -> List[str]:
         """
         Оптимизирует тексты решений для анализа
@@ -194,15 +187,6 @@ class TokenCalculatorService:
 
         for solution in solutions[:max_solutions]:
             content = solution.current_content
-
-            if len(content) > max_chars_per_solution:
-                # Обрезаем с сохранением читаемости
-                content = content[:max_chars_per_solution]
-                # Ищем последнюю точку для красивой обрезки
-                last_period = content.rfind('.')
-                if last_period > max_chars_per_solution * 0.8:
-                    content = content[:last_period + 1]
-                content += " [...обрезано]"
 
             optimized_texts.append(content)
 

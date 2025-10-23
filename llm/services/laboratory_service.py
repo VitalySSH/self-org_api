@@ -90,7 +90,7 @@ class LaboratoryService:
             solution.challenge_id, solution.user_id
         )
 
-        if len(other_solutions) < 3:
+        if len(other_solutions) < 2:
             raise ValueError(
                 "Недостаточно решений для анализа коллективного интеллекта")
 
@@ -169,7 +169,7 @@ class LaboratoryService:
             solution.challenge_id, solution.user_id
         )
 
-        if len(other_solutions) < 3:
+        if len(other_solutions) < 2:
             raise ValueError("Недостаточно решений для генерации предложений")
 
         # Адаптивный отбор решений
@@ -230,7 +230,7 @@ class LaboratoryService:
             solution.challenge_id, solution.user_id
         )
 
-        if len(other_solutions) < 3:
+        if len(other_solutions) < 2:
             raise ValueError("Недостаточно решений для генерации критики")
 
         # Адаптивный отбор решений
